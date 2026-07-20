@@ -1,0 +1,178 @@
+# Local development stack.
+#
+# Portability: every service is configured purely through environment
+# variables, and no application service mounts a host path. Moving to ECS or
+# Kubernetes is therefore a translation of this topology — task definitions or
+# Deployments — rather than a change to any service.
+#
+#   docker compose up -d
+#   docker compose run --rm migrate
+
+name: vantage
+
+services:
+  # ------------------------------------------------------------- postgres
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vantage}
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-dev_superuser_password}
+      # Scram is the modern default; stated explicitly so a base-image change
+      # cannot silently downgrade it to md5.
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Provisions the migrator/app role split that makes RLS enforceable.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432" # loopback only — never 0.0.0.0 on a VPS
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER:-postgres} -d ${POSTGRES_DB:-vantage}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- redis
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:-dev_redis_password}
+      - --maxmemory-policy
+      - noeviction # never silently evict queued jobs
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-dev_redis_password}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- minio
+  # S3-compatible storage. Production swaps this for real S3 by clearing
+  # S3_ENDPOINT_URL — no application change.
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-vantage_dev_key}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-vantage_dev_secret}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Creates the private bucket, then exits. Public access is explicitly denied.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      S3_BUCKET: ${S3_BUCKET:-vantage-documents}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-vantage_dev_key}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-vantage_dev_secret}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $$S3_ACCESS_KEY_ID $$S3_SECRET_ACCESS_KEY &&
+      mc mb --ignore-existing local/$$S3_BUCKET &&
+      mc anonymous set none local/$$S3_BUCKET &&
+      echo 'bucket ready (private)'
+      "
+    restart: "no"
+
+  # ------------------------------------------------------------- migrate
+  # One-shot. Runs as the privileged migration role, never the app role.
+  migrate:
+    build:
+      context: ./backend
+      target: runtime
+    env_file: [.env]
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  # ------------------------------------------------------------------ api
+  api:
+    build:
+      context: ./backend
+      target: runtime
+    env_file: [.env]
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      S3_ENDPOINT_URL: http://minio:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # No published port. The API is reachable only on the compose network —
+    # Next.js proxies to it. This is the containment described in
+    # docs/ARCHITECTURE.md §2.
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  # -------------------------------------------------------------- worker
+  worker:
+    build:
+      context: ./backend
+      target: runtime
+    env_file: [.env]
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      S3_ENDPOINT_URL: http://minio:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Phase 3 enables the ARQ worker; kept scaled to zero until then so the
+    # topology is declared but nothing runs unnecessarily.
+    command: ["python", "-c", "print('worker placeholder — enabled in Phase 3')"]
+    deploy:
+      replicas: 0
+    restart: "no"
+
+  # ------------------------------------------------------------------ web
+  web:
+    build:
+      context: ./frontend
+      target: runtime
+    environment:
+      NODE_ENV: production
+      API_INTERNAL_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "3000:3000" # the only publicly exposed service
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

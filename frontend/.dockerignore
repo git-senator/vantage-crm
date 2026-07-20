@@ -1,0 +1,27 @@
+# Keep the build context small and reproducible.
+#
+# Excluding .next matters beyond speed: copying a stale local build into the
+# image produces corrupt or mismatched chunks at build time.
+
+node_modules
+.next
+out
+build
+coverage
+
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+*.log
+npm-debug.log*
+
+Dockerfile
+.dockerignore
+README.md
+.vscode
+.idea
+.DS_Store
+*.tsbuildinfo

@@ -1,0 +1,210 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege by default; jobs opt in to more if ever needed.
+permissions:
+  contents: read
+
+jobs:
+  # ------------------------------------------------------------- frontend
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # Includes boundary/no-server-data-in-client — the rule that prevents
+      # server data being imported into a client component. See docs/SECURITY.md §4.
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      # Independent of the lint rule: greps the compiled client bundle for
+      # strings that must never leave the server. A build-output assertion
+      # catches leaks the linter cannot see (e.g. transitive re-exports).
+      - name: Assert no server data in client bundle
+        run: |
+          set -euo pipefail
+          FORBIDDEN=(
+            "tanakaholdings"
+            "avery.chen@vantagerealty"
+            "disclosure packet is blocked"
+          )
+          failed=0
+          for needle in "${FORBIDDEN[@]}"; do
+            if grep -rl "$needle" .next/static/chunks/ 2>/dev/null; then
+              echo "::error::Server-only data '$needle' found in the client bundle"
+              failed=1
+            fi
+          done
+          [ "$failed" -eq 0 ] && echo "client bundle clean"
+
+  # -------------------------------------------------------------- backend
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: vantage_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      # Test-only value. Long enough to satisfy the strength validator.
+      JWT_SECRET: ci_test_secret_not_used_anywhere_real_0123456789
+      ENVIRONMENT: test
+      POSTGRES_HOST: localhost
+      POSTGRES_DB: vantage_test
+      REDIS_HOST: localhost
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Typecheck (mypy)
+        run: mypy app
+
+      - name: Test
+        run: pytest -q --cov=app --cov-report=term-missing
+
+  # --------------------------------------------------------------- images
+  # Proves the Dockerfiles build. Does not push — deployment is a later phase.
+  images:
+    name: Docker images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ------------------------------------------------------------- security
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks needs history to scan every commit
+
+      # --- secrets ---
+      - name: Secret scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- python deps ---
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # --skip-editable excludes our own package, which is not on PyPI.
+      # `--strict` is deliberately NOT used: it treats that skip as an error.
+      # Without it, pip-audit still exits non-zero on a real vulnerability,
+      # which is the behaviour we actually want.
+      - name: Audit Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip pip-audit
+          pip install -e .
+          pip-audit --skip-editable
+
+      # --- node deps ---
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Fails on high/critical only. A known moderate advisory reaches us
+      # transitively through Next.js (postcss GHSA-qx2v-qp2m-jg93); it is
+      # build-tooling, not runtime-reachable, and `npm audit fix --force` would
+      # downgrade Next.js to v9. Tracked, not auto-fixed. See docs/SECURITY.md A06.
+      - name: Audit Node dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --audit-level=high
+
+      # --- env hygiene ---
+      - name: Assert no .env is committed
+        run: |
+          set -euo pipefail
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::error::.env is tracked in git. Secrets must never be committed."
+            exit 1
+          fi
+          echo "no .env tracked"

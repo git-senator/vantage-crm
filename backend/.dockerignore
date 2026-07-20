@@ -1,0 +1,19 @@
+# Keep the build context small and reproducible.
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.mypy_cache
+htmlcov
+.coverage*
+
+.env
+.env.*
+!.env.example
+
+.git
+Dockerfile
+.dockerignore
+tests
