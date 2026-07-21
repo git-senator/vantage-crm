@@ -12,8 +12,10 @@ from app.api.v1 import (
     audit,
     auth,
     clients,
+    deals,
     leads,
     organizations,
+    pipelines,
     properties,
     roles,
 )
@@ -31,6 +33,8 @@ api_router.include_router(clients.router, prefix="/clients", tags=["clients"])
 api_router.include_router(
     properties.router, prefix="/properties", tags=["properties"]
 )
+api_router.include_router(pipelines.router, prefix="/pipelines", tags=["pipelines"])
+api_router.include_router(deals.router, prefix="/deals", tags=["deals"])
 
 
-# Phase 2:    deals
+# Phase 2:    activities, tasks

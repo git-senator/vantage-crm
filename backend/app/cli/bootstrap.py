@@ -31,6 +31,7 @@ from app.core.security import hash_password
 from app.db.session import session_scope, set_tenant_context
 from app.models.organization import Organization
 from app.models.user import User
+from app.services.pipeline import build_default_pipeline
 from app.services.rbac import RbacService
 
 logger = get_logger(__name__)
@@ -78,6 +79,14 @@ async def bootstrap(
             )
             session.add(organization)
             await session.flush()
+
+            # A workspace with no pipeline can view the Deals page but cannot
+            # create a deal — there is nowhere to put one. Seeded here so a
+            # freshly bootstrapped workspace is immediately usable, using the
+            # same builder the backfill migration uses so the two cannot drift.
+            session.add(build_default_pipeline(organization.id))
+            await session.flush()
+
             print(f"Created workspace '{org_name}' ({organization_slug}).")
 
         duplicate = (

@@ -15,6 +15,9 @@ Two properties matter more than convenience:
 
 from __future__ import annotations
 
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
+from enum import Enum
 from typing import Any, cast
 from uuid import UUID
 
@@ -38,6 +41,41 @@ NEVER_DIFF_FIELDS: frozenset[str] = frozenset(
 )
 
 
+def json_safe(value: Any) -> Any:
+    """Coerce a value into something the JSONB column can store.
+
+    Audit metadata is assembled from ORM attributes, which are Python objects
+    the JSON encoder has never heard of — `Decimal`, `UUID`, `date`. Passing
+    one straight through raises `TypeError: Object of type Decimal is not JSON
+    serializable` *during flush*, which is the worst possible moment: see
+    `AuditService.record` for why that used to take the whole transaction with
+    it.
+
+    `Decimal` becomes a string, never a float. A price or a commission that
+    round-trips through a float has already lost the precision NUMERIC exists
+    to protect, and an audit log that misreports money is worse than none.
+    """
+    if value is None or isinstance(value, str | bool | int):
+        return value
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, float):
+        return value
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, datetime | date | time):
+        return value.isoformat()
+    if isinstance(value, timedelta):
+        return value.total_seconds()
+    if isinstance(value, Enum):
+        return json_safe(value.value)
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, list | tuple | set | frozenset):
+        return [json_safe(item) for item in value]
+    return str(value)
+
+
 def build_diff(
     before: dict[str, Any], after: dict[str, Any]
 ) -> dict[str, dict[str, Any]]:
@@ -45,6 +83,10 @@ def build_diff(
 
     Unchanged fields are omitted — an audit entry should answer "what changed",
     not restate the whole record.
+
+    Comparison happens on the raw values, coercion afterwards: `Decimal("1.10")`
+    and `Decimal("1.1")` are equal as Decimals but differ as strings, so
+    coercing first would invent changes that never happened.
     """
     diff: dict[str, dict[str, Any]] = {}
     for key in set(before) | set(after):
@@ -52,7 +94,7 @@ def build_diff(
             continue
         old, new = before.get(key), after.get(key)
         if old != new:
-            diff[key] = {"old": old, "new": new}
+            diff[key] = {"old": json_safe(old), "new": json_safe(new)}
     return cast("dict[str, dict[str, Any]]", redact(diff))
 
 
@@ -86,15 +128,27 @@ class AuditService:
             action=action,
             entity_type=entity_type,
             entity_id=entity_id,
-            metadata_=redact(metadata or {}),
+            metadata_=json_safe(redact(metadata or {})),
             ip_address=ip_address,
             user_agent=user_agent[:400] if user_agent else None,
             request_id=request_id_var.get(),
         )
 
+        # SAVEPOINT, not a bare try/except.
+        #
+        # A failed flush marks the *whole* session as needing rollback, so
+        # catching the exception here used to leave the caller holding a
+        # poisoned transaction: every subsequent statement raised
+        # PendingRollbackError and the request died anyway — with a confusing
+        # error, one operation after the real one. The promise in this module's
+        # docstring was therefore not true.
+        #
+        # `begin_nested` issues a SAVEPOINT, so a failure rolls back only the
+        # audit insert and the caller's transaction survives intact.
         try:
-            self.session.add(entry)
-            await self.session.flush()
+            async with self.session.begin_nested():
+                self.session.add(entry)
+                await self.session.flush()
         except Exception:
             # Never let an audit failure break the request it describes.
             logger.exception(

@@ -42,6 +42,10 @@ class AuditAction:
     #: A lead became a client. Distinct from record.updated because it is the
     #: funnel event Phase 4 conversion reporting counts.
     RECORD_CONVERTED: Final = "record.converted"
+    #: A deal moved between pipeline stages. Distinct from record.updated for
+    #: the same reason: it is the event velocity and cycle-time analytics
+    #: count, and burying it in a generic field diff makes it unqueryable.
+    RECORD_STAGE_CHANGED: Final = "record.stage_changed"
 
 
 #: Actions that warrant alerting rather than just recording.

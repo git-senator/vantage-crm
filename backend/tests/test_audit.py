@@ -15,7 +15,12 @@ from app.core.audit_actions import HIGH_SEVERITY_ACTIONS, AuditAction
 from app.models.audit import AuditLog
 from app.models.organization import Organization
 from app.models.user import User
-from app.services.audit import NEVER_DIFF_FIELDS, AuditService, build_diff
+from app.services.audit import (
+    NEVER_DIFF_FIELDS,
+    AuditService,
+    build_diff,
+    json_safe,
+)
 from app.services.auth import AuthService, RequestContext
 from tests.conftest import VALID_PASSWORD
 
@@ -23,6 +28,70 @@ CONTEXT = RequestContext(ip_address="203.0.113.10", user_agent="pytest")
 
 
 # ------------------------------------------------------------- unit tests
+
+
+class TestJsonSafety:
+    """Regression: audit metadata is assembled from ORM attributes.
+
+    Those are Python objects the JSON encoder has never heard of. A raw
+    `Decimal` reaching the JSONB column raises during *flush*, which used to
+    poison the caller's transaction and fail the request one operation after
+    the real one. Every money-bearing entity audits a Decimal field, so this
+    was reachable from leads (budget), clients (lifetime value), properties
+    (price) and deals (value and commission).
+    """
+
+    def test_decimal_becomes_a_string_not_a_float(self) -> None:
+        # A float has already lost the precision NUMERIC exists to protect,
+        # and an audit log that misreports money is worse than none.
+        from decimal import Decimal
+
+        assert json_safe(Decimal("47375.00")) == "47375.00"
+        assert isinstance(json_safe(Decimal("0.1")), str)
+
+    def test_coerces_the_types_orm_columns_actually_hold(self) -> None:
+        import uuid
+        from datetime import UTC, date, datetime, timedelta
+
+        identifier = uuid.uuid4()
+        assert json_safe(identifier) == str(identifier)
+        assert json_safe(date(2026, 7, 21)) == "2026-07-21"
+        assert json_safe(datetime(2026, 7, 21, tzinfo=UTC)).startswith("2026-07-21")
+        assert json_safe(timedelta(minutes=2)) == 120.0
+
+    def test_recurses_through_containers(self) -> None:
+        from decimal import Decimal
+
+        assert json_safe({"a": [Decimal("1.5")]}) == {"a": ["1.5"]}
+        assert json_safe(("x", Decimal("2"))) == ["x", "2"]
+
+    def test_passes_json_native_values_through(self) -> None:
+        assert json_safe(None) is None
+        assert json_safe(True) is True
+        assert json_safe(7) == 7
+        assert json_safe("text") == "text"
+
+    def test_a_money_diff_is_serialisable(self) -> None:
+        import json
+        from decimal import Decimal
+
+        diff = build_diff(
+            {"value": Decimal("1895000.00")}, {"value": Decimal("2000000.00")}
+        )
+        # The assertion that matters: this used to raise at flush time.
+        json.dumps(diff)
+        assert diff["value"] == {"old": "1895000.00", "new": "2000000.00"}
+
+    def test_equal_decimals_of_different_scale_are_not_a_change(self) -> None:
+        """Comparison happens before coercion for exactly this reason.
+
+        `Decimal("1.10") == Decimal("1.1")` is True, but "1.10" != "1.1" — so
+        coercing first would invent a change that never happened and fill the
+        audit log with noise.
+        """
+        from decimal import Decimal
+
+        assert build_diff({"v": Decimal("1.10")}, {"v": Decimal("1.1")}) == {}
 
 
 class TestDiff:

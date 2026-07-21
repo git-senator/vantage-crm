@@ -324,6 +324,141 @@ export interface PropertyFilters {
   cursor?: string;
 }
 
+// ------------------------------------------------- pipelines and deals
+
+export interface PipelineStage {
+  id: string;
+  /** Machine name. Analytics group by this; the UI labels from `name`. */
+  key: string;
+  name: string;
+  position: number;
+  default_probability: number;
+  is_won: boolean;
+  is_lost: boolean;
+  is_terminal: boolean;
+}
+
+export interface Pipeline {
+  id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  stages: PipelineStage[];
+  created_at: string;
+  updated_at: string;
+}
+
+export type DealPriority = "low" | "medium" | "high" | "urgent";
+/** Derived server-side from the stage. Never sent on a write. */
+export type DealStatus = "open" | "won" | "lost";
+
+export interface DealStageSummary {
+  id: string;
+  key: string;
+  name: string;
+  position: number;
+  is_won: boolean;
+  is_lost: boolean;
+}
+
+export interface Deal {
+  id: string;
+  title: string;
+  status: DealStatus;
+  /** NUMERIC arrives as a string so precision survives JSON. */
+  value: string | null;
+  currency: string;
+  commission_amount: string | null;
+  /** 0.0250 is 2.5%. */
+  commission_rate: string | null;
+  /** value x probability. Null when the deal is unpriced. */
+  weighted_value: string | null;
+  probability: number;
+  priority: DealPriority;
+  expected_close_date: string | null;
+  actual_close_date: string | null;
+  lost_reason: string | null;
+  custom_fields: Record<string, unknown>;
+
+  pipeline_id: string;
+  stage: DealStageSummary;
+  client: { id: string; display_name: string };
+  listing: { id: string; title: string; full_address: string } | null;
+  owner: OwnerSummary | null;
+
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DealInput {
+  title: string;
+  client_id: string;
+  property_id?: string | null;
+  value?: string | null;
+  currency?: string;
+  commission_amount?: string | null;
+  commission_rate?: string | null;
+  priority?: DealPriority;
+  expected_close_date?: string | null;
+  /** Create only. Omit both to land in the default pipeline's first stage. */
+  pipeline_id?: string | null;
+  stage_id?: string | null;
+  probability?: number | null;
+  owner_id?: string | null;
+}
+
+export interface DealFilters {
+  search?: string;
+  status?: DealStatus;
+  pipeline_id?: string;
+  stage_id?: string;
+  owner_id?: string;
+  client_id?: string;
+  property_id?: string;
+  priority?: DealPriority;
+  min_value?: string;
+  max_value?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+/**
+ * Moving a deal is a domain action, not a field edit — it writes history,
+ * resets probability and sets a close date. Hence a dedicated payload rather
+ * than a `stage_id` on DealInput.
+ */
+export interface DealStageTransitionInput {
+  to_stage_id: string;
+  note?: string | null;
+  /** Required by the server when the target stage is a losing one. */
+  lost_reason?: string | null;
+  probability?: number | null;
+}
+
+export interface DealStageHistoryEntry {
+  id: string;
+  from_stage: DealStageSummary | null;
+  to_stage: DealStageSummary;
+  changed_by: OwnerSummary | null;
+  changed_at: string;
+  /** Seconds spent in `from_stage`. Null on the creation row. */
+  duration_seconds: number | null;
+  note: string | null;
+}
+
+export interface DealBoardColumn {
+  stage: DealStageSummary;
+  deals: Deal[];
+  total_value: string;
+  count: number;
+}
+
+export interface DealBoard {
+  pipeline_id: string;
+  pipeline_name: string;
+  columns: DealBoardColumn[];
+}
+
 export interface PageMeta {
   next_cursor: string | null;
   has_more: boolean;
