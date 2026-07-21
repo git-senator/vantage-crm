@@ -21,7 +21,11 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
-from app.core.middleware import CorrelationIdMiddleware, SecurityHeadersMiddleware
+from app.core.middleware import (
+    CorrelationIdMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from app.core.redis import close_redis
 from app.db.session import dispose_engine
 
@@ -64,6 +68,11 @@ def create_app() -> FastAPI:
     # is registered last and therefore runs first — every downstream log line,
     # including error handlers, carries the request ID.
     app.add_middleware(SecurityHeadersMiddleware)
+
+    # Registered before the correlation middleware so it runs *after* it —
+    # Starlette executes middleware in reverse registration order. A rejected
+    # request therefore still gets a request id in its logs.
+    app.add_middleware(RateLimitMiddleware)
 
     if settings.CORS_ORIGINS:
         app.add_middleware(

@@ -64,6 +64,22 @@ class RateLimitedError(AppError):
     problem_type = "rate-limited"
     title = "Too many requests"
 
+    def __init__(
+        self,
+        detail: str | None = None,
+        *,
+        retry_after: int = 60,
+        limit: int | None = None,
+    ) -> None:
+        # Surfaced as both a Retry-After header and a body field: clients
+        # honour one or the other, rarely both.
+        super().__init__(detail, retry_after=retry_after)
+        self.retry_after = retry_after
+        # Which limit rejected. Carried on the exception because the endpoint's
+        # Response object is discarded once it raises, so headers set there
+        # never reach the client.
+        self.limit = limit
+
 
 def _problem(
     *,
@@ -97,7 +113,7 @@ def register_exception_handlers(app: FastAPI) -> None:
                 "authorization_failure",
                 extra={"path": request.url.path, "problem": exc.problem_type},
             )
-        return _problem(
+        response = _problem(
             status_code=exc.status_code,
             problem_type=exc.problem_type,
             title=exc.title,
@@ -105,6 +121,14 @@ def register_exception_handlers(app: FastAPI) -> None:
             instance=request.url.path,
             **exc.extra,
         )
+        if isinstance(exc, RateLimitedError):
+            response.headers["Retry-After"] = str(exc.retry_after)
+            if exc.limit is not None:
+                # Overwrite, not setdefault: this is the limit that actually
+                # rejected, and it must win over the broad middleware counter.
+                response.headers["X-RateLimit-Limit"] = str(exc.limit)
+                response.headers["X-RateLimit-Remaining"] = "0"
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(

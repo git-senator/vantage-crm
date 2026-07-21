@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.cookies import clear_session_cookies, set_session_cookies
@@ -18,8 +18,15 @@ from app.api.v1.dependencies import (
     get_db,
     verify_csrf,
 )
+from app.api.v1.rate_limit_deps import (
+    clear_login_limits,
+    enforce,
+    enforce_login,
+)
+from app.core import rate_limit
 from app.core.config import Settings
 from app.core.exceptions import AuthenticationError
+from app.core.security import hash_refresh_token
 from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
@@ -88,6 +95,7 @@ def _session_response(
 @router.post("/login", response_model=SessionResponse)
 async def login(
     payload: LoginRequest,
+    request: Request,
     response: Response,
     settings: SettingsDep,
     context: RequestContextDep,
@@ -98,8 +106,16 @@ async def login(
     Tokens are returned as httpOnly cookies, never in the response body — a
     token readable by JavaScript is exfiltrable by any XSS.
     """
+    # Before any database work: an attacker must not be able to make us do
+    # Argon2 verification thousands of times.
+    await enforce_login(request, response, payload.email)
+
     service = AuthService(session, settings)
     issued = await service.authenticate(payload.email, payload.password, context)
+
+    # A user who mistyped twice then succeeded should not stay throttled.
+    await clear_login_limits(request, payload.email)
+
     authorization = await RbacService(session).resolve(
         issued.user.id, issued.user.organization_id, use_cache=False
     )
@@ -121,6 +137,14 @@ async def refresh(
     """
     if not refresh_token:
         raise AuthenticationError("No session to refresh.")
+
+    # Keyed on the token, not the user: a compromised token being hammered
+    # must not throttle the legitimate holder's other sessions.
+    await enforce(
+        rate_limit.REFRESH_PER_TOKEN,
+        hash_refresh_token(refresh_token),
+        response=response,
+    )
 
     service = AuthService(session, settings)
     issued = await service.refresh(refresh_token, context)
@@ -172,6 +196,8 @@ async def change_password(
     Revoking all sessions is deliberate: if the change was prompted by a
     suspected compromise, leaving other sessions alive defeats the purpose.
     """
+    await enforce(rate_limit.PASSWORD_CHANGE, str(user.id), response=response)
+
     service = AuthService(session, settings)
     await service.change_password(user, payload.current_password, payload.new_password)
     clear_session_cookies(response, settings)
