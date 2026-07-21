@@ -24,6 +24,11 @@ from sqlalchemy.pool import NullPool
 from app.core.config import Settings
 from app.core.security import hash_password
 from app.db.base import Base
+from app.db.sql_objects import (
+    bootstrap_function_statements,
+    drop_tenant_policy_statements,
+    ownership_transfer_statement,
+)
 from app.models.organization import Organization
 from app.models.user import User
 
@@ -104,6 +109,13 @@ async def db(engine) -> AsyncIterator[AsyncSession]:  # type: ignore[no-untyped-
             await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "pgcrypto"'))
             await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
+
+            # ORM metadata carries no functions. These come from the same
+            # module the migration uses, so the two cannot drift.
+            for statement in bootstrap_function_statements():
+                await conn.execute(text(statement))
+            await conn.execute(text(ownership_transfer_statement()))
+
             _SCHEMA_READY = True
         else:
             tables = ", ".join(
@@ -113,6 +125,17 @@ async def db(engine) -> AsyncIterator[AsyncSession]:  # type: ignore[no-untyped-
                 await conn.execute(
                     text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE")
                 )
+
+        # Reset row-level security to off between tests.
+        #
+        # TRUNCATE clears rows but not policies, and policies are session-
+        # independent DDL. Without this, the first test that enables RLS leaves
+        # it on for every subsequent test, and ordinary fixtures can no longer
+        # insert (no tenant context is bound). Tests that need RLS opt in
+        # explicitly — see tests/test_tenant_isolation.py.
+        for table in Base.metadata.sorted_tables:
+            for statement in drop_tenant_policy_statements(table.name):
+                await conn.execute(text(statement))
 
     factory = async_sessionmaker(bind=engine, expire_on_commit=False, autoflush=False)
     async with factory() as session:

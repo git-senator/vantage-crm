@@ -35,6 +35,7 @@ from app.core.security import (
     verify_password,
     verify_password_dummy,
 )
+from app.db.session import set_tenant_context
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.repositories.refresh_token import RefreshTokenRepository
@@ -81,13 +82,30 @@ class AuthService:
 
         Every failure raises the same error with the same message.
         """
-        user = await self.users.get_by_email_any_org(email)
+        # Two-step, because RLS denies reads until a tenant is bound and the
+        # tenant is only known after the account is found. Step 1 resolves the
+        # ids through a narrow SECURITY DEFINER function; step 2 binds the
+        # tenant context and loads the row under RLS.
+        identity = await self.users.lookup_login_identity(email)
 
-        if user is None:
-            # Burn comparable CPU so a missing account is not measurably
-            # faster than a wrong password.
+        if identity is None:
             verify_password_dummy()
             logger.warning("login_failed", extra={"reason": "unknown_account"})
+            raise AuthenticationError(GENERIC_AUTH_ERROR)
+
+        user_id, organization_id = identity
+        await set_tenant_context(self.session, organization_id, user_id)
+        user = await self.users.get_with_organization(user_id, organization_id)
+
+        if user is None:
+            # Identity resolved but the row is not readable under RLS. Should
+            # be unreachable; if it happens, tenant context and the identity
+            # function disagree and that is a bug worth surfacing.
+            verify_password_dummy()
+            logger.error(
+                "login_failed",
+                extra={"reason": "tenant_context_mismatch", "user_id": str(user_id)},
+            )
             raise AuthenticationError(GENERIC_AUTH_ERROR)
 
         if UserRepository.is_locked(user):
@@ -146,8 +164,16 @@ class AuthService:
         presented one.
         """
         token_hash = hash_refresh_token(raw_token)
-        stored = await self.tokens.get_by_hash(token_hash)
 
+        # RLS denies reads on refresh_tokens until a tenant is bound, and the
+        # tenant is only discoverable from the token itself.
+        organization_id = await self.tokens.lookup_organization(token_hash)
+        if organization_id is None:
+            logger.warning("refresh_failed", extra={"reason": "unknown_token"})
+            raise AuthenticationError("Session is no longer valid.")
+        await set_tenant_context(self.session, organization_id)
+
+        stored = await self.tokens.get_by_hash(token_hash)
         if stored is None:
             logger.warning("refresh_failed", extra={"reason": "unknown_token"})
             raise AuthenticationError("Session is no longer valid.")
@@ -219,7 +245,13 @@ class AuthService:
         if not raw_token:
             return
 
-        stored = await self.tokens.get_by_hash(hash_refresh_token(raw_token))
+        token_hash = hash_refresh_token(raw_token)
+        organization_id = await self.tokens.lookup_organization(token_hash)
+        if organization_id is None:
+            return
+        await set_tenant_context(self.session, organization_id)
+
+        stored = await self.tokens.get_by_hash(token_hash)
         if stored is None:
             return
 

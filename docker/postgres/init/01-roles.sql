@@ -21,7 +21,25 @@ ALTER ROLE vantage_migrator SET search_path = public;
 CREATE ROLE vantage_app WITH LOGIN PASSWORD 'dev_app_password' NOBYPASSRLS;
 ALTER ROLE vantage_app SET search_path = public;
 
+-- ------------------------------------------------------- auth bootstrap
+-- Owns ONLY the SECURITY DEFINER lookup functions used to resolve a tenant
+-- before RLS can be applied (login, refresh). See migration c3d5e7f9a1b2.
+--
+-- Why it must exist: `FORCE ROW LEVEL SECURITY` subjects even the table owner
+-- to policies, so a SECURITY DEFINER function owned by vantage_migrator would
+-- return zero rows and every login would fail. BYPASSRLS on a role that owns
+-- nothing but two id-returning functions is the narrowest way to grant that
+-- exemption.
+--
+-- NOLOGIN: nobody can connect as this role. Its privileges are reachable only
+-- by executing the specific functions it owns.
+CREATE ROLE vantage_auth WITH NOLOGIN BYPASSRLS;
+
 GRANT CONNECT ON DATABASE vantage TO vantage_migrator, vantage_app;
+-- CREATE is required to OWN a function in the schema, not just to call it.
+GRANT USAGE, CREATE ON SCHEMA public TO vantage_auth;
+-- The migrator must be able to hand ownership of the functions over.
+GRANT vantage_auth TO vantage_migrator;
 GRANT USAGE ON SCHEMA public TO vantage_app;
 GRANT CREATE, USAGE ON SCHEMA public TO vantage_migrator;
 

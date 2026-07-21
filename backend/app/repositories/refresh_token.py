@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import CursorResult, select, update
+from sqlalchemy import CursorResult, select, text, update
 
 from app.models.refresh_token import RefreshToken
 from app.repositories.base import BaseRepository
@@ -14,6 +14,20 @@ from app.repositories.base import BaseRepository
 
 class RefreshTokenRepository(BaseRepository[RefreshToken]):
     model = RefreshToken
+
+    async def lookup_organization(self, token_hash: str) -> UUID | None:
+        """Resolve a token's tenant before RLS permits any read.
+
+        Refresh and logout are handed an opaque token and must bind tenant
+        context before querying — the same bootstrap problem as login. Calls a
+        SECURITY DEFINER function that returns only the organization id; every
+        subsequent read happens under RLS. See migration c3d5e7f9a1b2.
+        """
+        result = await self.session.execute(
+            text("SELECT lookup_token_organization(:token_hash)"),
+            {"token_hash": token_hash},
+        )
+        return result.scalar_one_or_none()
 
     async def get_by_hash(self, token_hash: str) -> RefreshToken | None:
         """Look up by hash. The raw token is never stored or queried."""

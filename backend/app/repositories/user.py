@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 
 from app.models.user import User
@@ -30,24 +30,28 @@ class UserRepository(BaseRepository[User]):
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def get_by_email_any_org(self, email: str) -> User | None:
-        """Resolve a login when the tenant is not yet known.
+    async def lookup_login_identity(self, email: str) -> tuple[UUID, UUID] | None:
+        """Resolve `(user_id, organization_id)` for a login attempt.
 
-        Single-tenant MVP: the browser cannot name an organization at login, so
-        the email alone identifies the account.
+        Authentication has to find the account before the tenant is known, but
+        RLS denies reads without tenant context — a genuine chicken-and-egg.
 
-        When multi-tenancy is activated this must be replaced by a
-        tenant-qualified lookup (subdomain, or an explicit workspace choice).
-        Left unscoped it would let one tenant's login form reach another
-        tenant's account row. Tracked in docs/ROADMAP.md.
+        This calls a SECURITY DEFINER function that returns *only* the two ids:
+        never the password hash, never profile data. The caller then binds the
+        tenant context and loads the full row under RLS like any other query.
+
+        A narrow, auditable escape hatch is preferable to exempting `users`
+        from row-level security. See migration c3d5e7f9a1b2.
         """
-        query = (
-            self._base_query()
-            .where(User.email == email)
-            .options(selectinload(User.organization))
+        result = await self.session.execute(
+            text(
+                "SELECT user_id, organization_id "
+                "FROM lookup_login_identity(CAST(:email AS citext))"
+            ),
+            {"email": email},
         )
-        result = await self.session.execute(query)
-        return result.scalars().first()
+        row = result.first()
+        return (row[0], row[1]) if row else None
 
     async def get_with_organization(self, user_id: UUID, organization_id: UUID) -> User | None:
         query = (

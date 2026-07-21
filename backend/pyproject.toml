@@ -73,6 +73,14 @@ ignore = [
 "tests/**" = ["S105", "S106"]           # hardcoded test credentials are fine
 "alembic/versions/*" = ["E501", "N999"]  # generated migration files
 
+# This module is nothing but DDL constants.
+#   S105 — flags `TOKEN_LOOKUP_FUNCTION` as a hardcoded password because of the
+#          name; it holds a CREATE FUNCTION statement.
+#   S608 — flags f-strings in SQL; every interpolated value is a module-level
+#          role-name constant, never user input. Identifiers cannot be bound as
+#          parameters in PostgreSQL DDL, so interpolation is the only option.
+"app/db/sql_objects.py" = ["S105", "S608"]
+
 [tool.ruff.lint.isort]
 # Without this, `app` is treated as a third-party package and import blocks get
 # reordered into a misleading grouping.
