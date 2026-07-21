@@ -36,7 +36,7 @@ from app.services.rbac import RbacService
 router = APIRouter()
 
 
-@router.get("/", response_model=list[RoleRead])
+@router.get("", response_model=list[RoleRead])
 async def list_roles(
     organization_id: OrganizationId,
     session: TenantSessionDep,

@@ -25,7 +25,7 @@ from app.services.audit import AuditService
 router = APIRouter()
 
 
-@router.get("/", response_model=list[AuditLogRead])
+@router.get("", response_model=list[AuditLogRead])
 async def list_audit_entries(
     organization_id: OrganizationId,
     session: TenantSessionDep,

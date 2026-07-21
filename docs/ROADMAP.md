@@ -34,9 +34,19 @@ of a proven pattern rather than exploration.
 
 ---
 
-## Phase 1 — Auth, RBAC, and the first vertical slice
+## Phase 1 — Auth, RBAC, and the first vertical slice ✅ COMPLETE
 
 *The most important phase. Every later phase copies this pattern.*
+
+Delivered across five commits: 1.1 authentication, 1.2 multi-tenancy,
+1.3 RBAC, 1.4 audit logging, 1.5 frontend integration.
+
+**Deviation from the original sequencing:** `organizations` was created in the
+1.1 migration rather than 1.2, because `users.organization_id` is NOT NULL and
+needs its FK target to exist. Creating users without a tenant and retrofitting
+it later is precisely the migration churn decision D1 exists to avoid. Phase
+1.2 therefore delivered the tenancy *machinery* — RLS policies, tenant context
+resolution, isolation tests — rather than the table.
 
 **Deliverables**
 
@@ -205,14 +215,14 @@ making before the first table exists rather than after the thirtieth.
 
 | ID | Risk | Severity | Mitigation | Phase |
 |---|---|---|---|---|
-| R1 | Static→dynamic rendering change touches all 14 routes | Medium | Proven on one route in Phase 1 before the bulk port | 1–2 |
-| R2 | Multi-tenancy retrofit | **High** | `organization_id` + RLS from the first migration | 1 |
-| R3 | Client-boundary leak recurs during data port | **High** | Lint rule + `server-only`, landed in Phase 0 *before* porting | 0 |
+| R1 | Static→dynamic rendering change touches all 14 routes | ~~Medium~~ **CLOSED** | All 14 routes now render dynamically; only the public login page is prerendered | 1 ✅ |
+| R2 | Multi-tenancy retrofit | ~~High~~ **CLOSED** | `organization_id` on every table from the first migration; RLS FORCEd and proven by 10 cross-tenant isolation tests | 1 ✅ |
+| R3 | Client-boundary leak recurs during data port | **High — MITIGATED** | Lint rule + `server-only` caught a real violation during Phase 1.5 and forced a correct module split. Still live for the Phase 2 data port. | 0 ✅ |
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
 | R6 | 18 modules import `mock-data` | Medium | Typed data layer; port resource by resource | 1–2 |
-| R7 | Refresh rotation logs users out under concurrency | **High** | Single refresh point + Redis mutex; explicit concurrency test | 1 |
-| R8 | `SET` instead of `SET LOCAL` leaks tenant context across pooled connections | **Critical** | `SET LOCAL` only; cross-tenant test with scoping disabled | 1 |
+| R7 | Refresh rotation logs users out under concurrency | **High — OPEN** | Rotation and reuse detection shipped; the single-flight Redis mutex is NOT yet implemented. Concurrent refreshes can still race. Must land before production. | 2 |
+| R8 | `SET` instead of `SET LOCAL` leaks tenant context across pooled connections | ~~Critical~~ **CLOSED** | `set_config(..., true)` throughout; proven by `TestTransactionScopedContext` — context does not survive the transaction on a reused connection | 1 ✅ |
 | R9 | RAG retrieval bypasses RBAC | **Critical** | Shared scope resolver; pre-filter before similarity search; leakage test | 5 |
 | R10 | AI cost runaway | Medium | Per-org quotas, hard ceilings, per-job cost recording | 5 |
 

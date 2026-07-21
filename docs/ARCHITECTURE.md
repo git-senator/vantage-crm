@@ -1,6 +1,8 @@
 # Vantage CRM — Target Architecture
 
-Status: **proposed, awaiting approval**
+Status: **Phase 0 and Phase 1 implemented.** See
+[AUTHENTICATION.md](./AUTHENTICATION.md) and [PERMISSIONS.md](./PERMISSIONS.md)
+for what shipped; this document remains the design of record.
 Supersedes: nothing (first architecture document)
 Related: [DATABASE.md](./DATABASE.md) · [SECURITY.md](./SECURITY.md) · [ROADMAP.md](./ROADMAP.md)
 

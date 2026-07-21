@@ -3,11 +3,11 @@
 A private, single-tenant real estate CRM built on foundations that scale to
 multi-tenant SaaS and an AI growth layer.
 
-**Current state: Phase 0 complete.** Production foundations are in place —
-monorepo, FastAPI backend skeleton, PostgreSQL with role separation for RLS,
-Redis, S3-compatible storage, CI, and the security controls that must exist
-before real data does. The frontend still renders fixture data; Phase 1
-replaces that with the real API.
+**Current state: Phase 1 complete.** Authentication, multi-tenancy with
+row-level security, RBAC, and audit logging are implemented and the frontend is
+wired to the real API. Signing in, session rotation and workspace isolation all
+work end-to-end. CRM entity data (leads, clients, properties, deals) is still
+fixture-backed — Phase 2 replaces it.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 
@@ -19,6 +19,8 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 | [DATABASE.md](docs/DATABASE.md) | Schema, tenancy/RLS, audit log, search, AI tables |
 | [SECURITY.md](docs/SECURITY.md) | RBAC, auth flow, OWASP mapping, AI-layer risks |
 | [ROADMAP.md](docs/ROADMAP.md) | Phases 0–5, exit criteria, risk register |
+| [AUTHENTICATION.md](docs/AUTHENTICATION.md) | Token design, login, rotation, RLS bootstrap |
+| [PERMISSIONS.md](docs/PERMISSIONS.md) | Permission registry, roles, scope resolution |
 
 ## Stack
 
@@ -40,6 +42,10 @@ cp .env.example .env
 
 docker compose up -d
 docker compose run --rm migrate     # apply database migrations
+
+# Create the first workspace and its owner. A fresh database has roles and
+# permissions but no organization and no user, so nobody can sign in yet.
+docker compose exec api python -m app.cli.bootstrap   --name "Your Brokerage" --email you@example.com
 ```
 
 - Web: <http://localhost:3000> → redirects to `/login`
@@ -117,7 +123,7 @@ connects as `vantage_app`, which owns nothing and has no `BYPASSRLS`. That
 separation is what makes row-level security actually enforce tenant isolation —
 table owners bypass RLS. Do not collapse the two roles.
 
-## Two invariants worth knowing before you change anything
+## Three invariants worth knowing before you change anything
 
 **1. Client components may not import data modules.** A pre-Phase-0 audit proved
 that a client component importing the `notifications` array shipped internal
@@ -131,13 +137,19 @@ transaction; `SET` is scoped to the connection, and connections are pooled. A
 plain `SET` leaks one tenant's scope into the next tenant's request, silently.
 See `backend/app/db/session.py`.
 
+**3. The login bootstrap functions must be owned by `vantage_auth`.**
+`FORCE ROW LEVEL SECURITY` subjects even the table owner to policies, so a
+`SECURITY DEFINER` function owned by the migration role returns zero rows and
+**every login fails** while the code looks correct. `vantage_auth` is NOLOGIN,
+BYPASSRLS, and owns nothing else. See docs/AUTHENTICATION.md §5.
+
 ## Status by phase
 
 | Phase | Scope | State |
 | --- | --- | --- |
 | 0 | Foundations, CI, security baseline | **Complete** |
-| 1 | Auth, RBAC, RLS, first vertical slice (Leads) | Next |
-| 2 | CRM core — clients, properties, deals, activities | Planned |
+| 1 | Auth, multi-tenancy, RBAC, audit logging | **Complete** |
+| 2 | CRM core — leads, clients, properties, deals | Next |
 | 3 | Documents, S3, background jobs | Planned |
 | 4 | Analytics, admin, production hardening | Planned |
 | 5 | AI layer — scoring, assistant, generation, discovery | Planned |

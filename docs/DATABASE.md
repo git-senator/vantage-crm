@@ -1,6 +1,15 @@
 # Vantage CRM — Database Design
 
-PostgreSQL 16+ · extensions: `pgcrypto`, `pg_trgm`, `pgvector` (Phase 5)
+PostgreSQL 16+ · extensions: `pgcrypto`, `citext`, `pg_trgm`, `pgvector` (Phase 5)
+
+> **Status.** Phase 1 shipped `organizations`, `users`, `refresh_tokens`,
+> `permissions`, `roles`, `role_permissions`, `user_roles`, `teams`,
+> `team_members` and `audit_logs`. The CRM entity tables below
+> (leads, clients, properties, deals, …) remain the Phase 2 design.
+>
+> Migrations, in order:
+> `a1b2c3d4e5f6` extensions → `abdb194064d6` auth → `c3d5e7f9a1b2` RLS →
+> `d7305fe801ac` RBAC → `bea0a00f5c8a` audit.
 
 ---
 
@@ -38,11 +47,24 @@ Applied to every tenant-scoped table. The API sets the context per transaction:
 SET LOCAL app.current_org = '<uuid>';   -- transaction-scoped, pool-safe
 ```
 
+**Implemented in migration `c3d5e7f9a1b2`.** The DDL lives in
+`backend/app/db/sql_objects.py`, shared by the migration and the test suite —
+tests build their schema from ORM metadata, which carries no policies, so
+duplicating the SQL would let the two drift and an isolation test would pass
+while proving nothing.
+
 **Three non-negotiable constraints:**
 
 1. The application database role **must not** hold `BYPASSRLS`, and must not be the table owner (owners bypass RLS unless `FORCE` is set — hence `FORCE ROW LEVEL SECURITY` above).
 2. Migrations run as a **separate privileged role**, never the application role.
 3. `SET LOCAL` (not `SET`) — session-scoped context on a pooled connection leaks one tenant's scope into another tenant's request. This is the single most dangerous bug class in this design.
+
+**A fourth, learned the hard way:** `FORCE ROW LEVEL SECURITY` subjects even
+the table owner to policies, so a `SECURITY DEFINER` function owned by the
+migration role returns zero rows. The login bootstrap functions must be owned
+by `vantage_auth` (`NOLOGIN`, `BYPASSRLS`, owner of nothing else) or **every
+login fails** while the code looks correct. See
+[AUTHENTICATION.md §5](./AUTHENTICATION.md).
 
 RLS is defence in depth, not the only defence: repositories also filter explicitly. Either layer failing alone is not sufficient to leak data.
 
@@ -228,7 +250,13 @@ audit_logs
   INDEX (organization_id, entity_type, entity_id)
 ```
 
-Enforced append-only at the **grant** level: the application role holds `INSERT` and `SELECT` on this table, and no `UPDATE` or `DELETE`. An application bug therefore cannot rewrite history.
+Enforced append-only at the **grant** level (migration `bea0a00f5c8a`): the
+application role holds `INSERT` and `SELECT` on this table, and no `UPDATE` or
+`DELETE`. An application bug — or an attacker holding the app's database
+credentials — therefore cannot rewrite history.
+
+Verified against the running database: both `UPDATE` and `DELETE` as
+`vantage_app` return `permission denied for table audit_logs`.
 
 Partitioned monthly by `created_at` once volume justifies it.
 
