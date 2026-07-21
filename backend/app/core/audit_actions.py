@@ -39,6 +39,9 @@ class AuditAction:
     RECORD_UPDATED: Final = "record.updated"
     RECORD_DELETED: Final = "record.deleted"
     RECORD_EXPORTED: Final = "record.exported"
+    #: A lead became a client. Distinct from record.updated because it is the
+    #: funnel event Phase 4 conversion reporting counts.
+    RECORD_CONVERTED: Final = "record.converted"
 
 
 #: Actions that warrant alerting rather than just recording.

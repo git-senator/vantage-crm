@@ -4,12 +4,25 @@ PostgreSQL 16+ · extensions: `pgcrypto`, `citext`, `pg_trgm`, `pgvector` (Phase
 
 > **Status.** Phase 1 shipped `organizations`, `users`, `refresh_tokens`,
 > `permissions`, `roles`, `role_permissions`, `user_roles`, `teams`,
-> `team_members` and `audit_logs`. The CRM entity tables below
-> (leads, clients, properties, deals, …) remain the Phase 2 design.
+> `team_members` and `audit_logs`. Phase 2 has since shipped `leads` and
+> `clients`. The remaining CRM entity tables below (properties, deals, …) are
+> still design.
 >
 > Migrations, in order:
 > `a1b2c3d4e5f6` extensions → `abdb194064d6` auth → `c3d5e7f9a1b2` RLS →
-> `d7305fe801ac` RBAC → `bea0a00f5c8a` audit.
+> `d7305fe801ac` RBAC → `bea0a00f5c8a` audit → `6816eeddf00a` leads →
+> `e4f1a2b3c5d6` clients + conversion → `f7a2b8c1d3e4` `contacts.assign`.
+>
+> **Deviation from the design below.** `clients.first_name` and `last_name` are
+> nullable, not NOT NULL: a client may be a company (an LLC, a trust, an
+> investment entity) rather than a person. `ck_clients_identity` requires either
+> a full person name or a company name, so "has a usable identity" is still
+> guaranteed — it is just not guaranteed by nullability.
+>
+> `clients.source_lead_id` additionally carries a **partial UNIQUE index**
+> (`WHERE source_lead_id IS NOT NULL`). That is what makes lead conversion
+> one-shot under concurrency; a service-layer check alone is a check-then-act
+> race. `leads` gained the matching `converted_client_id` and `converted_at`.
 
 ---
 

@@ -129,6 +129,34 @@ class LeadRepository(BaseRepository[Lead]):
         query = self._visible(organization_id, owner_ids).where(Lead.id == lead_id)
         return (await self.session.execute(query)).unique().scalar_one_or_none()
 
+    async def get_visible_for_update(
+        self, lead_id: UUID, organization_id: UUID, owner_ids: list[UUID] | None
+    ) -> Lead | None:
+        """Same as `get_visible`, but takes a row lock for the transaction.
+
+        Conversion reads the lead, decides it has not been converted, and then
+        writes — a check-then-act that two concurrent requests can both pass.
+        `FOR UPDATE` serialises them so the second sees the first's write.
+
+        `of=Lead` is not optional. `Lead.owner` is `lazy="joined"`, so every
+        query against this model carries a LEFT OUTER JOIN to `users`, and
+        PostgreSQL refuses a bare FOR UPDATE on the nullable side of an outer
+        join. Locking the leads row specifically is both legal and what we
+        actually mean.
+
+        No NOWAIT or SKIP LOCKED: the loser of the race should wait, then
+        observe the conversion and return a clean 409, rather than failing with
+        a lock error that tells the caller nothing.
+        """
+        query = (
+            self.scoped_to_organization(self._base_query(), organization_id)
+            .where(Lead.id == lead_id)
+            .with_for_update(of=Lead)
+        )
+        if owner_ids is not None:
+            query = query.where(Lead.owner_id.in_(owner_ids))
+        return (await self.session.execute(query)).unique().scalar_one_or_none()
+
     async def count_by_stage(
         self, organization_id: UUID, owner_ids: list[UUID] | None
     ) -> dict[str, int]:

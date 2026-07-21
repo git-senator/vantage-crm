@@ -134,6 +134,10 @@ class LeadRead(BaseModel):
     score: int | None
     last_contacted_at: datetime | None
     custom_fields: dict[str, Any]
+    #: Set by conversion. Non-null means this lead became a client, which the
+    #: UI uses to link the two and to hide the convert action.
+    converted_client_id: UUID | None
+    converted_at: datetime | None
     owner: LeadOwner | None
     created_at: datetime
     updated_at: datetime

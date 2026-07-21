@@ -15,6 +15,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
 
+from app.api.v1.clients import to_read as client_to_read
 from app.api.v1.dependencies import (
     Authorization,
     CurrentUser,
@@ -22,6 +23,7 @@ from app.api.v1.dependencies import (
     require,
     verify_csrf,
 )
+from app.schemas.client import ClientConvert, ClientRead
 from app.schemas.common import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Cursor, Page, PageMeta
 from app.schemas.lead import (
     LeadAssign,
@@ -30,6 +32,7 @@ from app.schemas.lead import (
     LeadRead,
     LeadUpdate,
 )
+from app.services.client import ClientService
 from app.services.lead import LeadService
 
 router = APIRouter()
@@ -61,6 +64,8 @@ def _to_read(lead) -> LeadRead:  # type: ignore[no-untyped-def]
         score=lead.score,
         last_contacted_at=lead.last_contacted_at,
         custom_fields=lead.custom_fields or {},
+        converted_client_id=lead.converted_client_id,
+        converted_at=lead.converted_at,
         owner=(
             {
                 "id": lead.owner.id,
@@ -225,3 +230,39 @@ async def assign_lead(
     """
     lead = await LeadService(session, auth).assign_lead(lead_id, payload.owner_id, user)
     return _to_read(lead)
+
+
+@router.post(
+    "/{lead_id}/convert",
+    response_model=ClientRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(verify_csrf)],
+)
+async def convert_lead(
+    lead_id: UUID,
+    payload: ClientConvert,
+    response: Response,
+    session: TenantSessionDep,
+    auth: Annotated[
+        Authorization, Depends(require("leads.manage", "contacts.manage"))
+    ],
+    user: CurrentUser,
+) -> ClientRead:
+    """Convert a lead into a client. Returns the new client.
+
+    Lives on the leads router because the action starts from a lead, but the
+    logic is `ClientService.convert_lead` — it produces a client and needs the
+    client repository.
+
+    Both permissions are required. `leads.manage` alone would let someone who
+    can edit leads mint client records they could not otherwise create;
+    `contacts.manage` alone would let them convert a lead they cannot see.
+
+    409 if the lead has already been converted — conversion is one-shot, so the
+    funnel history stays unambiguous.
+    """
+    client, _lead = await ClientService(session, auth).convert_lead(
+        lead_id, payload, user
+    )
+    response.headers["Location"] = f"/api/v1/clients/{client.id}"
+    return client_to_read(client)

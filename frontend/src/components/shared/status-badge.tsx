@@ -36,11 +36,12 @@ const statusTones: Record<string, Tone> = {
   hot: "danger",
   warm: "warning",
   cold: "info",
-  // clients
+  // clients — snake_case, matching the API's wire format
   active: "success",
-  "under-contract": "warning",
-  closed: "neutral",
+  under_contract: "warning",
   dormant: "neutral",
+  past: "neutral",
+  closed: "neutral",
   // properties
   pending: "warning",
   sold: "brand",

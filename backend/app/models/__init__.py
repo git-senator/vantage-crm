@@ -7,6 +7,7 @@ its table.
 """
 
 from app.models.audit import AuditLog
+from app.models.client import Client
 from app.models.lead import Lead
 from app.models.organization import Organization
 from app.models.rbac import (
@@ -22,6 +23,7 @@ from app.models.user import User
 
 __all__ = [
     "AuditLog",
+    "Client",
     "Lead",
     "Organization",
     "Permission",

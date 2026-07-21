@@ -17,11 +17,12 @@ from collections.abc import AsyncIterator
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import Settings
+from app.core.permissions import PERMISSIONS, SYSTEM_ROLES
 from app.core.security import hash_password
 from app.db.base import Base
 from app.db.sql_objects import (
@@ -30,7 +31,9 @@ from app.db.sql_objects import (
     ownership_transfer_statement,
 )
 from app.models.organization import Organization
+from app.models.rbac import Permission, Role, RolePermission
 from app.models.user import User
+from app.services.rbac import AuthorizationContext, RbacService
 
 TEST_JWT_SECRET = "test_secret_that_is_at_least_thirty_two_chars"
 
@@ -213,3 +216,99 @@ async def user(db: AsyncSession, organization: Organization) -> User:
     await db.flush()
     await db.refresh(account, ["organization"])
     return account
+
+
+# ------------------------------------------------------------------- RBAC
+#
+# Shared by every CRM entity suite. Seeded from the registry rather than
+# hand-written, so a permission added in `app.core.permissions` is available to
+# tests without touching this file — and a role granting something that does
+# not exist fails here the same way it fails in production.
+
+
+async def seed_rbac(db: AsyncSession) -> None:
+    """Mirror migration d7305fe801ac."""
+    for definition in PERMISSIONS:
+        db.add(
+            Permission(
+                key=definition.key,
+                resource=definition.resource,
+                action=definition.action,
+                description=definition.description,
+            )
+        )
+    await db.flush()
+    permissions = {
+        p.key: p for p in (await db.execute(select(Permission))).scalars().all()
+    }
+    for role_definition in SYSTEM_ROLES:
+        role = Role(
+            organization_id=None,
+            key=role_definition.key,
+            name=role_definition.name,
+            description=role_definition.description,
+            is_system=True,
+            is_protected=role_definition.is_protected,
+        )
+        db.add(role)
+        await db.flush()
+        for key, scope in role_definition.grants.items():
+            db.add(
+                RolePermission(
+                    role_id=role.id,
+                    permission_id=permissions[key].id,
+                    scope=scope.value,
+                )
+            )
+    await db.flush()
+
+
+async def make_user(
+    db: AsyncSession, organization: Organization, email: str, name: str = "Test User"
+) -> User:
+    account = User(
+        organization_id=organization.id,
+        email=email,
+        password_hash=hash_password(VALID_PASSWORD),
+        full_name=name,
+    )
+    db.add(account)
+    await db.flush()
+    return account
+
+
+async def auth_for(
+    db: AsyncSession, account: User, role_key: str
+) -> AuthorizationContext:
+    rbac = RbacService(db)
+    await rbac.assign_role(
+        user_id=account.id,
+        role_key=role_key,
+        organization_id=account.organization_id,
+    )
+    # use_cache=False: the Redis-backed cache is keyed by user id and would
+    # otherwise carry a previous test's grants into this one.
+    return await rbac.resolve(account.id, account.organization_id, use_cache=False)
+
+
+@pytest_asyncio.fixture
+async def rbac_seeded(db: AsyncSession) -> None:
+    await seed_rbac(db)
+
+
+@pytest_asyncio.fixture
+async def admin(db: AsyncSession, organization: Organization, rbac_seeded: None):  # type: ignore[no-untyped-def]
+    account = await make_user(db, organization, "admin@vantage.example", "Ada Admin")
+    return account, await auth_for(db, account, "admin")
+
+
+@pytest_asyncio.fixture
+async def agent(db: AsyncSession, organization: Organization, rbac_seeded: None):  # type: ignore[no-untyped-def]
+    account = await make_user(db, organization, "agent@vantage.example", "Alex Agent")
+    return account, await auth_for(db, account, "agent")
+
+
+@pytest_asyncio.fixture
+async def other_agent(db: AsyncSession, organization: Organization, rbac_seeded: None):  # type: ignore[no-untyped-def]
+    account = await make_user(db, organization, "other@vantage.example", "Otto Other")
+    return account, await auth_for(db, account, "agent")

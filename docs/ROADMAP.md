@@ -93,7 +93,14 @@ Frontend
 
 **Delivered so far:** 2.1 refresh concurrency (R7), 2.2 Redis rate limiting,
 2.3 the Leads vertical slice — the reference implementation the remaining
-entities copy. Clients, Properties, Deals, Activities and Tasks are next.
+entities copy — and 2.4 Clients plus Lead → Client conversion. Properties,
+Deals, Activities and Tasks are next.
+
+2.4 proved the pattern generalises: Clients is a near-mechanical copy of the
+Leads slice, and the only genuinely new work was the conversion action and the
+`contacts.assign` permission. Two deviations were deliberate — a client may be
+a company rather than a person, and `status` is an ordinary editable field on a
+client (it is not on a lead, because converting is a domain action).
 
 **Deliverables**
 - Clients, Properties, Pipelines + Stages, Deals, Activities, Tasks
@@ -224,7 +231,7 @@ making before the first table exists rather than after the thirtieth.
 | R3 | Client-boundary leak recurs during data port | **High — MITIGATED** | Lint rule + `server-only` caught a real violation during Phase 1.5 and forced a correct module split. Still live for the Phase 2 data port. | 0 ✅ |
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
-| R6 | 18 modules import `mock-data` | Medium | Typed data layer; port resource by resource | 1–2 |
+| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3) and Clients (2.4) are ported and their fixtures deleted; properties, deals, tasks and the rest remain | 1–2 |
 | R7 | Refresh rotation logs users out under concurrency | ~~High~~ **CLOSED** | Redis lock on the presented token plus a 10s rotation grace window. Proven by 10 genuinely parallel refreshes all succeeding, and by the suite passing with Redis deliberately unreachable | 2.1 ✅ |
 | R8 | `SET` instead of `SET LOCAL` leaks tenant context across pooled connections | ~~Critical~~ **CLOSED** | `set_config(..., true)` throughout; proven by `TestTransactionScopedContext` — context does not survive the transaction on a reused connection | 1 ✅ |
 | R9 | RAG retrieval bypasses RBAC | **Critical** | Shared scope resolver; pre-filter before similarity search; leakage test | 5 |

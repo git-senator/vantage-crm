@@ -1,36 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, Flame, Mail, MapPin, Pencil, Phone, UserCheck } from "lucide-react";
+import { ArrowLeft, Building2, Mail, Pencil, Phone, Target } from "lucide-react";
 
-import { ConvertLeadButton } from "@/components/leads/convert-lead-button";
-import { DeleteLeadButton } from "@/components/leads/delete-lead-button";
+import { DeleteClientButton } from "@/components/clients/delete-client-button";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { getLead } from "@/lib/api/leads";
+import { getClient } from "@/lib/api/clients";
 import { ApiError } from "@/lib/api/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, titleize } from "@/lib/format";
 
-export const metadata: Metadata = { title: "Lead" };
+export const metadata: Metadata = { title: "Client" };
 
-function budgetLabel(min: string | null, max: string | null): string {
-  const low = min ? formatPrice(Number(min)) : null;
-  const high = max ? formatPrice(Number(max)) : null;
-  if (low && high) return `${low} – ${high}`;
-  return low ?? high ?? "—";
-}
-
-function label(value: string): string {
-  const spaced = value.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
-export default async function LeadDetailPage({
+export default async function ClientDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -38,12 +25,12 @@ export default async function LeadDetailPage({
   const session = await requireSession();
   const { id } = await params;
 
-  let lead;
+  let client;
   try {
-    lead = await getLead(id);
+    client = await getClient(id);
   } catch (error) {
-    // The API returns 404 for a lead outside the caller's scope as well as one
-    // that does not exist — deliberately indistinguishable, so there is no
+    // The API returns 404 for a client outside the caller's scope as well as
+    // one that does not exist — deliberately indistinguishable, so there is no
     // existence oracle. Rendering the standard not-found page preserves that.
     if (error instanceof ApiError && error.status === 404) {
       notFound();
@@ -51,12 +38,7 @@ export default async function LeadDetailPage({
     throw error;
   }
 
-  const canManage = hasPermission(session, "leads.manage");
-  // Conversion needs both, and the API enforces both. Hiding the button
-  // without one is UX, not a control — see docs/SECURITY.md §1.4.
-  const canConvert =
-    canManage && hasPermission(session, "contacts.manage");
-  const isConverted = lead.converted_client_id !== null;
+  const canManage = hasPermission(session, "contacts.manage");
 
   return (
     <div className="space-y-6">
@@ -64,32 +46,33 @@ export default async function LeadDetailPage({
         variant="ghost"
         size="sm"
         className="-ml-2 text-muted-foreground"
-        render={<Link href="/leads" />}
+        render={<Link href="/clients" />}
       >
         <ArrowLeft className="size-4" />
-        All leads
+        All clients
       </Button>
 
       <PageHeader
-        title={lead.full_name}
-        description={lead.preferred_location ?? "No location preference recorded"}
+        title={client.display_name}
+        description={
+          client.is_company
+            ? "Company client"
+            : `${titleize(client.type)} · client since ${client.client_since ?? "—"}`
+        }
         actions={
           canManage ? (
             <>
-              {canConvert && !isConverted && (
-                <ConvertLeadButton
-                  leadId={lead.id}
-                  leadName={lead.full_name}
-                />
-              )}
               <Button
                 variant="outline"
-                render={<Link href={`/leads/${lead.id}/edit`} />}
+                render={<Link href={`/clients/${client.id}/edit`} />}
               >
                 <Pencil className="size-4" />
                 Edit
               </Button>
-              <DeleteLeadButton leadId={lead.id} leadName={lead.full_name} />
+              <DeleteClientButton
+                clientId={client.id}
+                clientName={client.display_name}
+              />
             </>
           ) : null
         }
@@ -102,42 +85,43 @@ export default async function LeadDetailPage({
               <CardTitle>Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-0">
-              <Detail label="Stage">
-                <StatusBadge status={lead.stage} />
-              </Detail>
-              <Detail label="Temperature">
-                <span className="flex items-center gap-1.5">
-                  <StatusBadge status={lead.temperature} />
-                  {lead.temperature === "hot" && (
-                    <Flame className="size-3.5 text-destructive" />
-                  )}
-                </span>
-              </Detail>
-              <Detail label="Source">{label(lead.source)}</Detail>
-              <Detail label="Budget">
-                <span className="tabular">
-                  {budgetLabel(lead.budget_min, lead.budget_max)}
-                </span>
+              <Detail label="Type">
+                <StatusBadge
+                  status={client.type}
+                  label={titleize(client.type)}
+                  tone="neutral"
+                  dot={false}
+                />
               </Detail>
               <Detail label="Status">
-                <StatusBadge status={lead.status} />
+                <StatusBadge status={client.status} />
               </Detail>
-              {lead.score !== null && (
-                <Detail label="Score">
-                  <span className="tabular font-medium">{lead.score}</span>
+              <Detail label="Lifetime value">
+                <span className="tabular">
+                  {client.lifetime_value
+                    ? formatPrice(Number(client.lifetime_value))
+                    : "—"}
+                </span>
+              </Detail>
+              <Detail label="Client since">
+                {client.client_since ?? "—"}
+              </Detail>
+              {client.is_company && client.first_name && (
+                <Detail label="Primary contact">
+                  {`${client.first_name} ${client.last_name ?? ""}`.trim()}
                 </Detail>
               )}
             </CardContent>
           </Card>
 
-          {lead.notes && (
+          {client.notes && (
             <Card>
               <CardHeader>
                 <CardTitle>Notes</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {lead.notes}
+                  {client.notes}
                 </p>
               </CardContent>
             </Card>
@@ -150,31 +134,31 @@ export default async function LeadDetailPage({
               <CardTitle className="text-sm">Contact</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              {lead.email ? (
+              {client.email ? (
                 <a
-                  href={`mailto:${lead.email}`}
+                  href={`mailto:${client.email}`}
                   className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
                 >
                   <Mail className="size-4 shrink-0" />
-                  <span className="truncate">{lead.email}</span>
+                  <span className="truncate">{client.email}</span>
                 </a>
               ) : null}
-              {lead.phone ? (
+              {client.phone ? (
                 <a
-                  href={`tel:${lead.phone}`}
+                  href={`tel:${client.phone}`}
                   className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
                 >
                   <Phone className="size-4 shrink-0" />
-                  {lead.phone}
+                  {client.phone}
                 </a>
               ) : null}
-              {lead.preferred_location ? (
+              {client.company_name && !client.is_company ? (
                 <p className="flex items-center gap-2 text-muted-foreground">
-                  <MapPin className="size-4 shrink-0" />
-                  <span className="truncate">{lead.preferred_location}</span>
+                  <Building2 className="size-4 shrink-0" />
+                  <span className="truncate">{client.company_name}</span>
                 </p>
               ) : null}
-              {!lead.email && !lead.phone && (
+              {!client.email && !client.phone && (
                 <p className="text-muted-foreground">No contact details yet.</p>
               )}
             </CardContent>
@@ -185,20 +169,20 @@ export default async function LeadDetailPage({
               <CardTitle className="text-sm">Owner</CardTitle>
             </CardHeader>
             <CardContent>
-              {lead.owner ? (
+              {client.owner ? (
                 <div className="flex items-center gap-3">
                   <UserAvatar
                     user={{
-                      id: lead.owner.id,
-                      name: lead.owner.full_name,
-                      initials: lead.owner.initials,
+                      id: client.owner.id,
+                      name: client.owner.full_name,
+                      initials: client.owner.initials,
                       role: "",
-                      hue: lead.owner.avatar_hue,
+                      hue: client.owner.avatar_hue,
                     }}
                     size="md"
                   />
                   <span className="text-sm font-medium">
-                    {lead.owner.full_name}
+                    {client.owner.full_name}
                   </span>
                 </div>
               ) : (
@@ -207,34 +191,32 @@ export default async function LeadDetailPage({
             </CardContent>
           </Card>
 
-          {/* The funnel link, once this lead has become a client. Conversion
-              is one-shot, so this replaces the convert action rather than
-              sitting alongside it. */}
-          {isConverted && (
+          {/* The funnel link, when this client came from a lead. */}
+          {client.source_lead_id && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Converted</CardTitle>
+                <CardTitle className="text-sm">Origin</CardTitle>
               </CardHeader>
               <CardContent>
                 <Link
-                  href={`/clients/${lead.converted_client_id}`}
+                  href={`/leads/${client.source_lead_id}`}
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                 >
-                  <UserCheck className="size-4 shrink-0" />
-                  View the client record
+                  <Target className="size-4 shrink-0" />
+                  Converted from a lead
                 </Link>
               </CardContent>
             </Card>
           )}
 
-          {lead.tags.length > 0 && (
+          {client.tags.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Tags</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {lead.tags.map((tag) => (
+                  {client.tags.map((tag) => (
                     <span
                       key={tag}
                       className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground"

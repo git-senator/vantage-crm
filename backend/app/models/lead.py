@@ -105,6 +105,30 @@ class Lead(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         DateTime(timezone=True), nullable=True
     )
 
+    # --------------------------------------------------------------- funnel
+    # Set by conversion, alongside status='converted'. The lead is kept rather
+    # than deleted: it is the top of the funnel, and Phase 4 conversion
+    # reporting is computed from these rows.
+    # `use_alter` breaks the leads <-> clients FK cycle: without it
+    # `create_all` cannot order the two CREATE TABLEs and raises
+    # CircularDependencyError, taking the whole integration suite with it. The
+    # constraint is emitted as a separate ALTER once both tables exist, which
+    # is exactly what the migration does by hand. Named explicitly because an
+    # ALTER-added constraint must be nameable to be dropped.
+    converted_client_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey(
+            "clients.id",
+            ondelete="SET NULL",
+            use_alter=True,
+            name="fk_leads_converted_client_id",
+        ),
+        nullable=True,
+    )
+    converted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
     custom_fields: Mapped[dict[str, Any]] = mapped_column(
         postgresql.JSONB, nullable=False, default=dict, server_default="{}"
     )

@@ -34,8 +34,13 @@ export function formatRange([low, high]: [number, number]) {
 export const formatNumber = (value: number) =>
   new Intl.NumberFormat("en-US").format(value);
 
-/** Turns "under-contract" into "Under contract". */
+/**
+ * Turns "under-contract" or "under_contract" into "Under contract".
+ *
+ * Both separators, because the API speaks snake_case (`open_house`,
+ * `under_contract`) while the original prototype fixtures used kebab-case.
+ */
 export function titleize(slug: string) {
-  const spaced = slug.replace(/-/g, " ");
+  const spaced = slug.replace(/[-_]/g, " ");
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }

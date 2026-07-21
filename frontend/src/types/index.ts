@@ -40,22 +40,8 @@ export interface Lead {
   tags: string[];
 }
 
-export type ClientType = "buyer" | "seller" | "investor" | "renter";
-export type ClientStatus = "active" | "under-contract" | "closed" | "dormant";
-
-export interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  type: ClientType;
-  status: ClientStatus;
-  lifetimeValue: number;
-  properties: number;
-  owner: TeamMember;
-  since: string;
-  location: string;
-}
+// Clients now come from the API — see `Client` in lib/api/types.ts. The
+// prototype fixture types are gone with the fixture.
 
 export type PropertyStatus =
   | "active"

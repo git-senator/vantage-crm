@@ -39,11 +39,11 @@ Format `resource.action`. Enforced by a database CHECK constraint
 a matrix nobody can configure in a UI. Genuinely distinct high-risk actions get
 their own key: `deals.approve`, `documents.sign`, `reports.export`.
 
-**29 permissions across 12 resources:**
+**30 permissions across 14 resources:**
 
 ```
 leads.view       leads.manage      leads.assign
-contacts.view    contacts.manage
+contacts.view    contacts.manage   contacts.assign
 properties.view  properties.manage
 deals.view       deals.manage      deals.approve
 tasks.view       tasks.manage
@@ -68,7 +68,7 @@ AI permissions exist already so Phase 5 does not require re-seeding roles.
 | --- | --- | --- |
 | `owner` | everything at ALL | Protected: cannot remove one's own owner role |
 | `admin` | everything except `billing.manage` | The single difference from owner |
-| `manager` | agent's grants, widened to TEAM | Adds `leads.assign`, `deals.approve`, `documents.sign`, `reports.export` |
+| `manager` | agent's grants, widened to TEAM | Adds `leads.assign`, `contacts.assign`, `deals.approve`, `documents.sign`, `reports.export` |
 | `agent` | own book of business | `properties.view` at ALL — shared inventory |
 
 Seeded idempotently by migration `d7305fe801ac` from the Python registry. Grants

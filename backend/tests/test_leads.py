@@ -21,106 +21,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import NotFoundError, PermissionDeniedError
-from app.core.permissions import PERMISSIONS, SYSTEM_ROLES, Scope
-from app.core.security import hash_password
+from app.core.permissions import Scope
 from app.models.audit import AuditLog
 from app.models.lead import Lead
 from app.models.organization import Organization
-from app.models.rbac import Permission, Role, RolePermission, Team, TeamMember
-from app.models.user import User
+from app.models.rbac import Team, TeamMember
 from app.schemas.common import Cursor
 from app.schemas.lead import LeadCreate, LeadFilters, LeadUpdate
 from app.services.lead import LeadService
-from app.services.rbac import AuthorizationContext, RbacService
+from app.services.rbac import AuthorizationContext
+from tests.conftest import auth_for, make_user
 
 pytestmark = pytest.mark.integration
 
 
 # ------------------------------------------------------------------ fixtures
-
-
-async def _seed_rbac(db: AsyncSession) -> None:
-    """Mirror migration d7305fe801ac."""
-    for definition in PERMISSIONS:
-        db.add(
-            Permission(
-                key=definition.key,
-                resource=definition.resource,
-                action=definition.action,
-                description=definition.description,
-            )
-        )
-    await db.flush()
-    permissions = {
-        p.key: p for p in (await db.execute(select(Permission))).scalars().all()
-    }
-    for role_definition in SYSTEM_ROLES:
-        role = Role(
-            organization_id=None,
-            key=role_definition.key,
-            name=role_definition.name,
-            description=role_definition.description,
-            is_system=True,
-            is_protected=role_definition.is_protected,
-        )
-        db.add(role)
-        await db.flush()
-        for key, scope in role_definition.grants.items():
-            db.add(
-                RolePermission(
-                    role_id=role.id,
-                    permission_id=permissions[key].id,
-                    scope=scope.value,
-                )
-            )
-    await db.flush()
-
-
-async def _make_user(
-    db: AsyncSession, organization: Organization, email: str, name: str = "Test User"
-) -> User:
-    user = User(
-        organization_id=organization.id,
-        email=email,
-        password_hash=hash_password("correct-horse-battery-staple"),
-        full_name=name,
-    )
-    db.add(user)
-    await db.flush()
-    return user
-
-
-async def _auth_for(
-    db: AsyncSession, user: User, role_key: str
-) -> AuthorizationContext:
-    rbac = RbacService(db)
-    await rbac.assign_role(
-        user_id=user.id, role_key=role_key, organization_id=user.organization_id
-    )
-    return await rbac.resolve(user.id, user.organization_id, use_cache=False)
-
-
-@pytest.fixture
-async def rbac_seeded(db: AsyncSession) -> None:
-    await _seed_rbac(db)
-
-
-@pytest.fixture
-async def admin(db: AsyncSession, organization: Organization, rbac_seeded: None):  # type: ignore[no-untyped-def]
-    user = await _make_user(db, organization, "admin@vantage.example", "Ada Admin")
-    return user, await _auth_for(db, user, "admin")
-
-
-@pytest.fixture
-async def agent(db: AsyncSession, organization: Organization, rbac_seeded: None):  # type: ignore[no-untyped-def]
-    user = await _make_user(db, organization, "agent@vantage.example", "Alex Agent")
-    return user, await _auth_for(db, user, "agent")
-
-
-@pytest.fixture
-async def other_agent(db: AsyncSession, organization: Organization, rbac_seeded: None):  # type: ignore[no-untyped-def]
-    user = await _make_user(db, organization, "other@vantage.example", "Otto Other")
-    return user, await _auth_for(db, user, "agent")
 
 
 def _payload(**overrides: object) -> LeadCreate:
@@ -153,7 +68,7 @@ class TestCreate:
         self, db: AsyncSession, organization: Organization, rbac_seeded: None
     ) -> None:
         """A viewer must not be able to create."""
-        user = await _make_user(db, organization, "viewer@vantage.example")
+        user = await make_user(db, organization, "viewer@vantage.example")
         auth = AuthorizationContext(
             user_id=user.id,
             organization_id=organization.id,
@@ -192,7 +107,7 @@ class TestCreate:
         """Otherwise the lead is written with an owner RLS can never match —
         silently invisible to everyone rather than leaked, but lost."""
         user, auth = admin
-        outsider = await _make_user(db, other_organization, "outsider@meridian.example")
+        outsider = await make_user(db, other_organization, "outsider@meridian.example")
 
         with pytest.raises(NotFoundError):
             await LeadService(db, auth).create_lead(
@@ -244,9 +159,9 @@ class TestScopeIsAWhereClause:
     async def test_manager_sees_the_team(
         self, db: AsyncSession, organization: Organization, rbac_seeded: None
     ) -> None:
-        manager = await _make_user(db, organization, "manager@vantage.example")
-        member = await _make_user(db, organization, "member@vantage.example")
-        outsider = await _make_user(db, organization, "solo@vantage.example")
+        manager = await make_user(db, organization, "manager@vantage.example")
+        member = await make_user(db, organization, "member@vantage.example")
+        outsider = await make_user(db, organization, "solo@vantage.example")
 
         team = Team(organization_id=organization.id, name="Westside")
         db.add(team)
@@ -261,9 +176,9 @@ class TestScopeIsAWhereClause:
             )
         await db.flush()
 
-        manager_auth = await _auth_for(db, manager, "manager")
-        member_auth = await _auth_for(db, member, "agent")
-        outsider_auth = await _auth_for(db, outsider, "agent")
+        manager_auth = await auth_for(db, manager, "manager")
+        member_auth = await auth_for(db, member, "agent")
+        outsider_auth = await auth_for(db, outsider, "agent")
 
         await LeadService(db, member_auth).create_lead(
             _payload(first_name="TeamLead"), member
@@ -334,7 +249,7 @@ class TestTenantIsolation:
     ) -> None:  # type: ignore[no-untyped-def]
         """Even an admin with ALL scope is confined to their own tenant."""
         _, admin_auth = admin
-        outsider = await _make_user(db, other_organization, "outsider@meridian.example")
+        outsider = await make_user(db, other_organization, "outsider@meridian.example")
         outsider_auth = AuthorizationContext(
             user_id=outsider.id,
             organization_id=other_organization.id,
