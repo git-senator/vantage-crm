@@ -126,8 +126,14 @@ async def db(engine) -> AsyncIterator[AsyncSession]:  # type: ignore[no-untyped-
 
     async with engine.begin() as conn:
         if not _SCHEMA_READY:
-            await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "citext"'))
-            await conn.execute(text('CREATE EXTENSION IF NOT EXISTS "pgcrypto"'))
+            # Must match the baseline migration (a1b2c3d4e5f6). pg_trgm in
+            # particular is needed for the fuzzy-name index on leads; without
+            # it, create_all fails with "operator class gin_trgm_ops does not
+            # exist" and every integration test errors at setup.
+            for extension in ("citext", "pgcrypto", "pg_trgm"):
+                await conn.execute(
+                    text(f'CREATE EXTENSION IF NOT EXISTS "{extension}"')
+                )
             await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)
 

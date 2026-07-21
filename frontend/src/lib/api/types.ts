@@ -47,3 +47,96 @@ export interface ProblemDetail {
   request_id?: string;
   errors?: { field: string; message: string }[];
 }
+
+// ------------------------------------------------------------------- leads
+
+export type LeadStage =
+  | "new"
+  | "contacted"
+  | "qualified"
+  | "touring"
+  | "unqualified";
+export type LeadStatus = "open" | "converted" | "lost";
+export type LeadTemperature = "hot" | "warm" | "cold";
+export type LeadSource =
+  | "zillow"
+  | "website"
+  | "referral"
+  | "open_house"
+  | "instagram"
+  | "cold_call"
+  | "realtor_com"
+  | "other";
+
+export interface LeadOwner {
+  id: string;
+  full_name: string;
+  initials: string;
+  avatar_hue: number;
+}
+
+export interface Lead {
+  id: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  stage: LeadStage;
+  status: LeadStatus;
+  source: LeadSource;
+  temperature: LeadTemperature;
+  /** NUMERIC arrives as a string so precision survives JSON. */
+  budget_min: string | null;
+  budget_max: string | null;
+  currency: string;
+  preferred_location: string | null;
+  notes: string | null;
+  tags: string[];
+  score: number | null;
+  last_contacted_at: string | null;
+  custom_fields: Record<string, unknown>;
+  owner: LeadOwner | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadInput {
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  phone?: string | null;
+  stage?: LeadStage;
+  source?: LeadSource;
+  temperature?: LeadTemperature;
+  budget_min?: string | null;
+  budget_max?: string | null;
+  currency?: string;
+  preferred_location?: string | null;
+  notes?: string | null;
+  tags?: string[];
+  owner_id?: string | null;
+}
+
+export interface LeadFilters {
+  search?: string;
+  stage?: LeadStage;
+  status?: LeadStatus;
+  source?: LeadSource;
+  temperature?: LeadTemperature;
+  owner_id?: string;
+  tag?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface PageMeta {
+  next_cursor: string | null;
+  has_more: boolean;
+  limit: number;
+}
+
+export interface Page<T> {
+  data: T[];
+  meta: PageMeta;
+}

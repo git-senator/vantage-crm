@@ -17,6 +17,9 @@ const SERVER_ONLY_MODULES = [
   "@/lib/api/config",
   // Reads httpOnly cookies via next/headers.
   "@/lib/api/server",
+  // Server-side resource queries — issue authenticated calls on the caller's
+  // behalf and would leak the internal API host into a bundle.
+  "@/lib/api/leads",
   // Session resolution — issues authenticated calls on the user's behalf.
   "@/lib/auth/session",
   "@/lib/db",
