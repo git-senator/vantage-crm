@@ -4,14 +4,15 @@ PostgreSQL 16+ · extensions: `pgcrypto`, `citext`, `pg_trgm`, `pgvector` (Phase
 
 > **Status.** Phase 1 shipped `organizations`, `users`, `refresh_tokens`,
 > `permissions`, `roles`, `role_permissions`, `user_roles`, `teams`,
-> `team_members` and `audit_logs`. Phase 2 has since shipped `leads` and
-> `clients`. The remaining CRM entity tables below (properties, deals, …) are
-> still design.
+> `team_members` and `audit_logs`. Phase 2 has since shipped `leads`, `clients`
+> and `properties`. The remaining CRM entity tables below (deals, …) are still
+> design.
 >
 > Migrations, in order:
 > `a1b2c3d4e5f6` extensions → `abdb194064d6` auth → `c3d5e7f9a1b2` RLS →
 > `d7305fe801ac` RBAC → `bea0a00f5c8a` audit → `6816eeddf00a` leads →
-> `e4f1a2b3c5d6` clients + conversion → `f7a2b8c1d3e4` `contacts.assign`.
+> `e4f1a2b3c5d6` clients + conversion → `f7a2b8c1d3e4` `contacts.assign` →
+> `b8c3d5e7f2a1` properties → `c9d4e6f8a3b2` `properties.assign`.
 >
 > **Deviation from the design below.** `clients.first_name` and `last_name` are
 > nullable, not NOT NULL: a client may be a company (an LLC, a trust, an
@@ -23,6 +24,22 @@ PostgreSQL 16+ · extensions: `pgcrypto`, `citext`, `pg_trgm`, `pgvector` (Phase
 > (`WHERE source_lead_id IS NOT NULL`). That is what makes lead conversion
 > one-shot under concurrency; a service-layer check alone is a check-then-act
 > race. `leads` gained the matching `converted_client_id` and `converted_at`.
+>
+> **`properties` deviates in three ways.** The scope anchor is
+> `listing_agent_id` as designed below — *not* `owner_id` as on every other
+> entity — because on a property "owner" means the party who owns the real
+> estate, which is the separate `client_id` (the seller, added in 2.5 and not
+> in the original design).
+>
+> `days_on_market` is **not a column**. It is derived from `listed_at` in the
+> model, and freezes once a listing is sold. A stored counter is correct on the
+> day it is written and wrong every day after, so it would need a nightly job
+> whose only purpose is to fix a number arithmetic already gives for free.
+>
+> `mls_number` carries a **partial UNIQUE index** per organization
+> (`WHERE mls_number IS NOT NULL AND deleted_at IS NULL`). MLS numbers are
+> unique within a market, not globally; the `deleted_at` clause means a
+> withdrawn listing does not block re-listing the same property.
 
 ---
 

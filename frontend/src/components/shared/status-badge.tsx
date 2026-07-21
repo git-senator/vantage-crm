@@ -42,11 +42,11 @@ const statusTones: Record<string, Tone> = {
   dormant: "neutral",
   past: "neutral",
   closed: "neutral",
-  // properties
+  // properties — snake_case, matching the API's wire format
   pending: "warning",
   sold: "brand",
-  "off-market": "neutral",
-  "coming-soon": "info",
+  off_market: "neutral",
+  coming_soon: "info",
   // deals
   qualification: "neutral",
   showing: "info",

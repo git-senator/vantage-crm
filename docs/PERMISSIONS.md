@@ -39,12 +39,12 @@ Format `resource.action`. Enforced by a database CHECK constraint
 a matrix nobody can configure in a UI. Genuinely distinct high-risk actions get
 their own key: `deals.approve`, `documents.sign`, `reports.export`.
 
-**30 permissions across 14 resources:**
+**31 permissions across 14 resources:**
 
 ```
 leads.view       leads.manage      leads.assign
 contacts.view    contacts.manage   contacts.assign
-properties.view  properties.manage
+properties.view  properties.manage properties.assign
 deals.view       deals.manage      deals.approve
 tasks.view       tasks.manage
 activities.view  activities.manage
@@ -68,8 +68,21 @@ AI permissions exist already so Phase 5 does not require re-seeding roles.
 | --- | --- | --- |
 | `owner` | everything at ALL | Protected: cannot remove one's own owner role |
 | `admin` | everything except `billing.manage` | The single difference from owner |
-| `manager` | agent's grants, widened to TEAM | Adds `leads.assign`, `contacts.assign`, `deals.approve`, `documents.sign`, `reports.export` |
+| `manager` | agent's grants, widened to TEAM | Adds `leads.assign`, `contacts.assign`, `properties.assign`, `deals.approve`, `documents.sign`, `reports.export` |
 | `agent` | own book of business | `properties.view` at ALL — shared inventory |
+
+### The shared-inventory asymmetry
+
+`agent` holds `properties.view` at **ALL** and `properties.manage` at **OWN**.
+Every agent sees the whole brokerage's listings; only the listing agent edits
+their own. This is the clearest case for why scope is modelled separately from
+permission — collapsing the two would need a `properties.view_all` /
+`properties.manage_own` pair, and then the same split again for every resource.
+
+It has one visible consequence in the API: `PATCH`/`DELETE` on a colleague's
+listing returns **403**, not the 404 used everywhere else. The 404 convention
+exists to avoid an existence oracle, and there is no existence to conceal when
+the record is already in the caller's own list. See ARCHITECTURE §5.
 
 Seeded idempotently by migration `d7305fe801ac` from the Python registry. Grants
 are replaced wholesale on each run, so removing a grant in code actually removes

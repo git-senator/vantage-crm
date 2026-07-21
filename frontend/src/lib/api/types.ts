@@ -215,6 +215,115 @@ export interface ConvertLeadInput {
   client_since?: string | null;
 }
 
+// -------------------------------------------------------------- properties
+
+export type PropertyStatus =
+  | "active"
+  | "pending"
+  | "sold"
+  | "off_market"
+  | "coming_soon";
+export type PropertyType =
+  | "single_family"
+  | "condo"
+  | "townhouse"
+  | "multi_family"
+  | "land"
+  | "commercial";
+
+export interface Property {
+  id: string;
+  title: string;
+  mls_number: string | null;
+  status: PropertyStatus;
+  property_type: PropertyType;
+
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+  /** Server-composed single-line address. Always set. */
+  full_address: string;
+
+  /** NUMERIC arrives as a string so precision survives JSON. */
+  latitude: string | null;
+  longitude: string | null;
+  price: string | null;
+  currency: string;
+
+  bedrooms: number | null;
+  /** NUMERIC(3,1) — half-baths are real, so this is not an integer. */
+  bathrooms: string | null;
+  square_feet: number | null;
+  lot_size_sqft: number | null;
+  year_built: number | null;
+
+  listed_at: string | null;
+  /** Derived from listed_at server-side; null once sold. */
+  days_on_market: number | null;
+  view_count: number;
+  save_count: number;
+
+  description: string | null;
+  features: string[];
+  custom_fields: Record<string, unknown>;
+
+  /** The seller this listing belongs to. */
+  client_id: string | null;
+  listing_agent: OwnerSummary | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PropertyInput {
+  title: string;
+  mls_number?: string | null;
+  status?: PropertyStatus;
+  property_type?: PropertyType;
+
+  address_line1: string;
+  address_line2?: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+  country?: string;
+
+  latitude?: string | null;
+  longitude?: string | null;
+  price?: string | null;
+  currency?: string;
+
+  bedrooms?: number | null;
+  bathrooms?: string | null;
+  square_feet?: number | null;
+  lot_size_sqft?: number | null;
+  year_built?: number | null;
+
+  listed_at?: string | null;
+  description?: string | null;
+  features?: string[];
+
+  client_id?: string | null;
+  listing_agent_id?: string | null;
+}
+
+export interface PropertyFilters {
+  search?: string;
+  status?: PropertyStatus;
+  property_type?: PropertyType;
+  listing_agent_id?: string;
+  client_id?: string;
+  city?: string;
+  min_price?: string;
+  max_price?: string;
+  min_bedrooms?: number;
+  feature?: string;
+  limit?: number;
+  cursor?: string;
+}
+
 export interface PageMeta {
   next_cursor: string | null;
   has_more: boolean;

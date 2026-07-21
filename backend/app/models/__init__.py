@@ -10,6 +10,7 @@ from app.models.audit import AuditLog
 from app.models.client import Client
 from app.models.lead import Lead
 from app.models.organization import Organization
+from app.models.property import Property
 from app.models.rbac import (
     Permission,
     Role,
@@ -27,6 +28,7 @@ __all__ = [
     "Lead",
     "Organization",
     "Permission",
+    "Property",
     "RefreshToken",
     "Role",
     "RolePermission",

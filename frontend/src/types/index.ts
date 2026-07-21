@@ -43,43 +43,8 @@ export interface Lead {
 // Clients now come from the API — see `Client` in lib/api/types.ts. The
 // prototype fixture types are gone with the fixture.
 
-export type PropertyStatus =
-  | "active"
-  | "pending"
-  | "sold"
-  | "off-market"
-  | "coming-soon";
-
-export type PropertyType =
-  | "Single Family"
-  | "Condo"
-  | "Townhouse"
-  | "Multi-Family"
-  | "Land"
-  | "Commercial";
-
-export interface Property {
-  id: string;
-  title: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  price: number;
-  status: PropertyStatus;
-  type: PropertyType;
-  beds: number;
-  baths: number;
-  sqft: number;
-  lotSize: string;
-  yearBuilt: number;
-  daysOnMarket: number;
-  views: number;
-  saves: number;
-  agent: TeamMember;
-  /** Deterministic hue used by the placeholder image tile. */
-  hue: number;
-}
+// Properties now come from the API — see `Property` in lib/api/types.ts. The
+// prototype fixture types are gone with the fixture.
 
 export type DealStage =
   | "qualification"

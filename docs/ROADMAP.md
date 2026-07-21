@@ -93,7 +93,7 @@ Frontend
 
 **Delivered so far:** 2.1 refresh concurrency (R7), 2.2 Redis rate limiting,
 2.3 the Leads vertical slice — the reference implementation the remaining
-entities copy — and 2.4 Clients plus Lead → Client conversion. Properties,
+entities copy — 2.4 Clients plus Lead → Client conversion, and 2.5 Properties.
 Deals, Activities and Tasks are next.
 
 2.4 proved the pattern generalises: Clients is a near-mechanical copy of the
@@ -101,6 +101,19 @@ Leads slice, and the only genuinely new work was the conversion action and the
 `contacts.assign` permission. Two deviations were deliberate — a client may be
 a company rather than a person, and `status` is an ordinary editable field on a
 client (it is not on a lead, because converting is a domain action).
+
+2.5 found the pattern's first real limit. Leads and clients are a personal book
+of business; **listings are shared inventory** — an agent holds
+`properties.view` at ALL and `properties.manage` at OWN. The repository and
+scope machinery absorbed that without change, which is the good news. What did
+not carry over is the 404-everywhere rule: a listing the caller can see but not
+edit now returns **403**, because there is no existence to conceal and a 404
+there is simply a lie. See ARCHITECTURE §5.
+
+The frontend gained its first test infrastructure in 2.5 (Vitest + Testing
+Library), covering the query builder, formatters, and the property form's
+payload construction — the place where a price could silently be rounded by
+passing through a JS number.
 
 **Deliverables**
 - Clients, Properties, Pipelines + Stages, Deals, Activities, Tasks
@@ -231,7 +244,7 @@ making before the first table exists rather than after the thirtieth.
 | R3 | Client-boundary leak recurs during data port | **High — MITIGATED** | Lint rule + `server-only` caught a real violation during Phase 1.5 and forced a correct module split. Still live for the Phase 2 data port. | 0 ✅ |
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
-| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3) and Clients (2.4) are ported and their fixtures deleted; properties, deals, tasks and the rest remain | 1–2 |
+| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4) and Properties (2.5) are ported and their fixtures deleted; deals, tasks and the rest remain | 1–2 |
 | R7 | Refresh rotation logs users out under concurrency | ~~High~~ **CLOSED** | Redis lock on the presented token plus a 10s rotation grace window. Proven by 10 genuinely parallel refreshes all succeeding, and by the suite passing with Redis deliberately unreachable | 2.1 ✅ |
 | R8 | `SET` instead of `SET LOCAL` leaks tenant context across pooled connections | ~~Critical~~ **CLOSED** | `set_config(..., true)` throughout; proven by `TestTransactionScopedContext` — context does not survive the transaction on a reused connection | 1 ✅ |
 | R9 | RAG retrieval bypasses RBAC | **Critical** | Shared scope resolver; pre-filter before similarity search; leakage test | 5 |

@@ -171,6 +171,31 @@ Admin
   GET             /audit-logs         → admin-only, read-only, filterable
 ```
 
+**Shipped so far** (Phase 2.3–2.5). Each entity adds a scoped counts endpoint
+that backs its tab bar, and an `assign` action gated on its own permission —
+editing a record and handing it to a colleague are different privileges.
+
+```
+/leads        + GET  /leads/stats/stages
+              + POST /leads/{id}/assign        leads.assign
+              + POST /leads/{id}/convert       leads.manage AND contacts.manage
+
+/clients      + GET  /clients/stats/types
+              + POST /clients/{id}/assign      contacts.assign
+
+/properties   + GET  /properties/stats/statuses
+              + POST /properties/{id}/assign   properties.assign
+```
+
+**One deliberate status-code deviation, on properties only.** Everywhere else a
+record outside the caller's scope is `404`, never `403`, so there is no
+existence oracle. Listings are shared inventory — an agent holds
+`properties.view` at ALL scope — so the record is already in their own list and
+its existence is not a secret. `PATCH`/`DELETE` on a colleague's listing
+therefore returns `403` with an explanatory message; `404` would be actively
+misleading. Cross-tenant and out-of-view records still return `404`, so the
+oracle protection holds where it actually matters.
+
 ### 5.1 Conventions
 
 - **Cursor (keyset) pagination**, not offset. Offset degrades on deep pages and returns inconsistent results under concurrent writes.

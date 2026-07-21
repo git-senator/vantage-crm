@@ -81,6 +81,7 @@ PERMISSIONS: tuple[Permission, ...] = (
     _permission("contacts", "assign", "Reassign a client to another user"),
     _permission("properties", "view", "View property listings"),
     _permission("properties", "manage", "Create, update and delete listings"),
+    _permission("properties", "assign", "Reassign a listing to another agent"),
     _permission("deals", "view", "View deals"),
     _permission("deals", "manage", "Create, update and delete deals"),
     _permission("deals", "approve", "Approve a deal or offer"),
@@ -183,6 +184,7 @@ _MANAGER_GRANTS: dict[str, Scope] = {
         "reports.export",
     ),
     "properties.manage": Scope.TEAM,
+    "properties.assign": Scope.TEAM,
     "ai.use": Scope.TEAM,
 }
 

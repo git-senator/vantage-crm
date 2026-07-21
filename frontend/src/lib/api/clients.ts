@@ -1,5 +1,6 @@
 import "server-only";
 
+import { toQuery } from "@/lib/api/query";
 import { apiFetch } from "@/lib/api/server";
 import type { Client, ClientFilters, Page } from "@/lib/api/types";
 
@@ -10,17 +11,6 @@ import type { Client, ClientFilters, Page } from "@/lib/api/types";
  * internal API host and issue unauthenticated calls. Mutations go through the
  * companion module instead, which uses the same-origin BFF proxy.
  */
-
-function toQuery(filters: ClientFilters): string {
-  const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) {
-    if (value !== undefined && value !== null && value !== "") {
-      params.set(key, String(value));
-    }
-  }
-  const query = params.toString();
-  return query ? `?${query}` : "";
-}
 
 export async function listClients(
   filters: ClientFilters = {},
