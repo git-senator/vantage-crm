@@ -46,6 +46,9 @@ class AuditAction:
     #: the same reason: it is the event velocity and cycle-time analytics
     #: count, and burying it in a generic field diff makes it unqueryable.
     RECORD_STAGE_CHANGED: Final = "record.stage_changed"
+    #: A task was finished. Distinct from record.updated because "what got done
+    #: this week" is a question worth being able to ask directly.
+    RECORD_COMPLETED: Final = "record.completed"
 
 
 #: Actions that warrant alerting rather than just recording.

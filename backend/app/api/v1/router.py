@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    activities,
     audit,
     auth,
     clients,
@@ -18,6 +19,7 @@ from app.api.v1 import (
     pipelines,
     properties,
     roles,
+    tasks,
 )
 
 api_router = APIRouter()
@@ -35,6 +37,10 @@ api_router.include_router(
 )
 api_router.include_router(pipelines.router, prefix="/pipelines", tags=["pipelines"])
 api_router.include_router(deals.router, prefix="/deals", tags=["deals"])
+api_router.include_router(
+    activities.router, prefix="/activities", tags=["activities"]
+)
+api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 
 
-# Phase 2:    activities, tasks
+# Phase 3:    documents

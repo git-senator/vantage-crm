@@ -32,6 +32,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     CheckConstraint,
+    Computed,
     DateTime,
     ForeignKey,
     Index,
@@ -40,6 +41,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -97,6 +99,17 @@ class Activity(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         server_default="{}",
     )
 
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('simple', "
+            "coalesce(subject, '') || ' ' || "
+            "coalesce(body, ''))",
+            persisted=True,
+        ),
+        nullable=False,
+    )
+
     actor: Mapped[User | None] = relationship(foreign_keys=[actor_id], lazy="joined")
 
     __table_args__ = (
@@ -119,6 +132,15 @@ class Activity(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             text("occurred_at DESC"),
         ),
         Index("ix_activities_org_occurred", "organization_id", text("occurred_at DESC")),
+        Index("ix_activities_search", "search_vector", postgresql_using="gin"),
+        # The global feed is "what have I been doing" — actor-scoped, newest
+        # first. Distinct from the per-entity index above.
+        Index(
+            "ix_activities_org_actor_occurred",
+            "organization_id",
+            "actor_id",
+            text("occurred_at DESC"),
+        ),
     )
 
     def __repr__(self) -> str:

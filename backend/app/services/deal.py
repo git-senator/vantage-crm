@@ -156,8 +156,11 @@ class DealService:
         return await self.history.list_for_deal(deal.id, self.auth.organization_id)
 
     async def timeline(self, deal_id: UUID) -> list[Activity]:
+        # `get_deal` has already resolved the deal under RBAC, so the timeline
+        # read uses the *unchecked* path deliberately — re-running the parent
+        # check would need an auth-bearing ActivityService this one is not.
         deal = await self.get_deal(deal_id)
-        return await self.activities.list_for_entity(
+        return await self.activities.list_for_entity_unchecked(
             organization_id=self.auth.organization_id,
             entity_type=ENTITY_TYPE,
             entity_id=deal.id,

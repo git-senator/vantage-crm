@@ -93,8 +93,10 @@ Frontend
 
 **Delivered so far:** 2.1 refresh concurrency (R7), 2.2 Redis rate limiting,
 2.3 the Leads vertical slice — the reference implementation the remaining
-entities copy — 2.4 Clients plus Lead → Client conversion, and 2.5 Properties.
-Deals, Activities and Tasks are next.
+entities copy — 2.4 Clients plus Lead → Client conversion, 2.5 Properties, 2.6
+Deals and the Kanban board, and 2.7 Activities and Tasks. The CRM-core entities
+are now complete; full-text search across them and the deletion of the last
+`mock-data` fixtures are what remain before the phase exit criteria.
 
 2.4 proved the pattern generalises: Clients is a near-mechanical copy of the
 Leads slice, and the only genuinely new work was the conversion action and the
@@ -131,6 +133,20 @@ both claim to have left the same stage.
 
 2.6 also surfaced two pre-existing production bugs in the audit layer that had
 shipped since 2.3. See the risk register.
+
+2.7 finished the timeline 2.6 only half-built and added the last CRM entity.
+`activities` gained the search vector and actor-scoped feed index it needed once
+people read it rather than only the deal transition writing to it, and manual
+logging arrived — a call, email, meeting, showing or note against any record.
+The two rules that carry weight: an activity **has no scope anchor of its own**,
+so its visibility follows the parent record through one shared `EntityAccess`
+resolver rather than a duplicated predicate, and system-written `stage_change`
+entries are immutable. Tasks are the first entity to anchor scope on
+`assignee_id` rather than `owner_id` — work belongs to whoever must do it, not
+whoever asked — and completing a task is a domain action (`POST .../complete`)
+that stamps the timestamp, logs on the linked record and audits, exactly as a
+deal stage transition is. Assignment carries a notification seam that logs
+rather than sends; delivery is Phase 3 queued work.
 
 **Deliverables**
 - Clients, Properties, Pipelines + Stages, Deals, Activities, Tasks
