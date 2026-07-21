@@ -20,6 +20,7 @@ from app.api.v1.dependencies import (
     require,
     verify_csrf,
 )
+from app.core.audit_actions import AuditAction
 from app.core.exceptions import ConflictError, NotFoundError
 from app.core.permissions import PERMISSIONS
 from app.repositories.user import UserRepository
@@ -29,6 +30,7 @@ from app.schemas.rbac import (
     RoleAssignmentRequest,
     RoleRead,
 )
+from app.services.audit import AuditService
 from app.services.rbac import RbacService
 
 router = APIRouter()
@@ -104,6 +106,15 @@ async def assign_role(
         organization_id=organization_id,
         granted_by=actor.id,
     )
+    await AuditService(session).record(
+        action=AuditAction.ROLE_ASSIGNED,
+        organization_id=organization_id,
+        actor_id=actor.id,
+        actor_email=actor.email,
+        entity_type="user",
+        entity_id=user_id,
+        metadata={"role": payload.role_key},
+    )
 
 
 @router.post(
@@ -136,4 +147,13 @@ async def revoke_role(
         user_id=user_id,
         role_key=payload.role_key,
         organization_id=organization_id,
+    )
+    await AuditService(session).record(
+        action=AuditAction.ROLE_REVOKED,
+        organization_id=organization_id,
+        actor_id=actor.id,
+        actor_email=actor.email,
+        entity_type="user",
+        entity_id=user_id,
+        metadata={"role": payload.role_key},
     )

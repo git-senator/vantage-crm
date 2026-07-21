@@ -22,6 +22,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.audit_actions import AuditAction
 from app.core.config import Settings
 from app.core.exceptions import AuthenticationError
 from app.core.logging import get_logger
@@ -40,6 +41,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.repositories.refresh_token import RefreshTokenRepository
 from app.repositories.user import UserRepository
+from app.services.audit import AuditService
 from app.services.rbac import RbacService
 
 logger = get_logger(__name__)
@@ -73,6 +75,7 @@ class AuthService:
         self.settings = settings
         self.users = UserRepository(session)
         self.tokens = RefreshTokenRepository(session)
+        self.audit = AuditService(session)
 
     # ------------------------------------------------------------ login
 
@@ -131,6 +134,23 @@ class AuthService:
                     "failed_count": user.failed_login_count,
                 },
             )
+            locked = UserRepository.is_locked(user)
+            await self.audit.record(
+                action=(
+                    AuditAction.ACCOUNT_LOCKED if locked else AuditAction.LOGIN_FAILED
+                ),
+                organization_id=user.organization_id,
+                actor_id=user.id,
+                actor_email=user.email,
+                entity_type="user",
+                entity_id=user.id,
+                metadata={
+                    "reason": "bad_password",
+                    "failed_count": user.failed_login_count,
+                },
+                ip_address=context.ip_address,
+                user_agent=context.user_agent,
+            )
             raise AuthenticationError(GENERIC_AUTH_ERROR)
 
         if not user.is_active:
@@ -150,6 +170,16 @@ class AuthService:
         await self.users.register_successful_login(user)
 
         session = await self._issue_session(user, context, family_id=uuid.uuid4())
+        await self.audit.record(
+            action=AuditAction.LOGIN_SUCCEEDED,
+            organization_id=user.organization_id,
+            actor_id=user.id,
+            actor_email=user.email,
+            entity_type="user",
+            entity_id=user.id,
+            ip_address=context.ip_address,
+            user_agent=context.user_agent,
+        )
         logger.info(
             "login_succeeded",
             extra={"user_id": str(user.id), "organization_id": str(user.organization_id)},
@@ -194,6 +224,19 @@ class AuthService:
                     "tokens_revoked": revoked,
                     "ip_address": context.ip_address,
                 },
+            )
+            await self.audit.record(
+                action=AuditAction.TOKEN_REUSE_DETECTED,
+                organization_id=stored.organization_id,
+                actor_id=stored.user_id,
+                entity_type="refresh_token_family",
+                entity_id=stored.family_id,
+                # Named `revoked_count`, not `tokens_revoked`: the log redactor
+                # matches any key containing "token" and would scrub the value.
+                # Deliberately keeping the redactor broad and renaming here.
+                metadata={"revoked_count": revoked},
+                ip_address=context.ip_address,
+                user_agent=context.user_agent,
             )
             raise AuthenticationError("Session is no longer valid.")
 
@@ -257,6 +300,13 @@ class AuthService:
             return
 
         await self.tokens.revoke_family(stored.family_id, reason="logout")
+        await self.audit.record(
+            action=AuditAction.LOGOUT,
+            organization_id=stored.organization_id,
+            actor_id=stored.user_id,
+            entity_type="user",
+            entity_id=stored.user_id,
+        )
         logger.info(
             "logout",
             extra={"user_id": str(stored.user_id), "family_id": str(stored.family_id)},
@@ -293,6 +343,14 @@ class AuthService:
         await self.session.flush()
 
         await self.logout_everywhere(user.id, reason="password_changed")
+        await self.audit.record(
+            action=AuditAction.PASSWORD_CHANGED,
+            organization_id=user.organization_id,
+            actor_id=user.id,
+            actor_email=user.email,
+            entity_type="user",
+            entity_id=user.id,
+        )
         logger.info("password_changed", extra={"user_id": str(user.id)})
 
     # ---------------------------------------------------------- helpers

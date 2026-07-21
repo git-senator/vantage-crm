@@ -71,7 +71,13 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106"]           # hardcoded test credentials are fine
-"alembic/versions/*" = ["E501", "N999"]  # generated migration files
+"alembic/versions/*" = ["E501", "N999", "S608"]  # generated migrations; SQL is
+                                                  # built from module constants,
+                                                  # never from user input
+
+# Constant names like PASSWORD_CHANGED / TOKEN_REFRESHED trip the hardcoded-
+# password heuristic. They are audit action identifiers, not credentials.
+"app/core/audit_actions.py" = ["S105"]
 
 # This module is nothing but DDL constants.
 #   S105 — flags `TOKEN_LOOKUP_FUNCTION` as a hardcoded password because of the

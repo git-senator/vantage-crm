@@ -16,6 +16,7 @@ from app.api.v1.dependencies import (
     TenantSessionDep,
     verify_csrf,
 )
+from app.core.audit_actions import AuditAction
 from app.core.exceptions import NotFoundError
 from app.repositories.organization import OrganizationRepository
 from app.schemas.organization import (
@@ -23,6 +24,7 @@ from app.schemas.organization import (
     OrganizationRead,
     OrganizationUpdate,
 )
+from app.services.audit import AuditService, build_diff
 
 router = APIRouter()
 
@@ -63,9 +65,20 @@ async def update_current_organization(
         raise NotFoundError("Organization not found.")
 
     updates = payload.model_dump(exclude_unset=True)
+    before = {field: getattr(organization, field) for field in updates}
     for field, value in updates.items():
         setattr(organization, field, value)
     await session.flush()
+
+    await AuditService(session).record(
+        action=AuditAction.ORGANIZATION_UPDATED,
+        organization_id=organization_id,
+        actor_id=_user.id,
+        actor_email=_user.email,
+        entity_type="organization",
+        entity_id=organization.id,
+        metadata={"changes": build_diff(before, updates)},
+    )
 
     return OrganizationRead.model_validate(organization)
 

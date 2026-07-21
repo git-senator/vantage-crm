@@ -6,6 +6,7 @@ absent from that metadata — autogenerate would then emit a migration that drop
 its table.
 """
 
+from app.models.audit import AuditLog
 from app.models.organization import Organization
 from app.models.rbac import (
     Permission,
@@ -19,6 +20,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.user import User
 
 __all__ = [
+    "AuditLog",
     "Organization",
     "Permission",
     "RefreshToken",
