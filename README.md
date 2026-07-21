@@ -3,11 +3,11 @@
 A private, single-tenant real estate CRM built on foundations that scale to
 multi-tenant SaaS and an AI growth layer.
 
-**Current state: Phase 1 complete.** Authentication, multi-tenancy with
-row-level security, RBAC, and audit logging are implemented and the frontend is
-wired to the real API. Signing in, session rotation and workspace isolation all
-work end-to-end. CRM entity data (leads, clients, properties, deals) is still
-fixture-backed — Phase 2 replaces it.
+**Current state: Phase 2 in progress.** Authentication, multi-tenancy with
+row-level security, RBAC and audit logging are complete. Refresh concurrency
+and distributed rate limiting are closed. **Leads** is fully implemented
+end-to-end and is the reference for the remaining CRM modules; clients,
+properties and deals are still fixture-backed.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 
@@ -149,7 +149,7 @@ BYPASSRLS, and owns nothing else. See docs/AUTHENTICATION.md §5.
 | --- | --- | --- |
 | 0 | Foundations, CI, security baseline | **Complete** |
 | 1 | Auth, multi-tenancy, RBAC, audit logging | **Complete** |
-| 2 | CRM core — leads, clients, properties, deals | Next |
+| 2 | CRM core — leads ✅, clients, properties, deals | **In progress** |
 | 3 | Documents, S3, background jobs | Planned |
 | 4 | Analytics, admin, production hardening | Planned |
 | 5 | AI layer — scoring, assistant, generation, discovery | Planned |

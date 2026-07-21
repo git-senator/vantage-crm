@@ -197,7 +197,17 @@ Downloads are short-TTL presigned GETs, authorised per request. Storage bucket i
 
 ### 3.3 Rate limiting
 
-Redis sliding window, layered:
+**Implemented in Phase 2.2** (`app/core/rate_limit.py`). Sliding window over a
+Redis sorted set, with check-and-increment as a Lua script so it is atomic — a
+read followed by a separate write lets two concurrent requests both take the
+last slot, which under credential stuffing is the whole attack.
+
+Rejected attempts are deliberately not recorded: counting them would let a
+throttled attacker extend their own window and lock out the real account
+holder. Fails open, because a limiter that rejects traffic during a cache
+outage turns a degraded dependency into a full one.
+
+Layered:
 
 | Scope | Limit |
 |---|---|

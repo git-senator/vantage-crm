@@ -91,6 +91,10 @@ Frontend
 
 *Repetition of the Phase 1 pattern across the remaining domain.*
 
+**Delivered so far:** 2.1 refresh concurrency (R7), 2.2 Redis rate limiting,
+2.3 the Leads vertical slice — the reference implementation the remaining
+entities copy. Clients, Properties, Deals, Activities and Tasks are next.
+
 **Deliverables**
 - Clients, Properties, Pipelines + Stages, Deals, Activities, Tasks
 - `deal_stage_history` (analytics substrate and Phase 5 training data)
@@ -221,7 +225,7 @@ making before the first table exists rather than after the thirtieth.
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
 | R6 | 18 modules import `mock-data` | Medium | Typed data layer; port resource by resource | 1–2 |
-| R7 | Refresh rotation logs users out under concurrency | **High — OPEN** | Rotation and reuse detection shipped; the single-flight Redis mutex is NOT yet implemented. Concurrent refreshes can still race. Must land before production. | 2 |
+| R7 | Refresh rotation logs users out under concurrency | ~~High~~ **CLOSED** | Redis lock on the presented token plus a 10s rotation grace window. Proven by 10 genuinely parallel refreshes all succeeding, and by the suite passing with Redis deliberately unreachable | 2.1 ✅ |
 | R8 | `SET` instead of `SET LOCAL` leaks tenant context across pooled connections | ~~Critical~~ **CLOSED** | `set_config(..., true)` throughout; proven by `TestTransactionScopedContext` — context does not survive the transaction on a reused connection | 1 ✅ |
 | R9 | RAG retrieval bypasses RBAC | **Critical** | Shared scope resolver; pre-filter before similarity search; leakage test | 5 |
 | R10 | AI cost runaway | Medium | Per-org quotas, hard ceilings, per-job cost recording | 5 |
