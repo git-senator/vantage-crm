@@ -11,6 +11,7 @@ from app.models.audit import AuditLog
 from app.models.client import Client
 from app.models.deal import Deal, DealStageHistory
 from app.models.lead import Lead
+from app.models.note import Note
 from app.models.organization import Organization
 from app.models.pipeline import Pipeline, PipelineStage
 from app.models.property import Property
@@ -33,6 +34,7 @@ __all__ = [
     "Deal",
     "DealStageHistory",
     "Lead",
+    "Note",
     "Organization",
     "Permission",
     "Pipeline",

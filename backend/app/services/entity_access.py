@@ -28,6 +28,7 @@ from app.repositories.client import ClientRepository
 from app.repositories.deal import DealRepository
 from app.repositories.lead import LeadRepository
 from app.repositories.property import PropertyRepository
+from app.repositories.task import TaskRepository
 from app.services.rbac import AuthorizationContext, RbacService
 
 #: entity_type -> the permission that governs reading it.
@@ -36,6 +37,7 @@ VIEW_PERMISSIONS: dict[str, str] = {
     "client": "contacts.view",
     "property": "properties.view",
     "deal": "deals.view",
+    "task": "tasks.view",
 }
 
 
@@ -82,6 +84,13 @@ class EntityAccess:
                 )
             case "deal":
                 found = await DealRepository(self.session).get_visible(
+                    entity_id, organization_id, scoped_ids
+                )
+            case "task":
+                # A task's scope anchor is its assignee, not an owner — but the
+                # scope resolver returns the same id set either way, and the
+                # repository applies it against the right column.
+                found = await TaskRepository(self.session).get_visible(
                     entity_id, organization_id, scoped_ids
                 )
             case _:  # pragma: no cover - guarded above

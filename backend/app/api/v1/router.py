@@ -15,6 +15,7 @@ from app.api.v1 import (
     clients,
     deals,
     leads,
+    notes,
     organizations,
     pipelines,
     properties,
@@ -41,6 +42,8 @@ api_router.include_router(
     activities.router, prefix="/activities", tags=["activities"]
 )
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
+api_router.include_router(notes.router, prefix="/notes", tags=["notes"])
 
 
-# Phase 3:    documents
+# Phase 2.8:  attachments, timeline, dashboard (added with their slices)
+# Phase 3:    documents (real storage behind the attachment placeholders)
