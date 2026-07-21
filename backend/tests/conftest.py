@@ -85,6 +85,27 @@ async def engine():  # type: ignore[no-untyped-def]
     await engine.dispose()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _isolate_redis():
+    """Give every test a Redis client bound to its own event loop.
+
+    The client is a module-level singleton. pytest-asyncio runs each test in a
+    fresh loop, and a redis-py connection created in one loop fails in another
+    — the same constraint that forces a per-test database engine. Without this
+    the failures are intermittent and look like Redis being down.
+
+    Also clears the lock circuit breaker so one test's simulated outage does
+    not suppress locking in the next.
+    """
+    from app.core import locks
+    from app.core import redis as redis_module
+
+    locks.reset_breaker()
+    yield
+    locks.reset_breaker()
+    await redis_module.close_redis()
+
+
 _SCHEMA_READY = False
 
 

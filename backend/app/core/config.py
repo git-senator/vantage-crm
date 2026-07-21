@@ -52,7 +52,7 @@ class Settings(BaseSettings):
         return self.ENVIRONMENT == "production"
 
     # -------------------------------------------------------- database
-    POSTGRES_HOST: str = "localhost"
+    POSTGRES_HOST: str = "127.0.0.1"  # see the REDIS_HOST note below
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "vantage"
     POSTGRES_USER: str = "vantage_app"
@@ -89,7 +89,12 @@ class Settings(BaseSettings):
         )
 
     # ----------------------------------------------------------- redis
-    REDIS_HOST: str = "localhost"
+    # 127.0.0.1, not "localhost". On Windows and many Linux setups localhost
+    # resolves to ::1 first; when the service listens on IPv4 only, every
+    # connection stalls on the IPv6 attempt before falling back. Measured at
+    # ~2s per attempt — enough to push concurrent refreshes past the grace
+    # window and have legitimate clients flagged as token theft.
+    REDIS_HOST: str = "127.0.0.1"
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
     REDIS_PASSWORD: SecretStr = SecretStr("")
@@ -115,6 +120,23 @@ class Settings(BaseSettings):
     ACCESS_COOKIE_NAME: str = "vg_access"
     REFRESH_COOKIE_NAME: str = "vg_refresh"
     CSRF_COOKIE_NAME: str = "vg_csrf"
+
+    # Refresh-token rotation leeway.
+    #
+    # Strict rotation logs a legitimate user out whenever their client fires
+    # two concurrent refreshes with the same token: the second presentation
+    # looks exactly like a replay. Within this window a re-presented token is
+    # treated as a client race rather than theft (risk R7).
+    #
+    # The trade-off is explicit: an attacker replaying a stolen token inside
+    # this window gets a session. Seconds, not minutes — outside it, reuse
+    # detection is unchanged.
+    REFRESH_REUSE_GRACE_SECONDS: int = 10
+
+    # Bounds how long one refresh blocks a concurrent one before giving up and
+    # proceeding unserialised.
+    REFRESH_LOCK_WAIT_MS: int = 3_000
+    REFRESH_LOCK_TTL_MS: int = 5_000
 
     PASSWORD_MIN_LENGTH: int = 12
     LOGIN_MAX_ATTEMPTS: int = 5

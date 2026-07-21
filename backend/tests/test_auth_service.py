@@ -27,6 +27,29 @@ pytestmark = pytest.mark.integration
 CONTEXT = RequestContext(ip_address="203.0.113.10", user_agent="pytest")
 
 
+async def _age_past_grace(
+    db: AsyncSession, settings: Settings, raw_token: str
+) -> None:
+    """Backdate a token's `used_at` so re-presenting it is genuine reuse.
+
+    Within the grace window a re-presented token is treated as a concurrent
+    client, not a thief (Phase 2.1 / risk R7). Tests that mean to exercise
+    theft must therefore step outside that window explicitly.
+    """
+    stored = (
+        await db.execute(
+            select(RefreshToken).where(
+                RefreshToken.token_hash == hash_refresh_token(raw_token)
+            )
+        )
+    ).scalar_one()
+    stored.used_at = datetime.now(UTC) - timedelta(
+        seconds=settings.REFRESH_REUSE_GRACE_SECONDS + 60
+    )
+    await db.flush()
+
+
+
 @pytest.fixture
 def service(db: AsyncSession, settings: Settings) -> AuthService:
     return AuthService(db, settings)
@@ -188,22 +211,24 @@ class TestReuseDetection:
     """The security property that makes rotation worth doing."""
 
     async def test_reusing_a_spent_token_is_rejected(
-        self, service: AuthService, user: User
+        self, service: AuthService, db: AsyncSession, settings: Settings, user: User
     ) -> None:
         first = await service.authenticate(user.email, VALID_PASSWORD, CONTEXT)
         await service.refresh(first.refresh_token, CONTEXT)
+        await _age_past_grace(db, settings, first.refresh_token)
 
         with pytest.raises(AuthenticationError):
             await service.refresh(first.refresh_token, CONTEXT)
 
     async def test_reuse_revokes_the_entire_family(
-        self, service: AuthService, db: AsyncSession, user: User
+        self, service: AuthService, db: AsyncSession, settings: Settings, user: User
     ) -> None:
         """The stolen token AND the legitimate one must both die."""
         first = await service.authenticate(user.email, VALID_PASSWORD, CONTEXT)
         second = await service.refresh(first.refresh_token, CONTEXT)
+        await _age_past_grace(db, settings, first.refresh_token)
 
-        # Attacker replays the already-spent token.
+        # Attacker replays the already-spent token, well after it was spent.
         with pytest.raises(AuthenticationError):
             await service.refresh(first.refresh_token, CONTEXT)
 
@@ -220,13 +245,14 @@ class TestReuseDetection:
         assert any(row.revoked_reason == "reuse_detected" for row in rows)
 
     async def test_other_sessions_survive_reuse_detection(
-        self, service: AuthService, user: User
+        self, service: AuthService, db: AsyncSession, settings: Settings, user: User
     ) -> None:
         """Revocation is family-scoped: a laptop compromise must not kill the phone."""
         laptop = await service.authenticate(user.email, VALID_PASSWORD, CONTEXT)
         phone = await service.authenticate(user.email, VALID_PASSWORD, CONTEXT)
 
         await service.refresh(laptop.refresh_token, CONTEXT)
+        await _age_past_grace(db, settings, laptop.refresh_token)
         with pytest.raises(AuthenticationError):
             await service.refresh(laptop.refresh_token, CONTEXT)
 
@@ -379,6 +405,7 @@ class TestReuseRevocationSurvivesRollback:
         service = AuthService(db, settings)
         first = await service.authenticate(email, VALID_PASSWORD, CONTEXT)
         second = await service.refresh(first.refresh_token, CONTEXT)
+        await _age_past_grace(db, settings, first.refresh_token)
         await db.commit()
 
         # Replay the spent token. This raises, and in the API the raise rolls

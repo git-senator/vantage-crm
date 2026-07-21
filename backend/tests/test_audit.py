@@ -200,11 +200,29 @@ class TestAuthenticationIsAudited:
         self, db: AsyncSession, settings, user: User
     ) -> None:
         """The event that indicates token theft must leave a trail."""
+        from datetime import UTC, datetime, timedelta
+
         from app.core.exceptions import AuthenticationError
+        from app.core.security import hash_refresh_token
+        from app.models.refresh_token import RefreshToken
 
         service = AuthService(db, settings)
         first = await service.authenticate(user.email, VALID_PASSWORD, CONTEXT)
         await service.refresh(first.refresh_token, CONTEXT)
+
+        # Step outside the rotation grace window: within it, a re-presented
+        # token is a concurrent client rather than a thief (risk R7).
+        stored = (
+            await db.execute(
+                select(RefreshToken).where(
+                    RefreshToken.token_hash == hash_refresh_token(first.refresh_token)
+                )
+            )
+        ).scalar_one()
+        stored.used_at = datetime.now(UTC) - timedelta(
+            seconds=settings.REFRESH_REUSE_GRACE_SECONDS + 60
+        )
+        await db.flush()
 
         with pytest.raises(AuthenticationError):
             await service.refresh(first.refresh_token, CONTEXT)

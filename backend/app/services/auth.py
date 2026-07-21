@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit_actions import AuditAction
 from app.core.config import Settings
 from app.core.exceptions import AuthenticationError
+from app.core.locks import guard
 from app.core.logging import get_logger
 from app.core.security import (
     create_access_token,
@@ -193,9 +194,38 @@ class AuthService:
 
         Returns a brand new token in the same family and invalidates the
         presented one.
+
+        Concurrency (risk R7): under strict rotation a client that fires two
+        refreshes at once has its second request look identical to a replay,
+        tripping reuse detection and logging the user out. Two mechanisms
+        prevent that:
+
+        1. A Redis lock on the presented token, so a burst serialises rather
+           than races. Best-effort — if Redis is down we proceed unserialised.
+        2. A grace window (`_is_concurrent_refresh`), which is what actually
+           makes the remaining races correct. The lock narrows the window; the
+           window closes it.
         """
         token_hash = hash_refresh_token(raw_token)
 
+        # Keyed on the presented token, not the family: only requests racing on
+        # the SAME token conflict. Two devices refreshing different tokens in
+        # one family are independent and must not block each other.
+        async with guard(
+            f"refresh:lock:{token_hash}",
+            ttl_ms=self.settings.REFRESH_LOCK_TTL_MS,
+            wait_ms=self.settings.REFRESH_LOCK_WAIT_MS,
+        ) as locked:
+            if not locked:
+                logger.info(
+                    "refresh_unserialised", extra={"reason": "lock_unavailable"}
+                )
+            return await self._refresh_locked(token_hash, context)
+
+    async def _refresh_locked(
+        self, token_hash: str, context: RequestContext
+    ) -> IssuedSession:
+        """Rotation proper. Runs under the token lock where one is available."""
         # RLS denies reads on refresh_tokens until a tenant is bound, and the
         # tenant is only discoverable from the token itself.
         organization_id = await self.tokens.lookup_organization(token_hash)
@@ -208,6 +238,30 @@ class AuthService:
         if stored is None:
             logger.warning("refresh_failed", extra={"reason": "unknown_token"})
             raise AuthenticationError("Session is no longer valid.")
+
+        # ---- concurrent refresh (not theft) ----------------------------
+        if stored.used_at is not None and self._is_concurrent_refresh(stored):
+            # A client raced itself. Issue a sibling in the same family rather
+            # than revoking: the parent stays spent, the new child is
+            # single-use, and the lineage becomes a shallow tree instead of a
+            # chain. Nothing is weakened outside the window.
+            user = await self.users.get_with_organization(
+                stored.user_id, stored.organization_id
+            )
+            if user is None or not user.is_active:
+                raise AuthenticationError("Session is no longer valid.")
+
+            logger.info(
+                "refresh_concurrent_grace",
+                extra={
+                    "user_id": str(stored.user_id),
+                    "family_id": str(stored.family_id),
+                    "age_seconds": round(self._used_age_seconds(stored), 3),
+                },
+            )
+            return await self._issue_session(
+                user, context, family_id=stored.family_id
+            )
 
         # ---- reuse detection -------------------------------------------
         if stored.used_at is not None:
@@ -290,6 +344,32 @@ class AuthService:
             extra={"user_id": str(user.id), "family_id": str(stored.family_id)},
         )
         return issued
+
+    def _used_age_seconds(self, stored: RefreshToken) -> float:
+        """Seconds since the token was spent. Infinite if it never was."""
+        if stored.used_at is None:
+            return float("inf")
+        used_at = stored.used_at
+        if used_at.tzinfo is None:
+            used_at = used_at.replace(tzinfo=UTC)
+        return (datetime.now(UTC) - used_at).total_seconds()
+
+    def _is_concurrent_refresh(self, stored: RefreshToken) -> bool:
+        """True when a spent token is being re-presented by a racing client.
+
+        Requires BOTH conditions:
+          - spent within the grace window, and
+          - the family has not been revoked.
+
+        The second matters. Once reuse has been detected for real the family is
+        revoked, and every later presentation must be refused however recent —
+        otherwise an attacker could keep a revoked family alive by replaying
+        quickly.
+        """
+        if stored.revoked_at is not None:
+            return False
+        grace = self.settings.REFRESH_REUSE_GRACE_SECONDS
+        return self._used_age_seconds(stored) <= grace
 
     # ----------------------------------------------------------- logout
 

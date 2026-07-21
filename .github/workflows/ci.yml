@@ -110,6 +110,10 @@ jobs:
       POSTGRES_MIGRATION_USER: postgres
       POSTGRES_MIGRATION_PASSWORD: postgres
       REDIS_HOST: 127.0.0.1
+      # The CI Redis service runs without auth; the compose stack requires a
+      # password. Blank here so the lock and rate-limit tests exercise a real
+      # Redis rather than silently skipping.
+      REDIS_PASSWORD: ""
 
     steps:
       - uses: actions/checkout@v4
