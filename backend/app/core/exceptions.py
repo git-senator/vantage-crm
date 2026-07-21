@@ -116,7 +116,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             for err in exc.errors()
         ]
         return _problem(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             problem_type="validation-error",
             title="Request validation failed",
             detail="One or more fields are invalid.",

@@ -100,9 +100,16 @@ jobs:
       # Test-only value. Long enough to satisfy the strength validator.
       JWT_SECRET: ci_test_secret_not_used_anywhere_real_0123456789
       ENVIRONMENT: test
-      POSTGRES_HOST: localhost
-      POSTGRES_DB: vantage_test
-      REDIS_HOST: localhost
+      # 127.0.0.1, not "localhost": localhost may resolve to ::1 first and
+      # stall on the IPv6 attempt. Measured at 2.08s vs 0.05s per connection.
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_TEST_DB: vantage_test
+      # The CI service container has no role separation, so integration tests
+      # connect as the superuser. Role separation is exercised by the Compose
+      # stack and asserted by the migration job.
+      POSTGRES_MIGRATION_USER: postgres
+      POSTGRES_MIGRATION_PASSWORD: postgres
+      REDIS_HOST: 127.0.0.1
 
     steps:
       - uses: actions/checkout@v4

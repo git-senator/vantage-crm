@@ -14,12 +14,12 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+# Importing the models package populates `Base.metadata`. A model that is not
+# imported here is absent from the metadata, and autogenerate would emit a
+# migration that DROPS its table.
+import app.models  # noqa: F401
 from app.core.config import get_settings
 from app.db.base import Base
-
-# Import every model module here so `Base.metadata` is fully populated before
-# autogenerate compares it against the live schema. Phase 1 adds these:
-#   from app.models import audit, organization, user
 
 config = context.config
 

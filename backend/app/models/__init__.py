@@ -1,0 +1,17 @@
+"""ORM models.
+
+Every model must be imported here. Alembic autogenerate compares
+`Base.metadata` against the live schema, and a model that is never imported is
+absent from that metadata — autogenerate would then emit a migration that drops
+its table.
+"""
+
+from app.models.organization import Organization
+from app.models.refresh_token import RefreshToken
+from app.models.user import User
+
+__all__ = [
+    "Organization",
+    "RefreshToken",
+    "User",
+]
