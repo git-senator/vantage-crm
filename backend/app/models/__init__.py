@@ -7,11 +7,25 @@ its table.
 """
 
 from app.models.organization import Organization
+from app.models.rbac import (
+    Permission,
+    Role,
+    RolePermission,
+    Team,
+    TeamMember,
+    UserRole,
+)
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 
 __all__ = [
     "Organization",
+    "Permission",
     "RefreshToken",
+    "Role",
+    "RolePermission",
+    "Team",
+    "TeamMember",
     "User",
+    "UserRole",
 ]

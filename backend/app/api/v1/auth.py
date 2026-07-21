@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.cookies import clear_session_cookies, set_session_cookies
 from app.api.v1.dependencies import (
+    Authorization,
     CurrentUser,
     RefreshTokenDep,
     RequestContextDep,
@@ -29,15 +30,19 @@ from app.schemas.auth import (
     UserProfile,
 )
 from app.services.auth import AuthService, IssuedSession
+from app.services.rbac import AuthorizationContext, RbacService
 
 router = APIRouter()
 
 
-def _profile(user: User, roles: list[str] | None = None) -> UserProfile:
+def _profile(
+    user: User, authorization: AuthorizationContext | None = None
+) -> UserProfile:
     """Build the response profile.
 
-    `roles`/`permissions` are populated by the RBAC layer in Phase 1.3. The
-    fields exist now so the client contract does not change when they arrive.
+    Permissions are sent to the client so the UI can hide what the user cannot
+    do. That is UX, not a control — every action is still authorized
+    server-side (docs/SECURITY.md §1.4).
     """
     return UserProfile(
         id=user.id,
@@ -51,13 +56,16 @@ def _profile(user: User, roles: list[str] | None = None) -> UserProfile:
         mfa_enabled=user.mfa_enabled,
         last_login_at=user.last_login_at,
         organization=OrganizationSummary.model_validate(user.organization),
-        roles=roles or [],
-        permissions=[],
+        roles=list(authorization.role_keys) if authorization else [],
+        permissions=authorization.permission_keys if authorization else [],
     )
 
 
 def _session_response(
-    response: Response, settings: Settings, issued: IssuedSession
+    response: Response,
+    settings: Settings,
+    issued: IssuedSession,
+    authorization: AuthorizationContext | None = None,
 ) -> SessionResponse:
     now = datetime.now(UTC)
     set_session_cookies(
@@ -71,7 +79,7 @@ def _session_response(
         now=now,
     )
     return SessionResponse(
-        user=_profile(issued.user),
+        user=_profile(issued.user, authorization),
         expires_at=issued.access_expires_at,
         csrf_token=issued.csrf_token,
     )
@@ -92,7 +100,10 @@ async def login(
     """
     service = AuthService(session, settings)
     issued = await service.authenticate(payload.email, payload.password, context)
-    return _session_response(response, settings, issued)
+    authorization = await RbacService(session).resolve(
+        issued.user.id, issued.user.organization_id, use_cache=False
+    )
+    return _session_response(response, settings, issued, authorization)
 
 
 @router.post("/refresh", response_model=SessionResponse)
@@ -113,7 +124,10 @@ async def refresh(
 
     service = AuthService(session, settings)
     issued = await service.refresh(refresh_token, context)
-    return _session_response(response, settings, issued)
+    authorization = await RbacService(session).resolve(
+        issued.user.id, issued.user.organization_id, use_cache=False
+    )
+    return _session_response(response, settings, issued, authorization)
 
 
 @router.post("/logout", response_model=MessageResponse)
@@ -135,9 +149,9 @@ async def logout(
 
 
 @router.get("/me", response_model=UserProfile)
-async def me(user: CurrentUser) -> UserProfile:
+async def me(user: CurrentUser, authorization: Authorization) -> UserProfile:
     """The authenticated user, their organization, roles and permissions."""
-    return _profile(user)
+    return _profile(user, authorization)
 
 
 @router.post(

@@ -40,6 +40,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.user import User
 from app.repositories.refresh_token import RefreshTokenRepository
 from app.repositories.user import UserRepository
+from app.services.rbac import RbacService
 
 logger = get_logger(__name__)
 
@@ -300,9 +301,14 @@ class AuthService:
         self, user: User, context: RequestContext, *, family_id: uuid.UUID
     ) -> IssuedSession:
         """Mint an access/refresh pair and persist the refresh token's hash."""
-        # Roles are resolved by the RBAC layer in Phase 1.3; until then the
-        # claim is present but empty so the token shape does not change later.
-        roles: list[str] = getattr(user, "role_keys", [])
+        # Roles go in the token; permissions deliberately do not. Permissions
+        # resolve server-side from a cached role map, so a revocation takes
+        # effect within one access-token lifetime rather than requiring the
+        # user to log out. See docs/SECURITY.md §2.1.
+        authorization = await RbacService(self.session).resolve(
+            user.id, user.organization_id, use_cache=False
+        )
+        roles: list[str] = list(authorization.role_keys)
 
         access_token, _jti, access_expires_at = create_access_token(
             self.settings,

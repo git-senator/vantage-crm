@@ -12,7 +12,7 @@ raised. This is risk R8, rated Critical. See docs/DATABASE.md §2.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated
 from uuid import UUID
 
@@ -27,6 +27,7 @@ from app.db.session import get_session_factory, set_tenant_context
 from app.models.user import User
 from app.repositories.user import UserRepository
 from app.services.auth import RequestContext
+from app.services.rbac import AuthorizationContext, RbacService
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
@@ -125,6 +126,48 @@ def get_organization_id(claims: ClaimsDep) -> UUID:
 OrganizationId = Annotated[UUID, Depends(get_organization_id)]
 
 
+# ------------------------------------------------------------ authorization
+
+
+async def get_authorization(
+    user: CurrentUser, session: TenantSessionDep
+) -> AuthorizationContext:
+    """Resolve the caller's permissions and scopes.
+
+    Resolved from the database (Redis-cached), not read from the token. Roles
+    live in the JWT but permissions do not, so a revocation takes effect within
+    one access-token lifetime instead of requiring the user to log out.
+    """
+    return await RbacService(session).resolve(user.id, user.organization_id)
+
+
+Authorization = Annotated[AuthorizationContext, Depends(get_authorization)]
+
+
+def require(*permissions: str) -> Callable[..., Awaitable[AuthorizationContext]]:
+    """Endpoint dependency asserting one or more permissions.
+
+    Usage:
+
+        @router.get("/leads", dependencies=[Depends(require("leads.view"))])
+
+    or, when the handler needs the scope:
+
+        async def list_leads(auth: Annotated[..., Depends(require("leads.view"))]):
+            scope = auth.scope_for("leads.view")
+
+    Multiple permissions are ANDed. Denial raises 403 and is logged — this is
+    the signal that matters for detecting probing.
+    """
+
+    async def _dependency(auth: Authorization) -> AuthorizationContext:
+        for permission in permissions:
+            auth.require(permission)
+        return auth
+
+    return _dependency
+
+
 # --------------------------------------------------------------- context
 
 
@@ -187,6 +230,8 @@ RefreshTokenDep = Annotated[str | None, Depends(get_refresh_token)]
 # Silences an unused-import warning while keeping the symbol available for
 # routers that declare an explicit cookie parameter.
 __all__ = [
+    "Authorization",
+    "AuthorizationContext",
     "ClaimsDep",
     "Cookie",
     "CurrentUser",
@@ -196,5 +241,6 @@ __all__ = [
     "SettingsDep",
     "TenantSessionDep",
     "get_db",
+    "require",
     "verify_csrf",
 ]
