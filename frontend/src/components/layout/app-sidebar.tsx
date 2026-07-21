@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsUpDown, LogOut, Plus, Settings, UserRound } from "lucide-react";
+import { ChevronsUpDown, Plus, Settings, UserRound } from "lucide-react";
 
+import { SignOutItem } from "@/components/auth/sign-out-item";
 import { BrandLockup } from "@/components/shared/brand";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -132,10 +133,7 @@ export function AppSidebar({ user }: { user: SessionUser }) {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem render={<Link href="/login" />}>
-              <LogOut className="size-4" />
-              Sign out
-            </DropdownMenuItem>
+            <SignOutItem />
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarFooter>

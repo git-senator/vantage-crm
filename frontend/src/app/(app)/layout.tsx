@@ -1,22 +1,42 @@
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { currentUser, notifications } from "@/lib/mock-data";
+import { requireSession } from "@/lib/auth/session";
+import { notifications } from "@/lib/mock-data";
+import type { SessionUser } from "@/types";
 
 /**
- * Server component. Resolves session data here and passes only what each client
- * component needs — the sidebar gets the user, the topbar gets an integer.
+ * Authenticated shell.
  *
- * Phase 1 swaps the fixture reads for a session lookup; the props do not change.
+ * Server component. Resolves the session here and passes only what each client
+ * component needs — the sidebar gets a user, the topbar gets an integer. A
+ * client component must never import a data module (docs/SECURITY.md §4).
+ *
+ * `requireSession` is the second authorization layer. Middleware already
+ * redirected unauthenticated navigation, but it only checks cookie *presence*;
+ * a forged or expired token reaches here and is rejected by the API.
  */
-export default function AppLayout({
+export default async function AppLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const session = await requireSession();
+
+  const user: SessionUser = {
+    id: session.id,
+    name: session.full_name,
+    initials: session.initials,
+    role: session.job_title ?? "Member",
+    hue: session.avatar_hue,
+    email: session.email,
+  };
+
+  // Notifications remain fixture-backed until Phase 2 delivers the endpoint.
+  // Read on the server and reduced to a count before crossing the boundary.
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <SidebarProvider>
-      <AppSidebar user={currentUser} />
+      <AppSidebar user={user} />
       <SidebarInset className="min-w-0">
         <Topbar unreadCount={unreadCount} />
         <main className="flex-1 p-4 md:p-6">{children}</main>

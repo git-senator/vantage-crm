@@ -13,14 +13,27 @@ import boundaryPlugin from "./eslint-rules/no-server-data-in-client.mjs";
  */
 const SERVER_ONLY_MODULES = [
   "@/lib/mock-data",
-  "@/lib/api",
-  "@/lib/api/*",
+  // Holds the internal API hostname.
+  "@/lib/api/config",
+  // Reads httpOnly cookies via next/headers.
+  "@/lib/api/server",
+  // Session resolution — issues authenticated calls on the user's behalf.
+  "@/lib/auth/session",
   "@/lib/db",
   "@/lib/db/*",
-  "@/lib/auth/server",
-  "@/lib/auth/server/*",
   "server-only",
 ];
+
+/*
+ * Deliberately NOT restricted:
+ *   @/lib/api/types     — type-only, erased at compile time
+ *   @/lib/api/constants — cookie names and the CSRF header, which the browser
+ *                         must read to implement double-submit CSRF
+ *   @/lib/api/paths     — the public /api/v1 prefix
+ *
+ * `import "server-only"` in each restricted module is the backstop: anything
+ * this list misses still fails the build rather than shipping to a browser.
+ */
 
 const eslintConfig = defineConfig([
   ...nextVitals,

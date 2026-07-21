@@ -221,7 +221,7 @@ class AuthService:
                 extra={
                     "user_id": str(stored.user_id),
                     "family_id": str(stored.family_id),
-                    "tokens_revoked": revoked,
+                    "revoked_count": revoked,
                     "ip_address": context.ip_address,
                 },
             )
@@ -238,6 +238,19 @@ class AuthService:
                 ip_address=context.ip_address,
                 user_agent=context.user_agent,
             )
+
+            # Commit BEFORE raising.
+            #
+            # The exception below propagates out of the endpoint, and the
+            # request transaction is rolled back with it — taking the
+            # revocation and its audit entry along. The API would return 401 as
+            # though it had acted while the stolen family stayed fully usable,
+            # making reuse detection decorative.
+            #
+            # Safe here: the flow has only read up to this point, so there is
+            # no partial work to leak. The request must still fail.
+            await self.session.commit()
+
             raise AuthenticationError("Session is no longer valid.")
 
         if stored.revoked_at is not None:

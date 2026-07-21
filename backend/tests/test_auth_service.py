@@ -354,3 +354,57 @@ class TestTenantBinding:
             await db.execute(select(User).where(User.email == shared))
         ).scalars().all()
         assert len(count) == 2
+
+
+class TestReuseRevocationSurvivesRollback:
+    """Regression guard for a bug that made reuse detection decorative.
+
+    Detection revoked the token family and then raised. The raise rolled back
+    the request transaction — taking the revocation and the audit entry with
+    it. The API returned 401 as though it had acted, while the stolen family
+    remained fully usable.
+
+    Caught only by driving the real HTTP stack: at service level the revocation
+    is visible inside the same transaction, so it looks correct.
+    """
+
+    async def test_family_stays_revoked_after_the_request_fails(
+        self, db: AsyncSession, settings: Settings, user: User
+    ) -> None:
+        # Capture as plain values: the service commits mid-test, which expires
+        # the fixture's ORM instance and would make later attribute access
+        # trigger IO outside the async context.
+        user_id, email = user.id, user.email
+
+        service = AuthService(db, settings)
+        first = await service.authenticate(email, VALID_PASSWORD, CONTEXT)
+        second = await service.refresh(first.refresh_token, CONTEXT)
+        await db.commit()
+
+        # Replay the spent token. This raises, and in the API the raise rolls
+        # back the request transaction.
+        with pytest.raises(AuthenticationError):
+            await service.refresh(first.refresh_token, CONTEXT)
+
+        # Simulate that rollback explicitly.
+        await db.rollback()
+        db.expunge_all()
+
+        # The revocation must have been committed independently, so the
+        # legitimate current token is dead too.
+        rows = (
+            await db.execute(
+                select(RefreshToken).where(RefreshToken.user_id == user_id)
+            )
+        ).scalars().all()
+
+        assert rows, "expected token rows to still exist"
+        assert all(row.revoked_at is not None for row in rows), (
+            "Token family survived reuse detection. The revocation was rolled "
+            "back with the failing request — it must commit independently."
+        )
+        assert any(row.revoked_reason == "reuse_detected" for row in rows)
+
+        # And the stolen family's current token is genuinely unusable.
+        with pytest.raises(AuthenticationError):
+            await service.refresh(second.refresh_token, CONTEXT)

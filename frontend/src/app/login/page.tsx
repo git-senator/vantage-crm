@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, Quote, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import { Quote, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
 
+import { Suspense } from "react";
+
+import { LoginForm } from "@/components/auth/login-form";
 import { BrandLockup, BrandMark } from "@/components/shared/brand";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -58,52 +58,9 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form className="mt-8 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Work email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@vantagerealty.com"
-                  autoComplete="email"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Link
-                    href="/login"
-                    className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••••••"
-                  autoComplete="current-password"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <Checkbox id="remember" defaultChecked />
-                <Label htmlFor="remember" className="text-sm font-normal">
-                  Keep me signed in for 30 days
-                </Label>
-              </div>
-
-              {/* Navigates straight through — no auth in this prototype. */}
-              <Button
-                size="lg"
-                className="w-full"
-                render={<Link href="/dashboard" />}
-              >
-                Sign in
-                <ArrowRight className="size-4" />
-              </Button>
-            </form>
+            <Suspense fallback={<div className="mt-8 h-[268px]" />}>
+              <LoginForm />
+            </Suspense>
 
             <div className="my-6 flex items-center gap-3">
               <Separator className="flex-1" />
