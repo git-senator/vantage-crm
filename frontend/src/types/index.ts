@@ -46,27 +46,10 @@ export interface Lead {
 // Properties now come from the API — see `Property` in lib/api/types.ts. The
 // prototype fixture types are gone with the fixture.
 
-export type DealStage =
-  | "qualification"
-  | "showing"
-  | "offer"
-  | "under-contract"
-  | "closing"
-  | "closed-won";
-
-export interface Deal {
-  id: string;
-  title: string;
-  client: string;
-  property: string;
-  value: number;
-  commission: number;
-  stage: DealStage;
-  probability: number;
-  closeDate: string;
-  owner: TeamMember;
-  priority: "low" | "medium" | "high";
-}
+// Deals now come from the API — see `Deal` in lib/api/types.ts. Stages are
+// rows in `pipeline_stages` rather than a fixed union, because brokerages
+// reconfigure their funnel. The prototype fixture types are gone with the
+// fixture.
 
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 export type TaskStatus = "todo" | "in-progress" | "blocked" | "done";

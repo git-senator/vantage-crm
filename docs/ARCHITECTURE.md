@@ -185,7 +185,30 @@ editing a record and handing it to a colleague are different privileges.
 
 /properties   + GET  /properties/stats/statuses
               + POST /properties/{id}/assign   properties.assign
+
+/pipelines      GET  /pipelines                deals.view
+              + POST/PATCH/DELETE              settings.manage
+              + POST/PATCH/DELETE /{id}/stages settings.manage
+
+/deals        + GET  /deals/board              grouped by stage, server-side
+              + GET  /deals/{id}/history       stage history + time in stage
+              + POST /deals/{id}/stage         domain action, not CRUD
+              + POST /deals/{id}/assign        deals.manage
 ```
+
+**Pipelines are configuration, so writes are `settings.manage`, not
+`deals.manage`.** An agent who can edit deals must not be able to delete the
+stage a colleague's deals sit in. Reads are `deals.view`, because the board
+cannot render without stages.
+
+**`POST /deals/{id}/stage` is the only way to move a deal.** `PATCH /deals/{id}`
+has no `stage_id`. The transition writes a `deal_stage_history` row with the
+measured time in the stage being left, resets probability to the new stage's
+default, sets or clears `actual_close_date`, emits a `stage_change` activity and
+audits under `record.stage_changed` — atomically, under a row lock. A PATCH that
+could set `stage_id` would let a client do the first part without the rest, and
+the analytics substrate would develop holes. Moving to a losing stage requires
+`lost_reason`; 409 without it.
 
 **One deliberate status-code deviation, on properties only.** Everywhere else a
 record outside the caller's scope is `404`, never `403`, so there is no

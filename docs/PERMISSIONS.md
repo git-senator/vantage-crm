@@ -71,6 +71,18 @@ AI permissions exist already so Phase 5 does not require re-seeding roles.
 | `manager` | agent's grants, widened to TEAM | Adds `leads.assign`, `contacts.assign`, `properties.assign`, `deals.approve`, `documents.sign`, `reports.export` |
 | `agent` | own book of business | `properties.view` at ALL — shared inventory |
 
+### Pipelines are gated on `settings.manage`, not `deals.manage`
+
+A pipeline is workspace configuration, not CRM data. Reading it needs
+`deals.view` — the board cannot render without stages — but creating, renaming,
+reordering or retiring a stage needs `settings.manage`, which `manager` and
+`agent` do not hold. An agent who can edit deals must not be able to delete the
+stage their colleague's deals sit in.
+
+Deals themselves have no separate `assign` permission, unlike leads, contacts
+and properties. Reassigning a deal is part of managing it; the *scope* of
+`deals.manage` is what bounds who you can hand work to.
+
 ### The shared-inventory asymmetry
 
 `agent` holds `properties.view` at **ALL** and `properties.manage` at **OWN**.

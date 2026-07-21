@@ -115,6 +115,23 @@ Library), covering the query builder, formatters, and the property form's
 payload construction — the place where a price could silently be rounded by
 passing through a JS number.
 
+2.6 delivered the central entity across two commits — 2.6a pipelines, deals and
+stage history; 2.6b the Kanban board, drag-and-drop and pipeline management.
+It is the first slice that was not a repetition, and the first to need a
+supporting entity: `activities` was created here because a stage change has to
+land on a timeline somewhere. Only `stage_change` is written; manual logging and
+the other entities' timelines remain for the Activities slice.
+
+The load-bearing decision is that **a stage transition is a domain action, not a
+field edit**. `DealUpdate` has no `stage_id`, and there is a test asserting it.
+`deal_stage_history` — the substrate Phase 4 velocity and cycle-time reporting
+is computed from — is written on creation and on every move, with the measured
+time in the stage being left, under a row lock so two concurrent drags cannot
+both claim to have left the same stage.
+
+2.6 also surfaced two pre-existing production bugs in the audit layer that had
+shipped since 2.3. See the risk register.
+
 **Deliverables**
 - Clients, Properties, Pipelines + Stages, Deals, Activities, Tasks
 - `deal_stage_history` (analytics substrate and Phase 5 training data)
@@ -244,7 +261,9 @@ making before the first table exists rather than after the thirtieth.
 | R3 | Client-boundary leak recurs during data port | **High — MITIGATED** | Lint rule + `server-only` caught a real violation during Phase 1.5 and forced a correct module split. Still live for the Phase 2 data port. | 0 ✅ |
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
-| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4) and Properties (2.5) are ported and their fixtures deleted; deals, tasks and the rest remain | 1–2 |
+| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4), Properties (2.5) and Deals (2.6) are ported and their fixtures deleted; tasks, documents, calendar, messages and the dashboard's remaining panels are what is left | 1–2 |
+| R11 | Audit metadata could not serialise `Decimal`; a failed audit write poisoned the caller's transaction | ~~High~~ **CLOSED** | Found in 2.6, live since 2.3 — reachable from any money-field edit on leads, clients or properties, and no test had changed one. Values now coerce to JSON-safe types (Decimal → string, never float), comparison happens before coercion, and the insert runs in a SAVEPOINT so an audit failure genuinely cannot break the request it describes | 2.6 ✅ |
+| R12 | Read-after-write returned stale relationship state | ~~Medium~~ **CLOSED** | SQLAlchemy does not overwrite loaded state on a fresh query, so a stage transition returned the deal's *old* stage and therefore its old derived status — the Kanban card would snap back. `populate_existing` on the deal and pipeline read paths | 2.6 ✅ |
 | R7 | Refresh rotation logs users out under concurrency | ~~High~~ **CLOSED** | Redis lock on the presented token plus a 10s rotation grace window. Proven by 10 genuinely parallel refreshes all succeeding, and by the suite passing with Redis deliberately unreachable | 2.1 ✅ |
 | R8 | `SET` instead of `SET LOCAL` leaks tenant context across pooled connections | ~~Critical~~ **CLOSED** | `set_config(..., true)` throughout; proven by `TestTransactionScopedContext` — context does not survive the transaction on a reused connection | 1 ✅ |
 | R9 | RAG retrieval bypasses RBAC | **Critical** | Shared scope resolver; pre-filter before similarity search; leakage test | 5 |

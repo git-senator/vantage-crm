@@ -30,11 +30,11 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { formatPrice } from "@/lib/format";
+import { listDeals } from "@/lib/api/deals";
 import {
   activity,
   calendarEvents,
   currentUser,
-  deals,
   leads,
   revenueByMonth,
   tasks,
@@ -98,12 +98,16 @@ const toneStyles = {
   risk: "border-l-warning",
 };
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
   const todaysEvents = calendarEvents.filter((e) => e.date === "2026-07-20");
   const openTasks = tasks.filter((t) => t.status !== "done").slice(0, 5);
-  const topDeals = [...deals]
-    .filter((d) => d.stage !== "closed-won")
-    .sort((a, b) => b.value - a.value)
+  // Real deals now. Sorted here rather than by the API because the list
+  // endpoint orders by created_at for keyset pagination — a genuine "top N by
+  // value" needs a sorted, aggregate endpoint, which is Phase 4 reporting
+  // work. Over one page this is exact; past it, it is the top of a page.
+  const openDeals = await listDeals({ status: "open", limit: 50 });
+  const topDeals = [...openDeals.data]
+    .sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0))
     .slice(0, 5);
   const hotLeads = leads.filter((l) => l.temperature === "hot").slice(0, 4);
 
@@ -239,12 +243,29 @@ export default function DashboardPage() {
             {topDeals.map((deal, index) => (
               <div key={deal.id}>
                 {index > 0 && <Separator className="my-1" />}
-                <div className="flex items-center gap-4 rounded-lg p-2 transition-colors hover:bg-muted/50">
-                  <UserAvatar user={deal.owner} size="md" />
+                <Link
+                  href={`/deals/${deal.id}`}
+                  className="flex items-center gap-4 rounded-lg p-2 transition-colors hover:bg-muted/50"
+                >
+                  {deal.owner ? (
+                    <UserAvatar
+                      user={{
+                        id: deal.owner.id,
+                        name: deal.owner.full_name,
+                        initials: deal.owner.initials,
+                        role: "",
+                        hue: deal.owner.avatar_hue,
+                      }}
+                      size="md"
+                    />
+                  ) : null}
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{deal.title}</p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {deal.client} · closes {deal.closeDate}
+                      {deal.client.display_name}
+                      {deal.expected_close_date
+                        ? ` · closes ${deal.expected_close_date}`
+                        : ""}
                     </p>
                   </div>
                   <div className="hidden w-32 shrink-0 sm:block">
@@ -258,11 +279,16 @@ export default function DashboardPage() {
                   </div>
                   <div className="w-24 shrink-0 text-right">
                     <p className="tabular text-sm font-semibold">
-                      {formatPrice(deal.value)}
+                      {deal.value ? formatPrice(Number(deal.value)) : "—"}
                     </p>
-                    <StatusBadge status={deal.stage} className="mt-1" dot={false} />
+                    <StatusBadge
+                      status={deal.stage.key}
+                      label={deal.stage.name}
+                      className="mt-1"
+                      dot={false}
+                    />
                   </div>
-                </div>
+                </Link>
               </div>
             ))}
           </CardContent>

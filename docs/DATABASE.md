@@ -4,15 +4,17 @@ PostgreSQL 16+ · extensions: `pgcrypto`, `citext`, `pg_trgm`, `pgvector` (Phase
 
 > **Status.** Phase 1 shipped `organizations`, `users`, `refresh_tokens`,
 > `permissions`, `roles`, `role_permissions`, `user_roles`, `teams`,
-> `team_members` and `audit_logs`. Phase 2 has since shipped `leads`, `clients`
-> and `properties`. The remaining CRM entity tables below (deals, …) are still
-> design.
+> `team_members` and `audit_logs`. Phase 2 has since shipped `leads`,
+> `clients`, `properties`, `pipelines`, `pipeline_stages`, `deals`,
+> `deal_stage_history` and `activities`. Tasks, documents and notifications
+> below are still design.
 >
 > Migrations, in order:
 > `a1b2c3d4e5f6` extensions → `abdb194064d6` auth → `c3d5e7f9a1b2` RLS →
 > `d7305fe801ac` RBAC → `bea0a00f5c8a` audit → `6816eeddf00a` leads →
 > `e4f1a2b3c5d6` clients + conversion → `f7a2b8c1d3e4` `contacts.assign` →
-> `b8c3d5e7f2a1` properties → `c9d4e6f8a3b2` `properties.assign`.
+> `b8c3d5e7f2a1` properties → `c9d4e6f8a3b2` `properties.assign` →
+> `d1e5f7a9b3c4` pipelines, deals, stage history and activities.
 >
 > **Deviation from the design below.** `clients.first_name` and `last_name` are
 > nullable, not NOT NULL: a client may be a company (an LLC, a trust, an
@@ -40,6 +42,27 @@ PostgreSQL 16+ · extensions: `pgcrypto`, `citext`, `pg_trgm`, `pgvector` (Phase
 > (`WHERE mls_number IS NOT NULL AND deleted_at IS NULL`). MLS numbers are
 > unique within a market, not globally; the `deleted_at` clause means a
 > withdrawn listing does not block re-listing the same property.
+>
+> **`deals` deviates in three ways.** There is no `status` column — it is
+> derived from the stage's `is_won`/`is_lost`, so it cannot disagree with the
+> board. Filtering on it correlates to `pipeline_stages` via EXISTS.
+>
+> `pipeline_stages` and `deal_stage_history` carry `organization_id` even
+> though both are reachable through a parent, for the same reason every
+> tenant-scoped table does: the RLS policy compares that column directly, and a
+> policy joining through a parent would be slower and would stop applying to
+> any query that did not join. Stage `position` is **not** unique — reordering
+> swaps positions, and uniqueness turns a swap into a three-step dance.
+>
+> `pipelines` carries a partial UNIQUE index enforcing exactly one default per
+> tenant (`WHERE is_default AND deleted_at IS NULL`). Two defaults means new
+> deals land in whichever the planner happens to pick.
+>
+> `deal_stage_history` and `activities` have **no `deleted_at`**. History that
+> can be soft-deleted is not evidence, and a timeline with holes is worse than
+> no timeline. `duration_in_stage` is written at transition time from the
+> previous row's `changed_at`, so cycle time is a column read rather than a
+> window function over the whole table.
 
 ---
 
