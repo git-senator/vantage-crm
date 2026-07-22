@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { MfaCard } from "@/components/settings/mfa-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -37,6 +38,7 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { team } from "@/lib/mock-data";
+import { getMfaStatus } from "@/lib/api/mfa";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -69,7 +71,9 @@ const integrations = [
   { name: "QuickBooks", detail: "Commission reconciliation", connected: false },
 ];
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const mfa = await getMfaStatus();
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -316,6 +320,11 @@ export default function SettingsPage() {
           </Card>
 
           {/* --------------------------------------------------- security */}
+          {/* Live since Phase 3.7. The rows below it are still prototype
+              affordances — password change and session management have
+              backends but no UI yet. */}
+          <MfaCard status={mfa} />
+
           <Card>
             <CardHeader>
               <CardTitle>Security</CardTitle>
@@ -323,7 +332,6 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               {[
                 { icon: KeyRound, label: "Password", detail: "Last changed 3 months ago", action: "Change" },
-                { icon: ShieldCheck, label: "Two-factor authentication", detail: "Enabled via authenticator app", action: "Manage" },
                 { icon: Globe, label: "Active sessions", detail: "3 devices signed in", action: "Review" },
               ].map((row, index) => (
                 <div

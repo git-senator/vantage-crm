@@ -85,6 +85,23 @@ class AuthService:
     ) -> IssuedSession:
         """Verify credentials and issue a session.
 
+        The single-factor path. Callers that support MFA use
+        `verify_credentials` + `complete_authentication` instead, so the second
+        factor sits between them; this remains for internal callers and for
+        accounts without MFA.
+        """
+        user = await self.verify_credentials(email, password, context)
+        return await self.complete_authentication(user, context)
+
+    async def verify_credentials(
+        self, email: str, password: str, context: RequestContext
+    ) -> User:
+        """Everything up to, but not including, issuing a session.
+
+        Split out so MFA can interpose: the password step must complete — with
+        its lockout counting and its audit trail — before a second factor is
+        asked for, and no session may exist until that factor is proved.
+
         Every failure raises the same error with the same message.
         """
         # Two-step, because RLS denies reads until a tenant is bound and the
@@ -168,6 +185,19 @@ class AuthService:
             user.password_hash = hash_password(password)
             logger.info("password_hash_upgraded", extra={"user_id": str(user.id)})
 
+        return user
+
+    async def complete_authentication(
+        self, user: User, context: RequestContext
+    ) -> IssuedSession:
+        """Issue the session, once every factor has been proved.
+
+        Clearing the failed-login counter happens here rather than after the
+        password check: a correct password followed by a wrong TOTP code is not
+        a successful login, and resetting the counter there would let an
+        attacker with the password keep an account unlocked indefinitely while
+        they worked on the second factor.
+        """
         await self.users.register_successful_login(user)
 
         session = await self._issue_session(user, context, family_id=uuid.uuid4())

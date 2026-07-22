@@ -138,6 +138,14 @@ class Settings(BaseSettings):
     REFRESH_LOCK_WAIT_MS: int = 3_000
     REFRESH_LOCK_TTL_MS: int = 5_000
 
+    # ------------------------------------------------------------- mfa
+    #: Roles that oblige a user to enrol in TOTP. Enforcement is a nudge with
+    #: teeth rather than a lockout — see `mfa_required_for` for why refusing
+    #: the login outright is the wrong shape.
+    MFA_REQUIRED_ROLES: list[str] = Field(
+        default_factory=lambda: ["owner", "admin"]
+    )
+
     PASSWORD_MIN_LENGTH: int = 12
     LOGIN_MAX_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_SECONDS: int = 15 * 60

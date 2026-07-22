@@ -15,6 +15,7 @@ from app.models.conversation import Conversation, Message
 from app.models.deal import Deal, DealStageHistory
 from app.models.job import JobFailure
 from app.models.lead import Lead
+from app.models.mfa import MfaRecoveryCode
 from app.models.note import Note
 from app.models.notification import Notification, NotificationPreference
 from app.models.organization import Organization
@@ -45,6 +46,7 @@ __all__ = [
     "JobFailure",
     "Lead",
     "Message",
+    "MfaRecoveryCode",
     "Note",
     "Notification",
     "NotificationPreference",

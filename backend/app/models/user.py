@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -82,11 +83,33 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         DateTime(timezone=True), nullable=True
     )
 
-    # Provisioned now, enforced in Phase 4 (docs/SECURITY.md §2.6).
+    # ------------------------------------------------------------- MFA
+    #
+    # `mfa_enabled` is the activated flag, not the enrolled one. A secret is
+    # written at enrolment and the flag flips only once the user has proved a
+    # code from it — otherwise a half-finished setup locks somebody out of
+    # their own account with a secret they never scanned.
     mfa_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
+    #: Base32 TOTP secret.
+    #:
+    #: Stored as issued, and that is a stated trade-off rather than an
+    #: oversight: encryption at rest for this column needs a key managed
+    #: somewhere other than beside the data — a KMS — which is Phase 4's
+    #: secrets work. What is in place meanwhile is that the column is in
+    #: `NEVER_DIFF_FIELDS`, so it cannot reach the audit log, is excluded from
+    #: every read schema, and the logger's redaction list covers it. The
+    #: residual exposure is a database dump, which is the same exposure the
+    #: password hashes have.
     mfa_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    mfa_enrolled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    #: The last TOTP counter accepted for this user. A code stays valid for its
+    #: whole 30-second step, so without this an observed code can be replayed
+    #: inside it. See app/core/totp.py.
+    mfa_last_counter: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     # ---------------------------------------------------- relationships
     organization: Mapped[Organization] = relationship(back_populates="users")

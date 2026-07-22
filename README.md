@@ -26,6 +26,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 | [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) | Notification centre, preferences, delivery |
 | [MESSAGING.md](docs/MESSAGING.md) | Conversations, email send/receive, inbound webhook |
 | [CALENDAR.md](docs/CALENDAR.md) | Events, attendees, conflict reporting, reminders |
+| [MFA.md](docs/MFA.md) | TOTP, recovery codes, two-step login, role enforcement |
 
 ## Stack
 

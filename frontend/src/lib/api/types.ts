@@ -808,3 +808,36 @@ export interface CalendarEventInput {
     display_name?: string | null;
   }>;
 }
+
+// --- MFA (Phase 3.7) ---
+
+export interface MfaStatus {
+  enabled: boolean;
+  enrolled_at: string | null;
+  recovery_codes_remaining: number;
+  /** The caller's roles oblige enrolment and they have not done it. */
+  setup_required: boolean;
+}
+
+/** The only response that ever contains the secret. */
+export interface MfaEnrolmentStarted {
+  secret: string;
+  provisioning_uri: string;
+}
+
+/** Shown once, at generation. There is no endpoint to fetch them again. */
+export interface MfaRecoveryCodes {
+  recovery_codes: string[];
+}
+
+/**
+ * The login response when a second factor is owed.
+ *
+ * Deliberately carries no profile: until the factor is proved the caller has
+ * not authenticated, and a name would confirm the password was correct.
+ */
+export interface MfaChallengeRequired {
+  mfa_required: true;
+  challenge_token: string;
+  expires_at: string;
+}

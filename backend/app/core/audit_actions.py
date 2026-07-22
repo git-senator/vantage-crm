@@ -19,6 +19,15 @@ class AuditAction:
     #: Token theft or a client bug. Alerting hooks onto this.
     TOKEN_REUSE_DETECTED: Final = "auth.token.reuse_detected"
     ACCOUNT_LOCKED: Final = "auth.account.locked"
+    #: MFA lifecycle. Enrolment and removal are both security-relevant: the
+    #: second is how an attacker with a session would weaken an account they
+    #: have already compromised.
+    MFA_ENABLED: Final = "auth.mfa.enabled"
+    MFA_DISABLED: Final = "auth.mfa.disabled"
+    MFA_CHALLENGE_FAILED: Final = "auth.mfa.challenge_failed"
+    #: A recovery code was spent. Someone losing their phone looks exactly
+    #: like someone else using a stolen code, so this is worth alerting on.
+    MFA_RECOVERY_USED: Final = "auth.mfa.recovery_used"
 
     # --- users ---
     USER_CREATED: Final = "user.created"
@@ -81,6 +90,8 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         AuditAction.ROLE_ASSIGNED,
         AuditAction.ROLE_REVOKED,
         AuditAction.ACCOUNT_LOCKED,
+        AuditAction.MFA_DISABLED,
+        AuditAction.MFA_RECOVERY_USED,
         AuditAction.RECORD_EXPORTED,
         # A quarantine means malware reached the bucket. Somebody should hear
         # about it the same day, not at the next audit review.

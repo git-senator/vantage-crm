@@ -456,6 +456,42 @@ any non-2xx for hours, so erroring on a status receipt or an unsupported media
 type would create an infinite redelivery loop over something that can never
 succeed.
 
+**3.7 MFA — delivered.** TOTP with single-use recovery codes, a two-step login,
+and role-based enforcement. See [MFA.md](./MFA.md). This was scheduled for Phase
+4 in the original plan and was pulled forward with the rest of the platform
+services; Phase 4's remaining MFA work is the production hardening around it
+(KMS-managed secret encryption), not the feature.
+
+TOTP is implemented rather than imported, which is the one place in this
+codebase where writing crypto is the right call: it is HMAC-SHA1 over a counter
+with no key agreement and no parsing of hostile structure, and the RFC ships a
+conformance vector table the tests check against — an authoritative correctness
+oracle that a dependency would not add.
+
+Enrolment is two steps because a one-step version locks people out with a secret
+they never successfully scanned, and re-enrolling while enabled is refused
+because it would let anyone holding a live session swap the second factor to a
+device they control. Login is two steps for the same class of reason: when MFA
+is on, no session and no profile are returned — not even a name, since that
+would confirm the password was correct — only a short-lived token typed `mfa`
+so it cannot be replayed as an access token, and vice versa.
+
+Two details that decide whether a second factor is really one. **A used TOTP
+code is dead**: a code is valid for its whole 30-second step, so `mfa_last_counter`
+refuses anything at or before the last accepted one, at the price of the
+legitimate user waiting for the next code. **Recovery codes are single-use
+enforced by the database** — an UPDATE with `used_at IS NULL` in its predicate —
+because a read-modify-write over a JSON array has a race that testing does not
+catch. Spent codes are kept rather than deleted, because "one of your recovery
+codes was used on Tuesday" is the signal that tells someone their phone was
+compromised.
+
+Enforcement is a nudge with teeth rather than a lockout: a user whose role
+requires MFA and has not enrolled still gets a session, flagged
+`setup_required`. Refusing the login would lock out the owner the moment
+somebody granted them the role — in the worst case the only owner, with nobody
+able to undo it.
+
 **Deliverables**
 - S3-compatible storage; private bucket, public access blocked at policy ✅
 - Presigned upload/download with short TTLs ✅
@@ -466,6 +502,7 @@ succeed.
 - Conversations and email: outbound send, inbound ingestion, record matching ✅
 - Calendar: events, attendees, conflict reporting, reminder sweep ✅
 - WhatsApp on the same conversation substrate: adapter, webhook, session window ✅
+- MFA: TOTP, recovery codes, two-step login, role enforcement ✅
 - Document versioning and lifecycle (`draft → awaiting_signature → signed → expired`)
 - Expiry reminders and digest jobs
 
@@ -492,7 +529,7 @@ succeed.
 - Pipeline velocity, conversion funnel, agent production, cycle time from `deal_stage_history`
 - Admin: user management, custom roles UI over `role_permissions`, team management
 - Audit-log viewer (admin-only, filterable)
-- TOTP MFA enforced for `owner` and `admin`
+- ~~TOTP MFA enforced for `owner` and `admin`~~ — delivered in 3.7; what remains here is KMS-managed encryption of the TOTP secret at rest
 - Backup + **restore rehearsal**, monitoring, alerting, runbooks
 - Penetration test and remediation
 
