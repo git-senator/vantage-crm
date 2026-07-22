@@ -27,6 +27,7 @@ from app.core.exceptions import NotFoundError
 from app.repositories.client import ClientRepository
 from app.repositories.deal import DealRepository
 from app.repositories.lead import LeadRepository
+from app.repositories.note import NoteRepository
 from app.repositories.property import PropertyRepository
 from app.repositories.task import TaskRepository
 from app.services.rbac import AuthorizationContext, RbacService
@@ -38,7 +39,14 @@ VIEW_PERMISSIONS: dict[str, str] = {
     "property": "properties.view",
     "deal": "deals.view",
     "task": "tasks.view",
+    "note": "notes.view",
 }
+
+#: Entity types that carry no scope anchor of their own and delegate upward.
+#: A note's readability is its parent record's readability — which is the same
+#: rule the note endpoints already apply, expressed once here so an attachment
+#: on a note cannot become a way around it.
+DELEGATING_TYPES: frozenset[str] = frozenset({"note"})
 
 
 class EntityAccess:
@@ -65,8 +73,13 @@ class EntityAccess:
             # No grant on the parent resource at all.
             raise NotFoundError("Record not found.")
 
-        scoped_ids = await self.rbac.owner_ids_for_scope(self.auth, scope)
         organization_id = self.auth.organization_id
+
+        if entity_type in DELEGATING_TYPES:
+            await self._assert_delegated(entity_type, entity_id, organization_id)
+            return
+
+        scoped_ids = await self.rbac.owner_ids_for_scope(self.auth, scope)
 
         found: object | None
         match entity_type:
@@ -98,6 +111,24 @@ class EntityAccess:
 
         if found is None:
             raise NotFoundError("Record not found.")
+
+    async def _assert_delegated(
+        self, entity_type: str, entity_id: UUID, organization_id: UUID
+    ) -> None:
+        """Resolve a scope-less child by asking about its parent instead.
+
+        Exactly one hop, and that is guaranteed rather than assumed: a note's
+        own `entity_type` CHECK excludes `note`, so the recursion cannot
+        continue past this call. If a future delegating type could nest, this
+        needs a depth guard — the constraint is what makes one unnecessary now.
+        """
+        if entity_type != "note":  # pragma: no cover — guarded by the caller
+            raise NotFoundError("Record not found.")
+
+        note = await NoteRepository(self.session).get(entity_id, organization_id)
+        if note is None:
+            raise NotFoundError("Record not found.")
+        await self.assert_readable(note.entity_type, note.entity_id)
 
     async def readable_or_none(self, entity_type: str, entity_id: UUID) -> bool:
         """Boolean form, for filtering a mixed list without raising."""

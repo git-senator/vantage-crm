@@ -21,6 +21,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 | [ROADMAP.md](docs/ROADMAP.md) | Phases 0–5, exit criteria, risk register |
 | [AUTHENTICATION.md](docs/AUTHENTICATION.md) | Token design, login, rotation, RLS bootstrap |
 | [PERMISSIONS.md](docs/PERMISSIONS.md) | Permission registry, roles, scope resolution |
+| [DOCUMENTS.md](docs/DOCUMENTS.md) | Object storage, upload workflow, file verification |
 
 ## Stack
 

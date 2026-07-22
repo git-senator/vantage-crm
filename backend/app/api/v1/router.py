@@ -53,4 +53,5 @@ api_router.include_router(timeline.router, prefix="/timeline", tags=["timeline"]
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 
 
-# Phase 3:    documents (real storage behind the attachment placeholders)
+# Phase 3.1 replaced the attachment placeholders with real object storage;
+# the endpoints live on the same /attachments router. See docs/DOCUMENTS.md.

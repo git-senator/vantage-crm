@@ -214,19 +214,70 @@ Phase 4's reporting work and any future regression check reuse.
 
 ## Phase 3 — Documents, storage, background jobs
 
+**3.1 Documents & storage — delivered.** The Phase 2.8 placeholder is gone and
+the table it left behind did not need reshaping: five columns, two constraints,
+two partial indexes, and one widened vocabulary. See
+[DOCUMENTS.md](./DOCUMENTS.md).
+
+The load-bearing decision is that **an upload is a three-step handshake**
+(register → PUT straight to storage → finalize), not a multipart POST. Bytes
+never traverse the API, so a 25 MB upload on a slow connection costs a signature
+rather than an occupied worker. The consequence that matters more, though, is
+the third step: after the client's PUT the server knows *nothing* about what
+landed, so `finalize` reads the object back and establishes the real size, hash
+and type from storage. It is the only path that can set `available`, and a row
+that skips it stays unservable.
+
+**Nothing a client says about its own file is stored without being checked
+against what actually arrived.** An executable renamed `offer.pdf` is caught on
+magic bytes, deleted from the bucket, and the row is marked `failed` with a
+user-facing reason — the delete happens *before* the error is raised, so a file
+that failed verification does not survive where a later bug could serve it. The
+type allowlist is checked twice: at registration, so a rejected type costs one
+round trip instead of a transfer, and again against the bytes, because the first
+check is only as good as the client's honesty. `image/svg+xml` and `text/html`
+are absent from the allowlist deliberately, and every download carries
+`Content-Disposition: attachment`.
+
+`status` and `scan_status` are separate columns because there is a real gap
+between "these bytes are the type they claim" and "these bytes are not
+malware", and a file must not be servable inside it. With scanning off (today's
+default) finalization publishes immediately and records `skipped` — honest that
+nothing looked at it. With it on, the row is held until the scan job clears it,
+which is the seam 3.2 fills.
+
+Attachments gained `note` as a parent. A note has no scope anchor of its own, so
+`EntityAccess` resolves it by delegating one hop to the note's parent record —
+attaching to a note cannot become a way around the lead's scope. Two smaller
+decisions worth recording: **issuing a download URL is the access grant** (the
+fetch never reaches this application, so `document.downloaded` is audited at
+signing time), and **deletion is soft for metadata, hard for bytes** — keeping
+objects behind a row marked deleted is how a deletion quietly fails to be one.
+
+One piece of infrastructure was not obvious: SigV4 signs the `Host` header, so a
+URL minted against compose's internal `minio:9000` cannot be rewritten to a
+browser-reachable host afterwards. Presigning therefore runs on a second client
+bound to `S3_PUBLIC_ENDPOINT_URL`. On real S3 the two collapse into one.
+
 **Deliverables**
-- S3-compatible storage; private bucket, public access blocked at policy
-- Presigned upload/download with short TTLs
+- S3-compatible storage; private bucket, public access blocked at policy ✅
+- Presigned upload/download with short TTLs ✅
+- Post-upload pipeline: magic-byte MIME verification, checksum, quarantine ✅ (virus scan wired in 3.2)
+- Entity attachments on leads, clients, properties, deals, tasks and notes ✅
 - ARQ worker pool + scheduled jobs
-- Post-upload pipeline: magic-byte MIME verification, checksum, virus scan, quarantine
 - Document versioning and lifecycle (`draft → awaiting_signature → signed → expired`)
 - Email/notification delivery via queue
 - Expiry reminders and digest jobs
 
 **Exit criteria**
-- Upload → scan → visible, end to end
-- An infected fixture is quarantined and audited, never served
-- Presigned URLs expire correctly and are not reusable cross-user
+- Upload → verify → visible, end to end ✅ — proven against MinIO on the real
+  S3 adapter (presigned PUT with SSE, ranged read, checksum, presigned GET with
+  `Content-Disposition`, delete) and across 30 lifecycle tests
+- Presigned URLs expire correctly and are not reusable cross-user ✅ — expiry,
+  key tampering and GET-as-PUT are each refused by signature verification, and a
+  user who cannot read the parent record never receives a URL at all
+- Upload → scan → visible, with an infected fixture quarantined and audited,
+  never served
 - Failed jobs retry with backoff and surface in a dead-letter view
 
 ---
@@ -321,7 +372,7 @@ making before the first table exists rather than after the thirtieth.
 | R3 | Client-boundary leak recurs during data port | **High — MITIGATED** | Lint rule + `server-only` caught a real violation during Phase 1.5 and forced a correct module split. Still live for the Phase 2 data port. | 0 ✅ |
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
-| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6) and the dashboard (2.8) are ported and their fixtures deleted; every record detail page now shows live notes/timeline/files. What remains is intentionally later-phase — documents (3), reports (4), and the calendar/messages/notifications prototype pages | 1–2 |
+| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6) and the dashboard (2.8) are ported and their fixtures deleted; every record detail page now shows live notes/timeline/files, and 3.1 made those files real uploads rather than metadata. What remains is intentionally later-phase — reports (4) and the calendar/messages/notifications prototype pages | 1–3 |
 | R11 | Audit metadata could not serialise `Decimal`; a failed audit write poisoned the caller's transaction | ~~High~~ **CLOSED** | Found in 2.6, live since 2.3 — reachable from any money-field edit on leads, clients or properties, and no test had changed one. Values now coerce to JSON-safe types (Decimal → string, never float), comparison happens before coercion, and the insert runs in a SAVEPOINT so an audit failure genuinely cannot break the request it describes | 2.6 ✅ |
 | R12 | Read-after-write returned stale relationship state | ~~Medium~~ **CLOSED** | SQLAlchemy does not overwrite loaded state on a fresh query, so a stage transition returned the deal's *old* stage and therefore its old derived status — the Kanban card would snap back. `populate_existing` on the deal and pipeline read paths | 2.6 ✅ |
 | R7 | Refresh rotation logs users out under concurrency | ~~High~~ **CLOSED** | Redis lock on the presented token plus a 10s rotation grace window. Proven by 10 genuinely parallel refreshes all succeeding, and by the suite passing with Redis deliberately unreachable | 2.1 ✅ |

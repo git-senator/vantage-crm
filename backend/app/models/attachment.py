@@ -1,25 +1,30 @@
-"""Attachment — a file's metadata, without the file (yet).
+"""Attachment — a file's metadata, and (since Phase 3.1) its bytes.
 
-Phase 2.8 ships the **placeholder architecture** for documents: the row that
-records that a file belongs to a record, who attached it, and where it will
-live once object storage exists — but no bytes, no bucket, no upload path. That
-is Phase 3, and this table is shaped so Phase 3 is an additive change rather
-than a migration.
+Phase 2.8 shipped this table as a placeholder: a row recording that a file
+belongs to a record, the `storage_key` it *would* occupy, and a `status`
+lifecycle stuck at `pending_upload`. Phase 3.1 filled the seam in — the shape
+was designed for exactly this and the migration is purely additive.
 
-The design decisions that make that true:
+The lifecycle, which is the load-bearing part:
 
-  * **`status` is a lifecycle, starting at `pending_upload`.** A registered
-    attachment is metadata waiting for content. Phase 3's post-upload pipeline
-    moves it to `available` (or `quarantined` if the virus scan trips). Nothing
-    in the CRM serves a row that is not `available`, so shipping the column now
-    means the UI's "processing…" state is already correct.
-  * **`storage_key` is nullable and unset.** It is the object key the file
-    *will* have; the service computes a deterministic candidate at registration
-    so the eventual upload has a target, but no object exists behind it yet.
-  * **`checksum_sha256` and `size_bytes` are nullable.** They are populated by
-    the upload pipeline from the actual bytes — trusting a client-declared size
-    or hash is exactly the mistake the Phase 3 verification step exists to
-    prevent.
+    pending_upload ──(client PUTs, then finalize verifies)──> available
+          │                                                       │
+          │ upload window elapses                                 │ scan trips
+          ▼                                                       ▼
+       failed  ◀──(bytes contradict the declared type)──      quarantined
+
+  * **Only `available` rows are ever served.** A download URL is minted for no
+    other status, so a file that failed verification or tripped the scanner
+    cannot be handed out by any code path that forgets to check.
+  * **`size_bytes` and `checksum_sha256` come from storage, never the client.**
+    They are populated at finalization by reading the object back. A client that
+    could declare its own size or hash would be trusted to describe a file it
+    never sent — which is the whole attack.
+  * **`content_type` is re-derived from magic bytes.** The column holds the
+    verified type after finalization; before that it is the client's claim.
+  * **`upload_expires_at`** bounds how long a registered row may sit unclaimed.
+    Past it the presigned PUT is dead and the sweeper reaps the row, so an
+    abandoned registration cannot linger as a writable slot in the bucket.
 
 Polymorphic by (`entity_type`, `entity_id`) like notes and activities, and
 gated through the same `EntityAccess` resolver — you cannot attach to, or see
@@ -28,11 +33,13 @@ attachments on, a record you cannot read.
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
+    DateTime,
     ForeignKey,
     Index,
     String,
@@ -47,12 +54,20 @@ from app.models.user import User
 #: Lifecycle. Only `available` rows are ever served to the CRM.
 ATTACHMENT_STATUSES = ("pending_upload", "available", "quarantined", "failed")
 
-#: Records a file can hang off. Aligned with EntityAccess's vocabulary so the
-#: same readability resolver governs attachments.
-ATTACHMENT_ENTITY_TYPES = ("lead", "client", "property", "deal", "task")
+#: Malware-scan outcome, tracked separately from `status` because they answer
+#: different questions: `status` is "may this be served", `scan_status` is "what
+#: did the scanner say". A row can be `available` with the scan still `pending`
+#: — see `AttachmentService.finalize` for why that is the deliberate default.
+ATTACHMENT_SCAN_STATUSES = ("pending", "clean", "infected", "skipped", "failed")
 
-#: The only backend today is a placeholder. S3 lands in Phase 3.
-ATTACHMENT_STORAGE_BACKENDS = ("s3",)
+#: Records a file can hang off. Aligned with EntityAccess's vocabulary so the
+#: same readability resolver governs attachments. `note` joined in Phase 3.1:
+#: a note is a document in its own right and people expect to attach to it.
+ATTACHMENT_ENTITY_TYPES = ("lead", "client", "property", "deal", "task", "note")
+
+#: `s3` covers real S3 and anything that speaks its API (MinIO in development).
+#: `memory` is the test/no-Docker adapter and is refused in production.
+ATTACHMENT_STORAGE_BACKENDS = ("s3", "memory")
 
 
 class Attachment(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
@@ -75,19 +90,21 @@ class Attachment(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     )
 
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
-    #: The client-declared MIME type. Phase 3 re-derives it from magic bytes and
-    #: refuses to serve a mismatch — this column is a hint, never trusted.
+    #: The client-declared MIME type until finalization, the *verified* type
+    #: after it. Before `available`, treat this as a hint and nothing more.
     content_type: Mapped[str] = mapped_column(String(128), nullable=False)
 
-    #: Populated by the upload pipeline from the real bytes; null until then.
+    #: Populated at finalization from the object storage reports; null until
+    #: then, and never taken from the client.
     size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     checksum_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     storage_backend: Mapped[str] = mapped_column(
         String(20), nullable=False, default="s3", server_default="s3"
     )
-    #: The object key the file *will* occupy. Set at registration; no object
-    #: exists behind it until Phase 3.
+    #: The object key the file occupies. Computed deterministically at
+    #: registration so the presigned PUT has a target the server chose — a
+    #: client never supplies or influences a key beyond its filename.
     storage_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     status: Mapped[str] = mapped_column(
@@ -96,6 +113,28 @@ class Attachment(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         default="pending_upload",
         server_default="pending_upload",
     )
+
+    #: When the registration stops being claimable. The presigned PUT is
+    #: signed for the same window, so this is a queryable mirror of a fact that
+    #: otherwise lives only inside an opaque URL.
+    upload_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    #: When verification passed and the file became servable.
+    available_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    scan_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pending", server_default="pending"
+    )
+    scanned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    #: Why a file failed or was quarantined, in words a user can act on
+    #: ("The stored bytes do not match the declared type"). Shown in the UI, so
+    #: it must never carry internal detail.
+    failure_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     uploader: Mapped[User | None] = relationship(
         foreign_keys=[uploaded_by], lazy="joined"
@@ -108,12 +147,24 @@ class Attachment(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
             name="ck_attachments_status",
         ),
         CheckConstraint(
-            "entity_type IN ('lead', 'client', 'property', 'deal', 'task')",
+            "entity_type IN ('lead', 'client', 'property', 'deal', 'task', 'note')",
             name="ck_attachments_entity_type",
         ),
         CheckConstraint(
             "size_bytes IS NULL OR size_bytes >= 0",
             name="ck_attachments_size",
+        ),
+        CheckConstraint(
+            "scan_status IN ('pending', 'clean', 'infected', 'skipped', 'failed')",
+            name="ck_attachments_scan_status",
+        ),
+        # An available file has bytes behind it, by definition. Without this a
+        # bug in the finalize path could publish a row with no size or no key
+        # and the download endpoint would sign a URL to nothing.
+        CheckConstraint(
+            "status <> 'available' OR "
+            "(storage_key IS NOT NULL AND size_bytes IS NOT NULL)",
+            name="ck_attachments_available_has_object",
         ),
         Index(
             "ix_attachments_entity",
@@ -134,6 +185,24 @@ class Attachment(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
             "organization_id",
             "status",
             postgresql_where=text("deleted_at IS NULL"),
+        ),
+        # The sweeper's query: abandoned registrations past their window. A
+        # partial index keeps it proportional to the backlog rather than to the
+        # table, which matters because the backlog is normally empty.
+        Index(
+            "ix_attachments_abandoned",
+            "upload_expires_at",
+            postgresql_where=text(
+                "status = 'pending_upload' AND deleted_at IS NULL"
+            ),
+        ),
+        # The scan queue's query, for the same reason.
+        Index(
+            "ix_attachments_scan_pending",
+            "created_at",
+            postgresql_where=text(
+                "scan_status = 'pending' AND deleted_at IS NULL"
+            ),
         ),
     )
 

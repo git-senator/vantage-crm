@@ -472,8 +472,14 @@ export interface Page<T> {
 
 // --- Notes, Timeline, Attachments (Phase 2.8) ---
 
-/** Entities that notes, the timeline and attachments hang off. */
+/** Entities that notes and the timeline hang off. */
 export type RecordEntityType = "lead" | "client" | "property" | "deal" | "task";
+
+/**
+ * Attachments accept everything above plus `note` (Phase 3.1) — a note is a
+ * document in its own right and people expect to attach to it.
+ */
+export type AttachmentEntityType = RecordEntityType | "note";
 
 export type NoteContentFormat = "markdown" | "html" | "plain";
 
@@ -525,28 +531,63 @@ export type AttachmentStatus =
   | "quarantined"
   | "failed";
 
+export type AttachmentScanStatus =
+  | "pending"
+  | "clean"
+  | "infected"
+  | "skipped"
+  | "failed";
+
 export interface Attachment {
   id: string;
-  entity_type: RecordEntityType;
+  entity_type: AttachmentEntityType;
   entity_id: string;
   filename: string;
   content_type: string;
+  /** Read back from storage at finalization — never a client-declared number. */
   size_bytes: number | null;
+  checksum_sha256: string | null;
   status: AttachmentStatus;
+  scan_status: AttachmentScanStatus;
   storage_backend: string;
   uploader: OwnerSummary | null;
-  /** Phase 3 fills these; null today. */
-  upload_url: string | null;
-  download_url: string | null;
+  upload_expires_at: string | null;
+  available_at: string | null;
+  /** Why a `failed` or `quarantined` file is not being served. User-facing. */
+  failure_reason: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface AttachmentInput {
-  entity_type: RecordEntityType;
+  entity_type: AttachmentEntityType;
   entity_id: string;
   filename: string;
   content_type: string;
+}
+
+/**
+ * A credential to write exactly one object, straight to storage.
+ *
+ * `required_headers` is not advisory — the signature covers them, so a PUT that
+ * drops `Content-Type` is rejected by storage itself. Send them verbatim.
+ */
+export interface PresignedUpload {
+  url: string;
+  expires_at: string;
+  required_headers: Record<string, string>;
+  max_bytes: number;
+}
+
+export interface AttachmentRegistered {
+  attachment: Attachment;
+  upload: PresignedUpload;
+}
+
+export interface PresignedDownload {
+  url: string;
+  expires_at: string;
+  filename: string;
 }
 
 // --- Tasks (backend since Phase 2.7; typed here for the dashboard queue) ---

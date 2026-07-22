@@ -50,6 +50,22 @@ class AuditAction:
     #: this week" is a question worth being able to ask directly.
     RECORD_COMPLETED: Final = "record.completed"
 
+    # --- documents (Phase 3) ---
+    #: A file's bytes arrived and passed verification. Distinct from
+    #: record.created, which fires at registration — the gap between the two is
+    #: where an abandoned or rejected upload lives, and it is worth being able
+    #: to query for it.
+    DOCUMENT_UPLOADED: Final = "document.uploaded"
+    #: A download URL was minted. The signed URL is a bearer credential, so the
+    #: moment it is issued is the moment access is granted; recording the later
+    #: fetch is impossible, because the fetch never reaches this application.
+    DOCUMENT_DOWNLOADED: Final = "document.downloaded"
+    #: The bytes contradicted the declared type, exceeded the ceiling, or the
+    #: client's checksum did not match what was stored.
+    DOCUMENT_REJECTED: Final = "document.rejected"
+    #: A malware scan flagged the file. It is never served again.
+    DOCUMENT_QUARANTINED: Final = "document.quarantined"
+
 
 #: Actions that warrant alerting rather than just recording.
 HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
@@ -59,5 +75,8 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         AuditAction.ROLE_REVOKED,
         AuditAction.ACCOUNT_LOCKED,
         AuditAction.RECORD_EXPORTED,
+        # A quarantine means malware reached the bucket. Somebody should hear
+        # about it the same day, not at the next audit review.
+        AuditAction.DOCUMENT_QUARANTINED,
     }
 )

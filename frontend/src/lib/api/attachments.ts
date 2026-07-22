@@ -2,11 +2,17 @@ import "server-only";
 
 import { toQuery } from "@/lib/api/query";
 import { apiFetch } from "@/lib/api/server";
-import type { Attachment, RecordEntityType } from "@/lib/api/types";
+import type { Attachment, AttachmentEntityType } from "@/lib/api/types";
 
-/** A record's attachments. Metadata only in Phase 2.8 — the bytes are Phase 3. */
+/**
+ * A record's attachments.
+ *
+ * Metadata only — no download URLs. Signing one per row so a user can click one
+ * of them would mint a page's worth of bearer credentials for nothing; the
+ * panel asks for a URL at the moment of the click instead.
+ */
 export async function listAttachmentsForEntity(
-  entityType: RecordEntityType,
+  entityType: AttachmentEntityType,
   entityId: string,
 ): Promise<Attachment[]> {
   return apiFetch<Attachment[]>(

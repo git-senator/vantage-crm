@@ -59,6 +59,36 @@ class PermissionDeniedError(AppError):
     title = "Permission denied"
 
 
+class UnsupportedMediaTypeError(AppError):
+    """The content type is not accepted, or the bytes contradict it.
+
+    415 rather than 400 so a client can distinguish "this file will never be
+    accepted" from "this request was malformed" and stop retrying.
+    """
+
+    status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
+    problem_type = "unsupported-media-type"
+    title = "File type not accepted"
+
+
+class PayloadTooLargeError(AppError):
+    status_code = status.HTTP_413_CONTENT_TOO_LARGE
+    problem_type = "payload-too-large"
+    title = "File is too large"
+
+
+class ServiceUnavailableError(AppError):
+    """A dependency this request needs is not reachable.
+
+    Distinct from a 500: the request was valid, nothing is broken in the
+    application, and retrying later is the correct client behaviour.
+    """
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    problem_type = "service-unavailable"
+    title = "Service temporarily unavailable"
+
+
 class RateLimitedError(AppError):
     status_code = status.HTTP_429_TOO_MANY_REQUESTS
     problem_type = "rate-limited"

@@ -143,12 +143,53 @@ class Settings(BaseSettings):
     LOGIN_LOCKOUT_SECONDS: int = 15 * 60
 
     # --------------------------------------------------------- storage
+    # Provider is swappable; business logic depends on ObjectStorage, never on
+    # S3. See app/services/storage/. `memory` exists for tests and for a laptop
+    # with no MinIO running, and is refused in production.
+    STORAGE_PROVIDER: Literal["s3", "memory"] = "s3"
+
     S3_ENDPOINT_URL: str | None = None  # set for MinIO; None for real AWS S3
+
+    # The endpoint a *browser* must use, when it differs from the one this
+    # process uses. In compose the API reaches MinIO at `http://minio:9000`,
+    # which no browser can resolve — and because SigV4 signs the Host header, a
+    # URL cannot simply be rewritten after signing. So presigning uses a
+    # separate client bound to this endpoint. Unset for real S3, where the
+    # public and internal endpoints are the same thing.
+    S3_PUBLIC_ENDPOINT_URL: str | None = None
+
     S3_REGION: str = "us-east-1"
     S3_BUCKET: str = "vantage-documents"
     S3_ACCESS_KEY_ID: SecretStr = SecretStr("")
     S3_SECRET_ACCESS_KEY: SecretStr = SecretStr("")
+    #: Server-side encryption applied to every object and required on every
+    #: presigned PUT. `AES256` is S3-managed keys; set `aws:kms` with a bucket
+    #: key policy for customer-managed. Blank disables it — acceptable only
+    #: where the bucket already has default encryption configured.
+    S3_SERVER_SIDE_ENCRYPTION: str | None = "AES256"
+
+    # Upload URLs are short because they are a bearer credential for writing to
+    # a tenant's prefix: anyone holding one can write that object until it
+    # expires. Downloads are shorter still — the URL is the only thing standing
+    # between a leaked link and the file.
     S3_PRESIGN_TTL_SECONDS: int = 300
+    S3_DOWNLOAD_TTL_SECONDS: int = 120
+
+    #: Hard ceiling, enforced at finalization from the size storage reports —
+    #: never from a client-declared number. 25 MB covers contracts, floor plans
+    #: and photo sets; larger media is a different product decision.
+    MAX_UPLOAD_BYTES: int = 25 * 1024 * 1024
+
+    #: How long a registered-but-never-uploaded attachment stays claimable.
+    #: After this the row is abandoned and the sweeper job (Phase 3.2) reaps it.
+    UPLOAD_WINDOW_SECONDS: int = 3600
+
+    #: When enabled, a verified upload is held at `pending_upload` with
+    #: `scan_status='pending'` until the scan job clears it — the file is never
+    #: servable in the window where its safety is unknown. When disabled,
+    #: finalization publishes immediately and records `scan_status='skipped'`,
+    #: which is honest about the fact that nothing looked at it.
+    MALWARE_SCAN_ENABLED: bool = False
 
     # ------------------------------------------------------------ mail
     # Provider is swappable; business logic depends on NotificationService,
@@ -167,7 +208,15 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = Field(default_factory=list)
 
     # ------------------------------------------------------ validation
-    @field_validator("LOG_JSON", "COOKIE_DOMAIN", "S3_ENDPOINT_URL", mode="before")
+    @field_validator(
+        "LOG_JSON",
+        "COOKIE_DOMAIN",
+        "S3_ENDPOINT_URL",
+        "S3_PUBLIC_ENDPOINT_URL",
+        "S3_SERVER_SIDE_ENCRYPTION",
+        "AWS_SES_CONFIGURATION_SET",
+        mode="before",
+    )
     @classmethod
     def _empty_string_means_unset(cls, value: object) -> object:
         """Treat `KEY=` in a .env file as "not set".
@@ -217,6 +266,24 @@ class Settings(BaseSettings):
             problems.append("DB_ECHO must be false in production (leaks SQL to logs)")
         if self.EMAIL_PROVIDER == "console":
             problems.append("EMAIL_PROVIDER must not be 'console' in production")
+        if self.STORAGE_PROVIDER != "s3":
+            problems.append(
+                "STORAGE_PROVIDER must be 's3' in production — 'memory' loses "
+                "every uploaded file when the process restarts"
+            )
+        # Blank credentials are legitimate on EC2/ECS, where boto3 resolves an
+        # instance role — but only when there is no custom endpoint, because a
+        # custom endpoint means MinIO and MinIO has no IAM.
+        elif self.S3_ENDPOINT_URL and not self.S3_ACCESS_KEY_ID.get_secret_value():
+            problems.append(
+                "S3_ACCESS_KEY_ID must be set when S3_ENDPOINT_URL is "
+                "configured (a custom endpoint has no instance role)"
+            )
+        if self.S3_PRESIGN_TTL_SECONDS > 3600:
+            problems.append(
+                "S3_PRESIGN_TTL_SECONDS must be <= 3600 — a presigned URL is a "
+                "bearer credential and a long-lived one survives its user"
+            )
         if not self.POSTGRES_PASSWORD.get_secret_value():
             problems.append("POSTGRES_PASSWORD must be set")
         if self.CORS_ORIGINS:

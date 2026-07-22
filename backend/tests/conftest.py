@@ -34,6 +34,7 @@ from app.models.organization import Organization
 from app.models.rbac import Permission, Role, RolePermission
 from app.models.user import User
 from app.services.rbac import AuthorizationContext, RbacService
+from app.services.storage.memory import InMemoryObjectStorage
 
 TEST_JWT_SECRET = "test_secret_that_is_at_least_thirty_two_chars"
 
@@ -171,6 +172,38 @@ async def db(engine) -> AsyncIterator[AsyncSession]:  # type: ignore[no-untyped-
     async with factory() as session:
         yield session
         await session.rollback()
+
+
+# ---------------------------------------------------------------- storage
+
+
+@pytest.fixture
+def object_storage() -> InMemoryObjectStorage:
+    """A fresh in-process bucket per test.
+
+    The whole attachment lifecycle runs against this rather than MinIO: it
+    issues genuine HMAC-signed URLs with real expiry, so the tests that matter
+    — an expired URL, a tampered key, bytes that contradict their declared type
+    — assert on behaviour rather than on a stub's return value.
+    """
+    return InMemoryObjectStorage()
+
+
+@pytest.fixture
+def storage_settings() -> Settings:
+    """Settings for the document tests. Small limits so the ceiling is testable
+    without generating 25 MB of fixture data."""
+    return Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        JWT_SECRET=TEST_JWT_SECRET,
+        ENVIRONMENT="test",
+        STORAGE_PROVIDER="memory",
+        MAX_UPLOAD_BYTES=1024,
+        S3_PRESIGN_TTL_SECONDS=300,
+        S3_DOWNLOAD_TTL_SECONDS=120,
+        UPLOAD_WINDOW_SECONDS=3600,
+        MALWARE_SCAN_ENABLED=False,
+    )
 
 
 @pytest_asyncio.fixture

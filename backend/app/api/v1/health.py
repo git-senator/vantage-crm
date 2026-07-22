@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from app.core.config import get_settings
 from app.core.redis import check_redis
 from app.db.session import check_database
+from app.services.storage import get_object_storage
 
 router = APIRouter(tags=["health"])
 
@@ -49,9 +50,14 @@ async def liveness() -> HealthResponse:
 
 @router.get("/health/ready", response_model=ReadinessResponse)
 async def readiness(response: Response) -> ReadinessResponse:
+    # Storage is a readiness dependency, not a liveness one: an unreachable
+    # bucket breaks uploads and downloads but leaves the rest of the CRM
+    # working, so the instance should leave the load balancer rather than be
+    # restarted into the same failure.
     checks = {
         "database": await check_database(),
         "redis": await check_redis(),
+        "storage": await get_object_storage().verify_configuration(),
     }
     ready = all(checks.values())
     if not ready:

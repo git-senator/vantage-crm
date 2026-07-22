@@ -66,6 +66,18 @@ services:
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-vantage_dev_key}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-vantage_dev_secret}
+      # The browser PUTs uploads straight here, so the web origin needs CORS.
+      # Stated explicitly rather than relying on MinIO's permissive default —
+      # production S3 needs the same rule, and it should be visible in one
+      # place rather than discovered when an upload silently fails.
+      MINIO_API_CORS_ALLOW_ORIGIN: ${WEB_ORIGIN:-http://localhost:3000}
+      # Server-side encryption is required on every presigned PUT, and MinIO
+      # answers 501 to an SSE request unless it has a key. Without this, dev
+      # would have to disable SSE and would therefore stop exercising the
+      # production code path — the exact divergence running MinIO avoids.
+      # A fixed dev key: it protects nothing and is not a secret.
+      MINIO_KMS_SECRET_KEY: >-
+        vantage-dev-key:VL73+SQCTwSZoLaMEjJu19ZSbItQ9nW25Dj4Gm9O6FU=
     volumes:
       - minio_data:/data
     ports:
@@ -122,11 +134,17 @@ services:
     environment:
       POSTGRES_HOST: postgres
       REDIS_HOST: redis
+      # Internal name for the API's own calls; the published name for the URLs
+      # it signs, because the browser is what follows those. SigV4 covers the
+      # Host header, so one cannot be rewritten into the other.
       S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://127.0.0.1:9000}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     # No published port. The API is reachable only on the compose network —
     # Next.js proxies to it. This is the containment described in

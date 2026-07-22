@@ -2,40 +2,47 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { FileText, Loader2, Paperclip, Trash2 } from "lucide-react";
+import {
+  Download,
+  FileText,
+  Loader2,
+  Paperclip,
+  ShieldAlert,
+  Trash2,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ClientApiError } from "@/lib/api/client";
 import {
+  UploadTransferError,
   deleteAttachment,
-  registerAttachment,
+  downloadAttachment,
+  formatBytes,
+  uploadAttachment,
 } from "@/lib/api/attachments-client";
 import type {
   Attachment,
+  AttachmentEntityType,
   AttachmentStatus,
-  RecordEntityType,
 } from "@/lib/api/types";
 
 const STATUS_LABEL: Record<AttachmentStatus, string> = {
-  pending_upload: "Awaiting upload",
+  pending_upload: "Processing",
   available: "Available",
   quarantined: "Quarantined",
-  failed: "Failed",
+  failed: "Rejected",
 };
 
-function formatSize(bytes: number | null): string {
-  if (bytes === null) return "—";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 /**
- * Attachments on a record. Phase 2.8 records file *metadata* only — object
- * storage is Phase 3 — so choosing a file registers it in `pending_upload` and
- * the panel is honest about the bytes not being stored yet. The list, statuses
- * and delete are all real; the upload is the one thing that waits.
+ * Attachments on a record.
+ *
+ * Choosing a file runs the full workflow — register, transfer straight to
+ * object storage, then server-side verification — and a row only reads
+ * `Available` once the server has read the bytes back and confirmed they are
+ * what they claim to be. A file that fails that check comes back as `Rejected`
+ * with the reason, which is deliberately shown: "it silently did not upload" is
+ * the worst version of this interaction.
  */
 export function AttachmentsPanel({
   entityType,
@@ -43,7 +50,7 @@ export function AttachmentsPanel({
   attachments,
   canManage,
 }: {
-  entityType: RecordEntityType;
+  entityType: AttachmentEntityType;
   entityId: string;
   attachments: Attachment[];
   canManage: boolean;
@@ -51,6 +58,7 @@ export function AttachmentsPanel({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
+  const [uploadingName, setUploadingName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function run(action: () => Promise<unknown>) {
@@ -60,26 +68,22 @@ export function AttachmentsPanel({
       await action();
       router.refresh();
     } catch (caught) {
-      setError(
-        caught instanceof ClientApiError
-          ? caught.message
-          : "Something went wrong. Please try again.",
-      );
+      setError(describe(caught));
     } finally {
       setPending(false);
+      setUploadingName(null);
     }
   }
 
   function handleFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    setUploadingName(file.name);
     void run(async () => {
-      await registerAttachment({
-        entity_type: entityType,
-        entity_id: entityId,
-        filename: file.name,
-        content_type: file.type || "application/octet-stream",
-      });
+      await uploadAttachment(
+        { entity_type: entityType, entity_id: entityId },
+        file,
+      );
       if (inputRef.current) inputRef.current.value = "";
     });
   }
@@ -106,11 +110,11 @@ export function AttachmentsPanel({
             ) : (
               <Paperclip className="size-4" />
             )}
-            Attach file
+            {uploadingName ? "Uploading…" : "Attach file"}
           </Button>
-          <p className="text-[11px] text-muted-foreground">
-            Files are recorded now; upload &amp; download arrive in a later release.
-          </p>
+          {uploadingName && (
+            <p className="text-[11px] text-muted-foreground">{uploadingName}</p>
+          )}
         </div>
       )}
 
@@ -124,44 +128,82 @@ export function AttachmentsPanel({
         <p className="text-sm text-muted-foreground">No files attached.</p>
       ) : (
         <ul className="space-y-1.5">
-          {attachments.map((attachment) => (
-            <li
-              key={attachment.id}
-              className="flex items-center gap-2.5 rounded-lg border bg-card p-2.5"
-            >
-              <FileText className="size-4 shrink-0 text-muted-foreground" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
-                  {attachment.filename}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {formatSize(attachment.size_bytes)} ·{" "}
-                  {attachment.uploader?.full_name ?? "Unknown"}
-                </p>
-              </div>
-              <Badge
-                variant={
-                  attachment.status === "available" ? "default" : "secondary"
-                }
+          {attachments.map((attachment) => {
+            const isAvailable = attachment.status === "available";
+            const isRejected =
+              attachment.status === "failed" ||
+              attachment.status === "quarantined";
+            return (
+              <li
+                key={attachment.id}
+                className="flex items-center gap-2.5 rounded-lg border bg-card p-2.5"
               >
-                {STATUS_LABEL[attachment.status]}
-              </Badge>
-              {canManage && (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-destructive"
-                  onClick={() => run(() => deleteAttachment(attachment.id))}
-                  disabled={pending}
-                  title="Remove"
+                {isRejected ? (
+                  <ShieldAlert className="size-4 shrink-0 text-destructive" />
+                ) : (
+                  <FileText className="size-4 shrink-0 text-muted-foreground" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">
+                    {attachment.filename}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {attachment.size_bytes === null
+                      ? "—"
+                      : formatBytes(attachment.size_bytes)}{" "}
+                    · {attachment.uploader?.full_name ?? "Unknown"}
+                  </p>
+                  {isRejected && attachment.failure_reason && (
+                    <p className="text-[11px] text-destructive">
+                      {attachment.failure_reason}
+                    </p>
+                  )}
+                </div>
+                <Badge
+                  variant={
+                    isAvailable
+                      ? "default"
+                      : isRejected
+                        ? "destructive"
+                        : "secondary"
+                  }
                 >
-                  <Trash2 className="size-4" />
-                </Button>
-              )}
-            </li>
-          ))}
+                  {STATUS_LABEL[attachment.status]}
+                </Badge>
+                {isAvailable && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => run(() => downloadAttachment(attachment.id))}
+                    disabled={pending}
+                    title={`Download ${attachment.filename}`}
+                  >
+                    <Download className="size-4" />
+                  </Button>
+                )}
+                {canManage && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-destructive"
+                    onClick={() => run(() => deleteAttachment(attachment.id))}
+                    disabled={pending}
+                    title="Remove"
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
+}
+
+function describe(caught: unknown): string {
+  if (caught instanceof UploadTransferError) return caught.message;
+  if (caught instanceof ClientApiError) return caught.message;
+  return "Something went wrong. Please try again.";
 }
