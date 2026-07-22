@@ -94,6 +94,14 @@ PERMISSIONS: tuple[Permission, ...] = (
     _permission("documents", "view", "View documents"),
     _permission("documents", "manage", "Upload and delete documents"),
     _permission("documents", "sign", "Request and complete signatures"),
+    # --- automation ---
+    #
+    # Deliberately not granted to agents at any scope. A workflow acts on
+    # records its author may not otherwise reach — that is the point of
+    # automation — so authoring one is an administrative capability, not a
+    # wider version of editing your own book. See docs/AUTOMATION.md §3.
+    _permission("automations", "view", "View workflows and their run history"),
+    _permission("automations", "manage", "Create, edit and publish workflows"),
     # --- insight ---
     _permission("reports", "view", "View reports and analytics"),
     _permission("reports", "export", "Export report data"),

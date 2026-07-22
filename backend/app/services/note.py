@@ -19,6 +19,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.automation.emitter import is_automation_actor, record_event
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import NotFoundError, PermissionDeniedError
 from app.core.logging import get_logger
@@ -152,6 +153,19 @@ class NoteService:
             entity_type=ENTITY_TYPE,
             entity_id=note.id,
             metadata={"on": f"{payload.entity_type}:{payload.entity_id}"},
+        )
+        await record_event(
+            self.session,
+            organization_id=auth.organization_id,
+            event_type="note.created",
+            entity_type="note",
+            record=note,
+            actor_id=author.id,
+            extra={
+                "on_entity_type": note.entity_type,
+                "on_entity_id": str(note.entity_id),
+            },
+            by_automation=is_automation_actor(auth.role_keys),
         )
         logger.info("note_created", extra={"note_id": str(note.id)})
         return await self.get_note(note.id)

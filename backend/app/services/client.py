@@ -16,6 +16,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.automation.emitter import is_automation_actor, record_event, take_snapshot
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.logging import get_logger
@@ -144,6 +145,15 @@ class ClientService:
             entity_id=client.id,
             metadata={"type": client.type, "status": client.status},
         )
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="client.created",
+            entity_type="client",
+            record=client,
+            actor_id=actor.id,
+            by_automation=is_automation_actor(self.auth.role_keys),
+        )
         logger.info("client_created", extra={"client_id": str(client.id)})
         return client
 
@@ -179,6 +189,7 @@ class ClientService:
                 "A client must keep either a first and last name, or a company name."
             )
 
+        snapshot_before = take_snapshot(ENTITY_TYPE, client)
         before = {field: getattr(client, field) for field in AUDITED_FIELDS}
         for field, value in updates.items():
             setattr(client, field, value)
@@ -199,6 +210,16 @@ class ClientService:
                 entity_type=ENTITY_TYPE,
                 entity_id=client.id,
                 metadata={"changes": diff},
+            )
+            await record_event(
+                self.session,
+                organization_id=self.auth.organization_id,
+                event_type="client.updated",
+                entity_type="client",
+                record=client,
+                actor_id=actor.id,
+                previous=snapshot_before,
+                by_automation=is_automation_actor(self.auth.role_keys),
             )
             logger.info(
                 "client_updated",
@@ -365,6 +386,26 @@ class ClientService:
             entity_type="lead",
             entity_id=lead.id,
             metadata={"client_id": str(client.id)},
+        )
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="client.created",
+            entity_type="client",
+            record=client,
+            actor_id=actor.id,
+            extra={"from_lead_id": str(lead.id)},
+            by_automation=is_automation_actor(self.auth.role_keys),
+        )
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="lead.converted",
+            entity_type="lead",
+            record=lead,
+            actor_id=actor.id,
+            extra={"client_id": str(client.id)},
+            by_automation=is_automation_actor(self.auth.role_keys),
         )
         logger.info(
             "lead_converted",

@@ -16,6 +16,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.automation.emitter import is_automation_actor, record_event, take_snapshot
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import NotFoundError, PermissionDeniedError
 from app.core.logging import get_logger
@@ -137,6 +138,15 @@ class LeadService:
             entity_id=lead.id,
             metadata={"stage": lead.stage, "source": lead.source},
         )
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="lead.created",
+            entity_type="lead",
+            record=lead,
+            actor_id=actor.id,
+            by_automation=is_automation_actor(self.auth.role_keys),
+        )
         logger.info("lead_created", extra={"lead_id": str(lead.id)})
         return lead
 
@@ -159,6 +169,7 @@ class LeadService:
         if "owner_id" in updates and updates["owner_id"] != lead.owner_id:
             await self._assert_can_assign_to(updates["owner_id"])
 
+        snapshot_before = take_snapshot(ENTITY_TYPE, lead)
         before = {field: getattr(lead, field) for field in AUDITED_FIELDS}
         for field, value in updates.items():
             setattr(lead, field, value)
@@ -179,6 +190,16 @@ class LeadService:
                 entity_type=ENTITY_TYPE,
                 entity_id=lead.id,
                 metadata={"changes": diff},
+            )
+            await record_event(
+                self.session,
+                organization_id=self.auth.organization_id,
+                event_type="lead.updated",
+                entity_type="lead",
+                record=lead,
+                actor_id=actor.id,
+                previous=snapshot_before,
+                by_automation=is_automation_actor(self.auth.role_keys),
             )
             logger.info(
                 "lead_updated",

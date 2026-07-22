@@ -26,6 +26,12 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.db.session import dispose_engine
 from app.services.storage import get_object_storage
+from app.workers.jobs.automation import (
+    dispatch_workflow_event,
+    execute_workflow_run,
+    sweep_workflow_events,
+    sweep_workflow_runs,
+)
 from app.workers.jobs.calendar import sweep_calendar_reminders
 from app.workers.jobs.documents import (
     scan_attachment,
@@ -73,6 +79,10 @@ class WorkerSettings:
         deliver_notification_email,
         deliver_message,
         send_email,
+        dispatch_workflow_event,
+        execute_workflow_run,
+        sweep_workflow_events,
+        sweep_workflow_runs,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -95,6 +105,25 @@ class WorkerSettings:
         # Every five minutes. A reminder that arrives four minutes late is
         # still useful; one that arrives an hour late is not, so this is the
         # one sweep whose cadence is a product decision rather than a load one.
+        # Every minute. A workflow parked on a "wait 15 minutes" delay that
+        # resumes up to a minute late is fine; one that resumes up to fifteen
+        # minutes late makes short delays meaningless.
+        cron(
+            cast(WorkerCoroutine, sweep_workflow_runs),
+            minute=set(range(60)),
+            second=15,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # The outbox net. Rarely finds anything — the fast path dispatches in
+        # milliseconds — so a minute of latency on the exception is acceptable.
+        cron(
+            cast(WorkerCoroutine, sweep_workflow_events),
+            minute=set(range(60)),
+            second=45,
+            run_at_startup=False,
+            max_tries=2,
+        ),
         cron(
             cast(WorkerCoroutine, sweep_calendar_reminders),
             minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},

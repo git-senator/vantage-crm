@@ -26,6 +26,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.automation.emitter import is_automation_actor, record_event
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.logging import get_logger
@@ -159,6 +160,15 @@ class TaskService:
         if assignee_id != actor.id:
             await self._notify_assignment(task, assignee_id, actor)
 
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="task.created",
+            entity_type="task",
+            record=task,
+            actor_id=actor.id,
+            by_automation=is_automation_actor(self.auth.role_keys),
+        )
         logger.info("task_created", extra={"task_id": str(task.id)})
         return await self.get_task(task.id)
 
@@ -268,6 +278,15 @@ class TaskService:
             entity_type=ENTITY_TYPE,
             entity_id=task.id,
             metadata={"title": task.title},
+        )
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="task.completed",
+            entity_type="task",
+            record=task,
+            actor_id=actor.id,
+            by_automation=is_automation_actor(self.auth.role_keys),
         )
         logger.info("task_completed", extra={"task_id": str(task.id)})
         return await self.get_task(task.id)
@@ -402,6 +421,17 @@ class TaskService:
         assignee = await self.users.get(assignee_id, self.auth.organization_id)
         if assignee is None:  # pragma: no cover - guarded by _assert_can_assign_to
             return
+
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="task.assigned",
+            entity_type="task",
+            record=task,
+            actor_id=actor.id,
+            extra={"assignee_id": str(assignee_id)},
+            by_automation=is_automation_actor(self.auth.role_keys),
+        )
 
         due = f" Due {task.due_at:%d %b %Y}." if task.due_at else ""
         await NotificationCenter(self.session).raise_notification(

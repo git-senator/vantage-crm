@@ -44,6 +44,10 @@ class JobName:
     SEND_EMAIL: Final = "send_email"
     DELIVER_NOTIFICATION_EMAIL: Final = "deliver_notification_email"
     DELIVER_MESSAGE: Final = "deliver_message"
+    DISPATCH_WORKFLOW_EVENT: Final = "dispatch_workflow_event"
+    EXECUTE_WORKFLOW_RUN: Final = "execute_workflow_run"
+    SWEEP_WORKFLOW_EVENTS: Final = "sweep_workflow_events"
+    SWEEP_WORKFLOW_RUNS: Final = "sweep_workflow_runs"
 
 
 def redis_settings(settings: Settings | None = None) -> RedisSettings:

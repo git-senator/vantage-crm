@@ -28,6 +28,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.automation.emitter import record_event
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import ConflictError, NotFoundError
 from app.core.logging import get_logger
@@ -422,6 +423,26 @@ class InboundMessageService:
                 metadata={"conversation_id": str(conversation.id)},
             )
 
+        # Ingestion has no authorization context — a webhook has no user — so
+        # the automation marker is unconditionally false: an inbound message is
+        # by definition not something a workflow caused.
+        await record_event(
+            self.session,
+            organization_id=self.organization_id,
+            event_type=(
+                "message.received"
+                if conversation.entity_type
+                else "message.unmatched"
+            ),
+            entity_type="conversation",
+            record=conversation,
+            actor_id=None,
+            extra={
+                "channel": inbound.channel,
+                "body": inbound.body_text[:500],
+                "from_address": address,
+            },
+        )
         logger.info(
             "inbound_message_ingested",
             extra={

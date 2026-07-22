@@ -13,6 +13,7 @@ from app.api.v1 import (
     attachments,
     audit,
     auth,
+    automations,
     calendar,
     clients,
     conversations,
@@ -41,6 +42,9 @@ api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(leads.router, prefix="/leads", tags=["leads"])
+api_router.include_router(
+    automations.router, prefix="/automations", tags=["automations"]
+)
 api_router.include_router(
     calendar.router, prefix="/calendar", tags=["calendar"]
 )

@@ -27,6 +27,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.automation.emitter import is_automation_actor, record_event
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.logging import get_logger
@@ -163,6 +164,16 @@ class CalendarService:
         if owner_id != actor.id:
             await self._notify_owner(event, actor)
 
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="calendar.event_created",
+            entity_type="calendar_event",
+            record=event,
+            actor_id=actor.id,
+            extra={"event_type": event.event_type},
+            by_automation=is_automation_actor(self.auth.role_keys),
+        )
         logger.info(
             "calendar_event_created",
             extra={"event_id": str(event.id), "conflicts": len(conflicts)},
@@ -261,6 +272,16 @@ class CalendarService:
             entity_type=ENTITY_TYPE,
             entity_id=event.id,
             metadata={"status": {"old": "confirmed", "new": "cancelled"}},
+        )
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="calendar.event_cancelled",
+            entity_type="calendar_event",
+            record=event,
+            actor_id=actor.id,
+            extra={"event_type": event.event_type},
+            by_automation=is_automation_actor(self.auth.role_keys),
         )
         return event
 

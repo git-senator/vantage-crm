@@ -23,6 +23,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.automation.emitter import is_automation_actor, record_event
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import ConflictError, NotFoundError
 from app.core.logging import get_logger
@@ -229,6 +230,16 @@ class ActivityService:
                 "type": activity.type,
                 "on": f"{payload.entity_type}:{payload.entity_id}",
             },
+        )
+        await record_event(
+            self.session,
+            organization_id=auth.organization_id,
+            event_type="activity.logged",
+            entity_type="activity",
+            record=activity,
+            actor_id=actor.id,
+            extra={"activity_type": activity.type},
+            by_automation=is_automation_actor(auth.role_keys),
         )
         logger.info("activity_logged", extra={"activity_id": str(activity.id)})
         return activity

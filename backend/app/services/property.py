@@ -17,6 +17,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.automation.emitter import is_automation_actor, record_event, take_snapshot
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.logging import get_logger
@@ -187,6 +188,15 @@ class PropertyService:
             entity_id=listing.id,
             metadata={"status": listing.status, "type": listing.property_type},
         )
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="property.created",
+            entity_type="property",
+            record=listing,
+            actor_id=actor.id,
+            by_automation=is_automation_actor(self.auth.role_keys),
+        )
         logger.info("property_created", extra={"property_id": str(listing.id)})
         return listing
 
@@ -217,6 +227,7 @@ class PropertyService:
                 "latitude and longitude must be set together, or both cleared."
             )
 
+        snapshot_before = take_snapshot(ENTITY_TYPE, listing)
         before = {field: getattr(listing, field) for field in AUDITED_FIELDS}
         for field, value in updates.items():
             setattr(listing, field, value)
@@ -237,6 +248,16 @@ class PropertyService:
                 entity_type=ENTITY_TYPE,
                 entity_id=listing.id,
                 metadata={"changes": diff},
+            )
+            await record_event(
+                self.session,
+                organization_id=self.auth.organization_id,
+                event_type="property.updated",
+                entity_type="property",
+                record=listing,
+                actor_id=actor.id,
+                previous=snapshot_before,
+                by_automation=is_automation_actor(self.auth.role_keys),
             )
             logger.info(
                 "property_updated",

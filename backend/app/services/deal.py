@@ -23,6 +23,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.automation.emitter import is_automation_actor, record_event, take_snapshot
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.core.logging import get_logger
@@ -242,6 +243,15 @@ class DealService:
             entity_id=deal.id,
             metadata={"stage": stage.key, "value": str(deal.value or "")},
         )
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="deal.created",
+            entity_type="deal",
+            record=deal,
+            actor_id=actor.id,
+            by_automation=is_automation_actor(self.auth.role_keys),
+        )
         logger.info("deal_created", extra={"deal_id": str(deal.id)})
         return await self.get_deal(deal.id)
 
@@ -266,6 +276,7 @@ class DealService:
         if updates.get("property_id") is not None:
             await self._assert_property_exists(updates["property_id"])
 
+        snapshot_before = take_snapshot(ENTITY_TYPE, deal)
         before = {field: getattr(deal, field) for field in AUDITED_FIELDS}
         for field, value in updates.items():
             setattr(deal, field, value)
@@ -292,6 +303,16 @@ class DealService:
                 entity_type=ENTITY_TYPE,
                 entity_id=deal.id,
                 metadata={"changes": diff},
+            )
+            await record_event(
+                self.session,
+                organization_id=self.auth.organization_id,
+                event_type="deal.updated",
+                entity_type="deal",
+                record=deal,
+                actor_id=actor.id,
+                previous=snapshot_before,
+                by_automation=is_automation_actor(self.auth.role_keys),
             )
             logger.info(
                 "deal_updated",
@@ -475,6 +496,20 @@ class DealService:
                 "from_stage": previous.key if previous else None,
                 "to_stage": target.key,
             },
+        )
+        await record_event(
+            self.session,
+            organization_id=self.auth.organization_id,
+            event_type="deal.stage_changed",
+            entity_type="deal",
+            record=deal,
+            actor_id=actor.id,
+            extra={
+                "to_stage_id": str(target.id),
+                "to_stage": target.key,
+                "from_stage": previous.key if previous else None,
+            },
+            by_automation=is_automation_actor(self.auth.role_keys),
         )
         logger.info(
             "deal_stage_changed",

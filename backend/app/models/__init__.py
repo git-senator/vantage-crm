@@ -9,6 +9,13 @@ its table.
 from app.models.activity import Activity
 from app.models.attachment import Attachment
 from app.models.audit import AuditLog
+from app.models.automation import (
+    Workflow,
+    WorkflowEvent,
+    WorkflowRun,
+    WorkflowRunStep,
+    WorkflowVersion,
+)
 from app.models.calendar import CalendarEvent, EventAttendee
 from app.models.client import Client
 from app.models.conversation import Conversation, Message
@@ -63,4 +70,9 @@ __all__ = [
     "TeamMember",
     "User",
     "UserRole",
+    "Workflow",
+    "WorkflowEvent",
+    "WorkflowRun",
+    "WorkflowRunStep",
+    "WorkflowVersion",
 ]

@@ -82,6 +82,13 @@ class AuditAction:
     #: message itself.
     MESSAGE_SENT: Final = "message.sent"
 
+    # --- automation (Phase 4) ---
+    #: Publishing is the moment a workflow starts acting on live customer data,
+    #: so it is the auditable act — editing a draft is not.
+    WORKFLOW_PUBLISHED: Final = "workflow.published"
+    WORKFLOW_ENABLED: Final = "workflow.enabled"
+    WORKFLOW_DISABLED: Final = "workflow.disabled"
+
 
 #: Actions that warrant alerting rather than just recording.
 HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
@@ -92,6 +99,8 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         AuditAction.ACCOUNT_LOCKED,
         AuditAction.MFA_DISABLED,
         AuditAction.MFA_RECOVERY_USED,
+        # A newly live workflow can touch every record in the workspace.
+        AuditAction.WORKFLOW_PUBLISHED,
         AuditAction.RECORD_EXPORTED,
         # A quarantine means malware reached the bucket. Somebody should hear
         # about it the same day, not at the next audit review.
