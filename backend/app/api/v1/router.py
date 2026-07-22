@@ -10,6 +10,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     activities,
+    attachments,
     audit,
     auth,
     clients,
@@ -43,7 +44,10 @@ api_router.include_router(
 )
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(notes.router, prefix="/notes", tags=["notes"])
+api_router.include_router(
+    attachments.router, prefix="/attachments", tags=["attachments"]
+)
 
 
-# Phase 2.8:  attachments, timeline, dashboard (added with their slices)
+# Phase 2.8:  timeline, dashboard (added with their slices)
 # Phase 3:    documents (real storage behind the attachment placeholders)

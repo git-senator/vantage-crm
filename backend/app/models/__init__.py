@@ -7,6 +7,7 @@ its table.
 """
 
 from app.models.activity import Activity
+from app.models.attachment import Attachment
 from app.models.audit import AuditLog
 from app.models.client import Client
 from app.models.deal import Deal, DealStageHistory
@@ -29,6 +30,7 @@ from app.models.user import User
 
 __all__ = [
     "Activity",
+    "Attachment",
     "AuditLog",
     "Client",
     "Deal",
