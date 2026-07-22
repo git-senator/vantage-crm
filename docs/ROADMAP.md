@@ -352,6 +352,49 @@ password resets with it.
 The notifications page and the topbar badge now read live data, and
 `mock-data.ts` lost its last interactive fixture.
 
+**3.4 Email integration — delivered.** Conversations, outbound send through the
+queue, and an authenticated inbound webhook that files replies onto the right
+record. See [MESSAGING.md](./MESSAGING.md).
+
+The structural decision is that **email and WhatsApp are one system, not two**.
+`conversations.channel` is a column rather than a table, so 3.6 is an adapter
+plus an enum value that already exists — the inbox, the threading, the record
+matching and the unread counts never knew which channel they were looking at.
+The prototype's own inbox already listed sms, email and whatsapp in one stream,
+so this is not speculative generality; two parallel implementations would have
+had to be merged later, at the point where they had diverged most.
+
+A thread is keyed by (tenant, channel, counterparty address), not by CRM record:
+the same person is a lead today and a client tomorrow, and their history should
+survive the conversion rather than fragment at exactly the moment it becomes
+valuable. Address normalisation therefore lives on the channel — it is the
+identity function for a thread, and getting it wrong gives one person two
+conversations.
+
+**Outbound records before it sends.** The message row is written in the request's
+transaction as `queued`, then delivery is enqueued; a provider outage becomes a
+failed message visible in the thread rather than a request that lost what the
+user typed. The endpoint returns 202 rather than 201, because claiming it was
+sent would be a lie the UI then has to un-tell.
+
+**Inbound is the only endpoint in the system with no authenticated user behind
+it**, and is treated accordingly: HMAC over the raw body (not the reserialised
+model — that difference only shows up in production, months later), constant-time
+comparison, a bounded signed timestamp, and the tenant *inside* the signature so
+a validly-signed body cannot be re-pointed at another tenant. An unset secret
+refuses everything rather than defaulting open. Ingestion deduplicates on the
+provider id before any write, because every provider replays eventually.
+
+Record matching is an exact address lookup or nothing — no fuzzy matching, since
+filing a stranger's mail onto a customer's record is worse than leaving it
+unfiled, and unfiled is visible and fixable. Mail from a stranger is kept in an
+unmatched thread, which is how an inbound enquiry becomes a lead. Unowned threads
+are visible to the whole tenant, because hiding unclaimed mail from everybody is
+how an enquiry sits unanswered for a week; replying claims it.
+
+The messages page reads live data and `mock-data.ts` lost its conversation
+fixtures.
+
 **Deliverables**
 - S3-compatible storage; private bucket, public access blocked at policy ✅
 - Presigned upload/download with short TTLs ✅
@@ -359,6 +402,7 @@ The notifications page and the topbar badge now read live data, and
 - Entity attachments on leads, clients, properties, deals, tasks and notes ✅
 - ARQ worker pool + scheduled jobs ✅
 - Email/notification delivery via queue ✅
+- Conversations and email: outbound send, inbound ingestion, record matching ✅
 - Document versioning and lifecycle (`draft → awaiting_signature → signed → expired`)
 - Expiry reminders and digest jobs
 
@@ -468,7 +512,7 @@ making before the first table exists rather than after the thirtieth.
 | R3 | Client-boundary leak recurs during data port | **High — MITIGATED** | Lint rule + `server-only` caught a real violation during Phase 1.5 and forced a correct module split. Still live for the Phase 2 data port. | 0 ✅ |
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
-| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6), the dashboard (2.8) and notifications (3.3) are ported and their fixtures deleted; every record detail page shows live notes/timeline/files, and 3.1 made those files real uploads rather than metadata. What remains is intentionally later-phase — reports (4) and the calendar/messages prototype pages | 1–3 |
+| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6), the dashboard (2.8) and notifications (3.3) are ported and their fixtures deleted; every record detail page shows live notes/timeline/files, and 3.1 made those files real uploads rather than metadata. What remains is intentionally later-phase — reports (4) and the calendar prototype page | 1–3 |
 | R11 | Audit metadata could not serialise `Decimal`; a failed audit write poisoned the caller's transaction | ~~High~~ **CLOSED** | Found in 2.6, live since 2.3 — reachable from any money-field edit on leads, clients or properties, and no test had changed one. Values now coerce to JSON-safe types (Decimal → string, never float), comparison happens before coercion, and the insert runs in a SAVEPOINT so an audit failure genuinely cannot break the request it describes | 2.6 ✅ |
 | R12 | Read-after-write returned stale relationship state | ~~Medium~~ **CLOSED** | SQLAlchemy does not overwrite loaded state on a fresh query, so a stage transition returned the deal's *old* stage and therefore its old derived status — the Kanban card would snap back. `populate_existing` on the deal and pipeline read paths | 2.6 ✅ |
 | R7 | Refresh rotation logs users out under concurrency | ~~High~~ **CLOSED** | Redis lock on the presented token plus a 10s rotation grace window. Proven by 10 genuinely parallel refreshes all succeeding, and by the suite passing with Redis deliberately unreachable | 2.1 ✅ |

@@ -66,6 +66,13 @@ class AuditAction:
     #: A malware scan flagged the file. It is never served again.
     DOCUMENT_QUARANTINED: Final = "document.quarantined"
 
+    # --- messaging (Phase 3.4) ---
+    #: Someone sent a message to a contact from inside the CRM. Recorded at
+    #: queue time, not delivery: the intent to contact a customer is the
+    #: auditable act, and whether the provider accepted it is a status on the
+    #: message itself.
+    MESSAGE_SENT: Final = "message.sent"
+
 
 #: Actions that warrant alerting rather than just recording.
 HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(

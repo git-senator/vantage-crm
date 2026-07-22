@@ -7,9 +7,7 @@ import type {
   ActivityItem,
   SessionUser,
   CalendarEvent,
-  Conversation,
   CrmDocument,
-  Message,
   Task,
   TeamMember,
 } from "@/types";
@@ -232,95 +230,7 @@ export const calendarEvents: CalendarEvent[] = [
   },
 ];
 
-/* --------------------------------------------------------------- messages */
-
-export const conversations: Conversation[] = [
-  {
-    id: "M-1",
-    contact: contacts.harper,
-    channel: "sms",
-    preview: "Perfect — is Saturday morning still open for the second walkthrough?",
-    timestamp: "9:41 AM",
-    unread: 2,
-    pinned: true,
-  },
-  {
-    id: "M-2",
-    contact: contacts.omar,
-    channel: "email",
-    preview: "Attaching the signed addendum. Let me know if the title company needs…",
-    timestamp: "8:15 AM",
-    unread: 0,
-    pinned: true,
-  },
-  {
-    id: "M-3",
-    contact: contacts.yuki,
-    channel: "email",
-    preview: "What are the current cap rates on the Folsom building? I want to model…",
-    timestamp: "Yesterday",
-    unread: 1,
-  },
-  {
-    id: "M-4",
-    contact: contacts.rosa,
-    channel: "sms",
-    preview: "Thanks for sending those over! I'll look tonight.",
-    timestamp: "Yesterday",
-    unread: 0,
-  },
-  {
-    id: "M-5",
-    contact: contacts.theo,
-    channel: "whatsapp",
-    preview: "Can we push the Tuesday showing to 6pm?",
-    timestamp: "Jul 18",
-    unread: 0,
-  },
-  {
-    id: "M-6",
-    contact: contacts.nadia,
-    channel: "email",
-    preview: "The buyers' inspector flagged the water heater — how do we respond?",
-    timestamp: "Jul 17",
-    unread: 0,
-  },
-];
-
-export const messageThread: Message[] = [
-  {
-    id: "t1",
-    author: "them",
-    body: "Hi! We toured 1428 Sanchez yesterday and both really loved it.",
-    timestamp: "9:12 AM",
-  },
-  {
-    id: "t2",
-    author: "me",
-    body: "That's great to hear. It photographs well but the garden is the real story — glad you got to see it in person.",
-    timestamp: "9:20 AM",
-    status: "read",
-  },
-  {
-    id: "t3",
-    author: "them",
-    body: "Agreed. My partner wants one more look before we talk numbers. Do you have comps for the block?",
-    timestamp: "9:33 AM",
-  },
-  {
-    id: "t4",
-    author: "me",
-    body: "I'm pulling three closed comps within half a mile now. I'll send them over this afternoon.",
-    timestamp: "9:38 AM",
-    status: "delivered",
-  },
-  {
-    id: "t5",
-    author: "them",
-    body: "Perfect — is Saturday morning still open for the second walkthrough?",
-    timestamp: "9:41 AM",
-  },
-];
+/* --- messages: ported to the live API in Phase 3.4; fixtures removed --- */
 
 /* -------------------------------------------------------------- documents */
 

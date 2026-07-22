@@ -14,6 +14,7 @@ from app.api.v1 import (
     audit,
     auth,
     clients,
+    conversations,
     dashboard,
     deals,
     jobs,
@@ -39,6 +40,9 @@ api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(leads.router, prefix="/leads", tags=["leads"])
 api_router.include_router(clients.router, prefix="/clients", tags=["clients"])
+api_router.include_router(
+    conversations.router, prefix="/conversations", tags=["conversations"]
+)
 api_router.include_router(
     properties.router, prefix="/properties", tags=["properties"]
 )

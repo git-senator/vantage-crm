@@ -43,6 +43,7 @@ class JobName:
     SWEEP_SCAN_BACKLOG: Final = "sweep_scan_backlog"
     SEND_EMAIL: Final = "send_email"
     DELIVER_NOTIFICATION_EMAIL: Final = "deliver_notification_email"
+    DELIVER_MESSAGE: Final = "deliver_message"
 
 
 def redis_settings(settings: Settings | None = None) -> RedisSettings:

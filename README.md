@@ -24,6 +24,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 | [DOCUMENTS.md](docs/DOCUMENTS.md) | Object storage, upload workflow, file verification |
 | [JOBS.md](docs/JOBS.md) | Worker architecture, queue semantics, retry and dead-lettering |
 | [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) | Notification centre, preferences, delivery |
+| [MESSAGING.md](docs/MESSAGING.md) | Conversations, email send/receive, inbound webhook |
 
 ## Stack
 

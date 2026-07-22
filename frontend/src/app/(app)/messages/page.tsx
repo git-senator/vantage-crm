@@ -1,234 +1,222 @@
 import type { Metadata } from "next";
-import {
-  Mail,
-  MessageCircle,
-  Paperclip,
-  Phone,
-  Pin,
-  Search,
-  Send,
-  Smile,
-  Sparkles,
-  Video,
-} from "lucide-react";
+import Link from "next/link";
+import { Inbox, Mail, MessageCircle } from "lucide-react";
 
-import { StatusBadge } from "@/components/shared/status-badge";
-import { UserAvatar } from "@/components/shared/user-avatar";
-import { Button } from "@/components/ui/button";
+import { MarkReadOnView } from "@/components/messages/mark-read-button";
+import { MessageComposer } from "@/components/messages/message-composer";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { contacts, conversations, messageThread } from "@/lib/mock-data";
+import { getConversation, listConversations } from "@/lib/api/conversations";
+import type { Conversation, ConversationMessage } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Messages" };
 
-const channelIcons = {
-  sms: MessageCircle,
+const CHANNEL_ICON = {
   email: Mail,
+  sms: MessageCircle,
   whatsapp: MessageCircle,
 } as const;
 
-const suggestedReplies = [
-  "Saturday at 10am works — I'll confirm with the listing agent.",
-  "Sending the comps within the hour.",
-  "Would 11am suit you better?",
-];
+/**
+ * The shared inbox, on live data since Phase 3.4.
+ *
+ * Selection is a search param rather than client state, so the thread is
+ * server-rendered, linkable and back-button-correct — the same choice every
+ * other detail view in the app makes.
+ */
+export default async function MessagesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ c?: string }>;
+}) {
+  const { c } = await searchParams;
+  const { data: conversations } = await listConversations({ limit: 50 });
 
-export default function MessagesPage() {
-  const active = conversations[0];
+  // Fall back to the first thread rather than trusting the parameter: a stale
+  // bookmark to a deleted or now-invisible conversation should open the inbox,
+  // not a 404.
+  const selectedId =
+    c && conversations.some((row) => row.id === c) ? c : conversations[0]?.id;
+  const detail = selectedId ? await getConversation(selectedId) : null;
 
   return (
-    // Fills the viewport minus the topbar so the thread scrolls, not the page.
     <div className="h-[calc(100svh-7rem)] min-h-[560px]">
       <Card className="flex h-full flex-row gap-0 overflow-hidden p-0">
-        {/* ------------------------------------------------ conversations */}
-        <aside className="hidden w-[300px] shrink-0 flex-col border-r md:flex">
-          <div className="space-y-3 border-b p-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Inbox</h2>
-              <StatusBadge status="unread" label="3 unread" tone="brand" dot={false} />
-            </div>
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search messages…" className="pl-9" />
-            </div>
-            <Tabs defaultValue="all">
-              <TabsList className="w-full">
-                <TabsTrigger value="all" className="flex-1">
-                  All
-                </TabsTrigger>
-                <TabsTrigger value="unread" className="flex-1">
-                  Unread
-                </TabsTrigger>
-                <TabsTrigger value="sms" className="flex-1">
-                  SMS
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+        <aside className="hidden w-[320px] shrink-0 flex-col border-r md:flex">
+          <div className="border-b p-3">
+            <h1 className="text-sm font-medium">Inbox</h1>
+            <p className="text-[11px] text-muted-foreground">
+              {conversations.length === 0
+                ? "No conversations yet."
+                : `${conversations.length} conversation${
+                    conversations.length === 1 ? "" : "s"
+                  }`}
+            </p>
           </div>
-
-          <div className="scrollbar-slim flex-1 overflow-y-auto">
-            {conversations.map((conversation) => {
-              const ChannelIcon = channelIcons[conversation.channel];
-              const isActive = conversation.id === active.id;
-
-              return (
-                <button
-                  key={conversation.id}
-                  className={cn(
-                    "flex w-full gap-3 border-b p-3 text-left transition-colors hover:bg-muted/50",
-                    isActive && "bg-accent/60",
-                  )}
-                >
-                  <UserAvatar user={conversation.contact} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-sm font-medium">
-                        {conversation.contact.name}
-                      </span>
-                      {conversation.pinned && (
-                        <Pin className="size-3 shrink-0 text-muted-foreground" />
-                      )}
-                      <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
-                        {conversation.timestamp}
-                      </span>
-                    </div>
-                    <p
-                      className={cn(
-                        "mt-0.5 line-clamp-2 text-xs leading-relaxed",
-                        conversation.unread > 0
-                          ? "font-medium text-foreground"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {conversation.preview}
-                    </p>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <ChannelIcon className="size-3 text-muted-foreground" />
-                      <span className="text-[11px] text-muted-foreground capitalize">
-                        {conversation.channel}
-                      </span>
-                      {conversation.unread > 0 && (
-                        <span className="tabular ml-auto grid size-4 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
-                          {conversation.unread}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {conversations.map((conversation) => (
+              <ConversationRow
+                key={conversation.id}
+                conversation={conversation}
+                active={conversation.id === selectedId}
+              />
+            ))}
           </div>
         </aside>
 
-        {/* ------------------------------------------------------ thread */}
         <section className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center gap-3 border-b p-3">
-            <UserAvatar user={active.contact} size="md" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
-                {active.contact.name}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                Buyer · Noe Valley · lead score 92
-              </p>
-            </div>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon-sm" aria-label="Call">
-                <Phone className="size-4" />
-              </Button>
-              <Button variant="ghost" size="icon-sm" aria-label="Video call">
-                <Video className="size-4" />
-              </Button>
-            </div>
-          </header>
-
-          <div className="scrollbar-slim flex-1 space-y-4 overflow-y-auto p-4">
-            <div className="flex justify-center">
-              <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">
-                Today
-              </span>
-            </div>
-
-            {messageThread.map((message) => {
-              const mine = message.author === "me";
-              return (
-                <div
-                  key={message.id}
-                  className={cn("flex gap-2.5", mine && "flex-row-reverse")}
-                >
-                  {!mine && <UserAvatar user={contacts.harper} size="xs" className="mt-auto" />}
-                  <div
-                    className={cn(
-                      "max-w-[75%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed sm:max-w-[65%]",
-                      mine
-                        ? "rounded-br-md bg-primary text-primary-foreground"
-                        : "rounded-bl-md bg-muted",
-                    )}
-                  >
-                    <p>{message.body}</p>
-                    <p
-                      className={cn(
-                        "mt-1 text-[10px]",
-                        mine
-                          ? "text-primary-foreground/60"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {message.timestamp}
-                      {message.status && ` · ${message.status}`}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="border-t p-3">
-            <div className="mb-2.5 flex flex-wrap items-center gap-2">
-              <span className="flex items-center gap-1 text-[11px] font-medium text-primary">
-                <Sparkles className="size-3" />
-                Suggested
-              </span>
-              {suggestedReplies.map((reply) => (
-                <button
-                  key={reply}
-                  className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  {reply}
-                </button>
-              ))}
-            </div>
-
-            <div className="rounded-xl border focus-within:ring-2 focus-within:ring-ring/40">
-              <Textarea
-                placeholder="Write a message…"
-                rows={2}
-                className="resize-none border-0 shadow-none focus-visible:ring-0"
+          {detail ? (
+            <>
+              <MarkReadOnView
+                conversationId={detail.conversation.id}
+                unreadCount={detail.conversation.unread_count}
               />
-              <div className="flex items-center gap-1 border-t px-2 py-1.5">
-                <Button variant="ghost" size="icon-sm" aria-label="Attach a file">
-                  <Paperclip className="size-4" />
-                </Button>
-                <Button variant="ghost" size="icon-sm" aria-label="Add emoji">
-                  <Smile className="size-4" />
-                </Button>
-                <Separator orientation="vertical" className="mx-1 h-4" />
-                <span className="text-[11px] text-muted-foreground">
-                  Sending as SMS
-                </span>
-                <Button size="sm" className="ml-auto">
-                  <Send className="size-3.5" />
-                  Send
-                </Button>
+              <ThreadHeader conversation={detail.conversation} />
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+                {detail.messages.map((message) => (
+                  <MessageBubble key={message.id} message={message} />
+                ))}
               </div>
+              <MessageComposer
+                toAddress={detail.conversation.external_id}
+                toName={detail.conversation.display_name}
+                subject={detail.conversation.subject}
+              />
+            </>
+          ) : (
+            <div className="grid flex-1 place-items-center p-8">
+              <EmptyState
+                icon={Inbox}
+                title="No conversations yet"
+                description="Email sent from a lead or client page appears here, and replies thread back automatically."
+              />
             </div>
-          </div>
+          )}
         </section>
       </Card>
+    </div>
+  );
+}
+
+/**
+ * A counterparty is not a workspace member — they have no stored hue and no
+ * initials — so the avatar is derived from their address. Deterministic, so the
+ * same person is the same colour on every render and every machine.
+ */
+function ContactAvatar({ name, className }: { name: string; className?: string }) {
+  const hue =
+    Array.from(name).reduce((total, char) => total + char.charCodeAt(0), 0) % 360;
+  const initials = name
+    .replace(/[^A-Za-z ]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("") || "?";
+
+  return (
+    <span
+      className={cn(
+        "grid shrink-0 place-items-center rounded-full text-[11px] font-medium",
+        className,
+      )}
+      style={{
+        backgroundColor: `oklch(0.92 0.055 ${hue})`,
+        color: `oklch(0.42 0.13 ${hue})`,
+      }}
+      aria-hidden
+    >
+      {initials}
+    </span>
+  );
+}
+
+function ConversationRow({
+  conversation,
+  active,
+}: {
+  conversation: Conversation;
+  active: boolean;
+}) {
+  const Icon = CHANNEL_ICON[conversation.channel] ?? Mail;
+  const name = conversation.display_name ?? conversation.external_id;
+
+  return (
+    <Link
+      href={`/messages?c=${conversation.id}`}
+      className={cn(
+        "flex gap-2.5 border-b p-3 transition-colors hover:bg-muted/50",
+        active && "bg-accent/40",
+      )}
+    >
+      <ContactAvatar name={name} className="size-8" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className="min-w-0 flex-1 truncate text-sm font-medium">{name}</p>
+          <Icon className="size-3 shrink-0 text-muted-foreground" />
+        </div>
+        <p className="truncate text-[11px] text-muted-foreground">
+          {conversation.last_message_preview ?? conversation.external_id}
+        </p>
+      </div>
+      {conversation.unread_count > 0 && (
+        <span className="mt-1 grid size-4 shrink-0 place-items-center rounded-full bg-primary text-[9px] font-semibold text-primary-foreground">
+          {conversation.unread_count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function ThreadHeader({ conversation }: { conversation: Conversation }) {
+  const name = conversation.display_name ?? conversation.external_id;
+  return (
+    <div className="flex items-center gap-3 border-b p-3">
+      <ContactAvatar name={name} className="size-8" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{name}</p>
+        <p className="truncate text-[11px] text-muted-foreground">
+          {conversation.external_id}
+        </p>
+      </div>
+      {conversation.entity_type ? (
+        <Badge variant="secondary">Filed on {conversation.entity_type}</Badge>
+      ) : (
+        // Worth saying out loud: an unfiled thread is visible to everyone and
+        // is waiting for somebody to claim it.
+        <Badge variant="outline">Unfiled</Badge>
+      )}
+    </div>
+  );
+}
+
+function MessageBubble({ message }: { message: ConversationMessage }) {
+  const outbound = message.direction === "outbound";
+  return (
+    <div className={cn("flex", outbound ? "justify-end" : "justify-start")}>
+      <div
+        className={cn(
+          "max-w-[80%] rounded-lg border p-3",
+          outbound ? "bg-primary/5" : "bg-muted/40",
+        )}
+      >
+        {message.subject && (
+          <p className="mb-1 text-xs font-medium">{message.subject}</p>
+        )}
+        {/* Plain text only. `body_html` arrived from outside and the API does
+            not sanitise it — rendering it here would be a stored-XSS hole with
+            somebody's inbox as the delivery mechanism. */}
+        <p className="text-sm whitespace-pre-wrap">{message.body_text}</p>
+        <p className="mt-1.5 text-[10px] text-muted-foreground">
+          {message.status === "failed"
+            ? (message.failure_reason ?? "Delivery failed")
+            : message.status === "queued"
+              ? "Sending…"
+              : new Date(message.sent_at ?? message.created_at).toLocaleString()}
+        </p>
+      </div>
     </div>
   );
 }

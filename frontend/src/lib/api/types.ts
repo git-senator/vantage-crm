@@ -669,3 +669,69 @@ export interface NotificationPreference {
 export interface UnreadCount {
   unread_count: number;
 }
+
+// --- Conversations & messages (Phase 3.4) ---
+
+export type MessageChannel = "email" | "whatsapp" | "sms";
+export type MessageDirection = "inbound" | "outbound";
+export type MessageStatus =
+  | "queued"
+  | "sent"
+  | "delivered"
+  | "failed"
+  | "received";
+
+export interface ConversationMessage {
+  id: string;
+  conversation_id: string;
+  direction: MessageDirection;
+  status: MessageStatus;
+  from_address: string;
+  to_address: string;
+  subject: string | null;
+  body_text: string;
+  /**
+   * Stored for fidelity and **not sanitised by the API** — it arrived from
+   * outside. Never render it as HTML without sanitising first; `body_text` is
+   * the one that is always safe.
+   */
+  body_html: string | null;
+  sender: OwnerSummary | null;
+  sent_at: string | null;
+  read_at: string | null;
+  failure_reason: string | null;
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  channel: MessageChannel;
+  /** The counterparty's normalised address — the thread's identity. */
+  external_id: string;
+  display_name: string | null;
+  subject: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  owner: OwnerSummary | null;
+  last_message_at: string | null;
+  last_message_preview: string | null;
+  unread_count: number;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConversationDetail {
+  conversation: Conversation;
+  messages: ConversationMessage[];
+}
+
+export interface MessageSendInput {
+  channel?: MessageChannel;
+  to_address: string;
+  to_name?: string | null;
+  subject?: string | null;
+  body_text: string;
+  entity_type?: "lead" | "client" | "deal" | null;
+  entity_id?: string | null;
+}

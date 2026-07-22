@@ -226,6 +226,12 @@ class Settings(BaseSettings):
     AWS_SES_SECRET_ACCESS_KEY: SecretStr = SecretStr("")
     AWS_SES_CONFIGURATION_SET: str | None = None
 
+    # -------------------------------------------------------- messaging
+    #: Shared secret for the inbound-mail webhook's HMAC. Unset means inbound
+    #: mail is refused outright — a default-open check on an unconfigured
+    #: secret would accept anything that posted.
+    INBOUND_WEBHOOK_SECRET: SecretStr = SecretStr("")
+
     # ------------------------------------------------------------- cors
     # Empty in production: the browser only ever talks to Next.js, which proxies
     # to this API over the internal network. See docs/ARCHITECTURE.md §2.
