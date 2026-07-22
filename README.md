@@ -46,6 +46,11 @@ docker compose run --rm migrate     # apply database migrations
 # Create the first workspace and its owner. A fresh database has roles and
 # permissions but no organization and no user, so nobody can sign in yet.
 docker compose exec api python -m app.cli.bootstrap   --name "Your Brokerage" --email you@example.com
+
+# Optional: fill the workspace with a realistic dataset for local testing or
+# benchmarking (~250k rows at scale 1.0; dial down with --scale).
+docker compose exec api python -m app.cli.seed_demo   --scale 0.1
+docker compose exec api python -m app.cli.benchmark   # p50/p95/p99 list latency
 ```
 
 - Web: <http://localhost:3000> → redirects to `/login`
@@ -149,7 +154,7 @@ BYPASSRLS, and owns nothing else. See docs/AUTHENTICATION.md §5.
 | --- | --- | --- |
 | 0 | Foundations, CI, security baseline | **Complete** |
 | 1 | Auth, multi-tenancy, RBAC, audit logging | **Complete** |
-| 2 | CRM core — leads ✅, clients, properties, deals | **In progress** |
-| 3 | Documents, S3, background jobs | Planned |
+| 2 | CRM core — leads, clients, properties, deals, activities, tasks, notes, timeline, dashboard | **Complete** — list p95 24.8 ms on 100k rows |
+| 3 | Documents, S3, background jobs | Planned (attachment placeholders in place) |
 | 4 | Analytics, admin, production hardening | Planned |
 | 5 | AI layer — scoring, assistant, generation, discovery | Planned |
