@@ -5,7 +5,6 @@ import {
   CalendarDays,
   CircleDollarSign,
   Clock,
-  Handshake,
   Plus,
   Sparkles,
   Target,
@@ -14,6 +13,7 @@ import {
 
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { EmptyState } from "@/components/shared/empty-state";
+import { OwnerAvatar } from "@/components/shared/owner-avatar";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatGrid, type Stat } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -30,49 +30,30 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { formatPrice } from "@/lib/format";
+import { getDashboardSummary } from "@/lib/api/dashboard";
 import { listDeals } from "@/lib/api/deals";
-import {
-  activity,
-  calendarEvents,
-  currentUser,
-  leads,
-  revenueByMonth,
-  tasks,
-} from "@/lib/mock-data";
+import { listLeads } from "@/lib/api/leads";
+import { getTaskQueue } from "@/lib/api/tasks";
+import { requireSession } from "@/lib/auth/session";
+// Still mock, and deliberately so: `calendarEvents` belongs to the calendar
+// module (no backend yet) and `revenueByMonth` to reporting (Phase 4). Every
+// other panel on this page now reads live data.
+import { calendarEvents, revenueByMonth } from "@/lib/mock-data";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-const stats: Stat[] = [
-  {
-    label: "Pipeline value",
-    value: "$19.5M",
-    delta: 12.4,
-    hint: "vs. last month",
-    icon: CircleDollarSign,
-  },
-  {
-    label: "Active deals",
-    value: "10",
-    delta: 8.1,
-    hint: "3 closing this month",
-    icon: Handshake,
-  },
-  {
-    label: "New leads",
-    value: "48",
-    delta: 22.7,
-    hint: "this week",
-    icon: Target,
-  },
-  {
-    label: "Avg. days to close",
-    value: "38",
-    delta: -6.2,
-    hint: "faster than Q1",
-    icon: Clock,
-    invertDelta: true,
-  },
-];
+/** "just now", "3h ago", "2d ago", else a date. */
+function relativeTime(iso: string): string {
+  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
 
 const aiInsights = [
   {
@@ -99,23 +80,63 @@ const toneStyles = {
 };
 
 export default async function DashboardPage() {
-  const todaysEvents = calendarEvents.filter((e) => e.date === "2026-07-20");
-  const openTasks = tasks.filter((t) => t.status !== "done").slice(0, 5);
-  // Real deals now. Sorted here rather than by the API because the list
-  // endpoint orders by created_at for keyset pagination — a genuine "top N by
-  // value" needs a sorted, aggregate endpoint, which is Phase 4 reporting
-  // work. Over one page this is exact; past it, it is the top of a page.
-  const openDeals = await listDeals({ status: "open", limit: 50 });
+  const session = await requireSession();
+
+  // Everything below reads live data within the caller's scope. Sorted here
+  // rather than by the API because the list endpoint orders by created_at for
+  // keyset pagination — a genuine "top N by value" needs a sorted aggregate
+  // endpoint, which is Phase 4 reporting work. Over one page this is exact.
+  const [summary, openDeals, hotLeadsPage, taskQueue] = await Promise.all([
+    getDashboardSummary(),
+    listDeals({ status: "open", limit: 50 }),
+    listLeads({ temperature: "hot", limit: 5 }),
+    getTaskQueue(5),
+  ]);
+
   const topDeals = [...openDeals.data]
     .sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0))
     .slice(0, 5);
-  const hotLeads = leads.filter((l) => l.temperature === "hot").slice(0, 4);
+  const hotLeads = hotLeadsPage.data.slice(0, 4);
+  const openTasks = taskQueue.filter((t) => t.status !== "done").slice(0, 5);
+  const recent = summary.recent_activity;
+  const todaysEvents = calendarEvents.filter((e) => e.date === "2026-07-20");
+
+  const stats: Stat[] = [
+    {
+      label: "Open pipeline",
+      value: formatPrice(Number(summary.deals.open_value)),
+      hint: `${summary.deals.open_count} open deals`,
+      icon: CircleDollarSign,
+    },
+    {
+      label: "Weighted forecast",
+      value: formatPrice(Number(summary.deals.weighted_value)),
+      hint: `${summary.deals.won_this_month_count} won this month`,
+      icon: TrendingUp,
+    },
+    {
+      label: "Open leads",
+      value: String(summary.leads.open),
+      hint: `${summary.leads.total} total`,
+      icon: Target,
+    },
+    {
+      label: "Open tasks",
+      value: String(summary.tasks.open),
+      hint:
+        summary.tasks.overdue > 0
+          ? `${summary.tasks.overdue} overdue`
+          : "none overdue",
+      icon: Clock,
+      invertDelta: true,
+    },
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Good morning, ${currentUser.name.split(" ")[0]}`}
-        description="Here's where your book of business stands on Monday, July 20."
+        title={`Welcome back, ${session.full_name.split(" ")[0]}`}
+        description="Here's where your book of business stands right now."
         actions={
           <>
             <Button variant="outline" render={<Link href="/reports" />}>
@@ -301,24 +322,34 @@ export default async function DashboardPage() {
             <CardDescription>Scored 80 and above.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {hotLeads.map((lead) => (
-              <Link
-                key={lead.id}
-                href="/leads"
-                className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
-              >
-                <span className="tabular grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
-                  {lead.score}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{lead.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {lead.location} · {lead.source}
-                  </p>
-                </div>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-              </Link>
-            ))}
+            {hotLeads.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No hot leads right now.
+              </p>
+            ) : (
+              hotLeads.map((lead) => (
+                <Link
+                  key={lead.id}
+                  href={`/leads/${lead.id}`}
+                  className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                >
+                  <span className="tabular grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
+                    {lead.score ?? "—"}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {lead.full_name}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {[lead.preferred_location, lead.source]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+                </Link>
+              ))
+            )}
           </CardContent>
         </Card>
       </div>
@@ -335,48 +366,68 @@ export default async function DashboardPage() {
             </CardAction>
           </CardHeader>
           <CardContent className="space-y-2.5">
-            {openTasks.map((task) => (
-              <div key={task.id} className="flex items-start gap-3">
-                <span className="mt-1 size-4 shrink-0 rounded-[5px] border-2" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm">{task.title}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {task.dueDate}
-                  </p>
+            {openTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nothing due. You&apos;re clear.
+              </p>
+            ) : (
+              openTasks.map((task) => (
+                <div key={task.id} className="flex items-start gap-3">
+                  <span className="mt-1 size-4 shrink-0 rounded-[5px] border-2" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm">{task.title}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {task.due_at
+                        ? `Due ${new Date(task.due_at).toLocaleDateString()}`
+                        : "No due date"}
+                      {task.is_overdue && (
+                        <span className="ml-1.5 text-destructive">overdue</span>
+                      )}
+                    </p>
+                  </div>
+                  <StatusBadge status={task.priority} dot={false} />
                 </div>
-                <StatusBadge status={task.priority} dot={false} />
-              </div>
-            ))}
+              ))
+            )}
           </CardContent>
         </Card>
 
         {/* --------------------------------------------------- activity */}
         <Card>
           <CardHeader>
-            <CardTitle>Team activity</CardTitle>
+            <CardTitle>Recent activity</CardTitle>
+            <CardDescription>Your notes and logged activity.</CardDescription>
           </CardHeader>
           <CardContent>
-            <ol className="space-y-4">
-              {activity.slice(0, 5).map((item) => (
-                <li key={item.id} className="flex gap-3">
-                  <UserAvatar user={item.actor} size="xs" className="mt-0.5" />
-                  <div className="min-w-0 flex-1 text-sm">
-                    <p className="leading-snug">
-                      <span className="font-medium">
-                        {item.actor.name.split(" ")[0]}
-                      </span>{" "}
-                      <span className="text-muted-foreground">
-                        {item.action}
-                      </span>{" "}
-                      <span className="font-medium">{item.target}</span>
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {item.timestamp}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
+            {recent.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nothing logged yet.
+              </p>
+            ) : (
+              <ol className="space-y-4">
+                {recent.slice(0, 6).map((item) => (
+                  <li key={`${item.kind}-${item.id}`} className="flex gap-3">
+                    <OwnerAvatar owner={item.actor} size="xs" className="mt-0.5" />
+                    <div className="min-w-0 flex-1 text-sm">
+                      <p className="leading-snug">
+                        <span className="font-medium">
+                          {item.actor?.full_name.split(" ")[0] ?? "System"}
+                        </span>{" "}
+                        <span className="text-muted-foreground">
+                          {item.kind === "note" ? "noted" : item.type}
+                        </span>{" "}
+                        <span className="font-medium">
+                          {item.title ?? ""}
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {relativeTime(item.timestamp)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
           </CardContent>
         </Card>
 

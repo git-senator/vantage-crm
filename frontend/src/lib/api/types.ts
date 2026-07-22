@@ -549,6 +549,27 @@ export interface AttachmentInput {
   content_type: string;
 }
 
+// --- Tasks (backend since Phase 2.7; typed here for the dashboard queue) ---
+
+export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  due_at: string | null;
+  completed_at: string | null;
+  is_overdue: boolean;
+  entity_type: RecordEntityType | null;
+  entity_id: string | null;
+  assignee: OwnerSummary | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // --- Dashboard (Phase 2.8) ---
 
 export interface DashboardSummary {
