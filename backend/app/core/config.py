@@ -232,6 +232,25 @@ class Settings(BaseSettings):
     #: secret would accept anything that posted.
     INBOUND_WEBHOOK_SECRET: SecretStr = SecretStr("")
 
+    # --------------------------------------------------------- whatsapp
+    #: Meta Cloud API. Unset means the channel refuses to send rather than
+    #: failing at the provider — an agent should learn it is unavailable from
+    #: the compose box, not from a message stuck in `queued`.
+    WHATSAPP_API_BASE: str = "https://graph.facebook.com/v21.0"
+    WHATSAPP_PHONE_NUMBER_ID: str = ""
+    WHATSAPP_ACCESS_TOKEN: SecretStr = SecretStr("")
+    #: Meta echoes this back during webhook subscription setup. Not a
+    #: signature — it authenticates nothing after the handshake.
+    WHATSAPP_VERIFY_TOKEN: SecretStr = SecretStr("")
+    #: The app secret Meta signs webhook bodies with (`X-Hub-Signature-256`).
+    #: Unset means inbound WhatsApp is refused, for the same reason as mail.
+    WHATSAPP_APP_SECRET: SecretStr = SecretStr("")
+    #: Which workspace inbound WhatsApp belongs to. Meta has no idea we are
+    #: multi-tenant and sends no tenant hint, so single-tenant resolves it from
+    #: configuration. Multi-tenant activation turns this into a lookup on the
+    #: business phone number Meta *does* send.
+    WHATSAPP_ORGANIZATION_ID: str = ""
+
     # ------------------------------------------------------------- cors
     # Empty in production: the browser only ever talks to Next.js, which proxies
     # to this API over the internal network. See docs/ARCHITECTURE.md §2.

@@ -427,6 +427,35 @@ the one for the new time.
 The calendar page and the dashboard's today panel read live data, and
 `mock-data.ts` lost its event fixtures.
 
+**3.6 WhatsApp — delivered.** One adapter, one webhook translator, one arm of
+`build_channel`. Not a line of the ingestion pipeline changed, which is exactly
+the return 3.4's channel-as-a-column decision was taken for. See
+[MESSAGING.md](./MESSAGING.md) §7.
+
+What is genuinely new is small and specific. Addresses are phone numbers, so
+normalisation is E.164 with the `+` stripped to match what Meta sends inbound.
+Record matching digit-strips the *stored* value too, because a CRM's phone column
+holds every spelling a human has typed — and a number stored without a country
+code deliberately does **not** match, because a trailing-suffix match files a
+Colombian number onto a US contact often enough to be worse than an unfiled
+thread. There is a test pinning that limitation so it stays visible.
+
+The 24-hour session window is modelled rather than papered over: outside it
+WhatsApp rejects free-form text at the API, so the adapter turns Meta's 131047
+into a terminal, readable error instead of a retry that cannot possibly succeed
+until the customer writes again. Sending pre-approved templates is a product
+decision and is deliberately out of scope; what ships is an honest boundary.
+
+Meta's webhook differs from the mail one in ways worth recording: the signature
+is `sha256=`-prefixed, there is **no timestamp** (so dedupe on the provider id is
+the only replay protection, making it a correctness requirement rather than a
+nicety), and there is no tenant hint. The subscription handshake echoes
+`hub.challenge` as bare text, because Meta compares the body byte for byte. The
+delivery endpoint always answers 202 once the signature verifies — Meta retries
+any non-2xx for hours, so erroring on a status receipt or an unsupported media
+type would create an infinite redelivery loop over something that can never
+succeed.
+
 **Deliverables**
 - S3-compatible storage; private bucket, public access blocked at policy ✅
 - Presigned upload/download with short TTLs ✅
@@ -436,6 +465,7 @@ The calendar page and the dashboard's today panel read live data, and
 - Email/notification delivery via queue ✅
 - Conversations and email: outbound send, inbound ingestion, record matching ✅
 - Calendar: events, attendees, conflict reporting, reminder sweep ✅
+- WhatsApp on the same conversation substrate: adapter, webhook, session window ✅
 - Document versioning and lifecycle (`draft → awaiting_signature → signed → expired`)
 - Expiry reminders and digest jobs
 

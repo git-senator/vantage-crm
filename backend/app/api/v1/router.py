@@ -28,6 +28,7 @@ from app.api.v1 import (
     roles,
     tasks,
     timeline,
+    whatsapp,
 )
 
 api_router = APIRouter()
@@ -64,6 +65,9 @@ api_router.include_router(
     attachments.router, prefix="/attachments", tags=["attachments"]
 )
 api_router.include_router(timeline.router, prefix="/timeline", tags=["timeline"])
+api_router.include_router(
+    whatsapp.router, prefix="/whatsapp", tags=["whatsapp"]
+)
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 
 

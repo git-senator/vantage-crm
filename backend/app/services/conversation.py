@@ -44,7 +44,7 @@ from app.schemas.conversation import (
     MessageSend,
 )
 from app.services.audit import AuditService
-from app.services.messaging import MessagingError, build_channel
+from app.services.messaging import InboundMessage, MessagingError, build_channel
 from app.services.notification_center import NotificationCenter
 from app.services.rbac import AuthorizationContext, RbacService
 from app.workers.queue import JobName, enqueue
@@ -308,47 +308,82 @@ class InboundMessageService:
         self.messages = MessageRepository(session)
 
     async def ingest_email(self, payload: InboundEmailPayload) -> tuple[Message, bool]:
-        """File an inbound email. Returns (message, created).
+        """File an inbound email.
+
+        A thin translation into `ingest_channel_message`: the pipeline —
+        dedupe, thread, match, notify — is identical for every channel, and
+        writing it twice is how the two versions of "already ingested" end up
+        meaning different things.
+        """
+        return await self.ingest_channel_message(
+            InboundMessage(
+                channel="email",
+                from_address=payload.from_address,
+                from_name=payload.from_name,
+                to_address=payload.to_address,
+                body_text=payload.body_text,
+                provider_message_id=payload.provider_message_id,
+                subject=payload.subject,
+                body_html=payload.body_html,
+                rfc_message_id=payload.rfc_message_id,
+                in_reply_to=payload.in_reply_to,
+                metadata={k: str(v) for k, v in payload.metadata.items()},
+            )
+        )
+
+    async def ingest_channel_message(
+        self, inbound: InboundMessage
+    ) -> tuple[Message, bool]:
+        """File an inbound message on any channel. Returns (message, created).
 
         `created=False` means this was a replay of one already ingested, which
         every provider sends eventually. Deduplication is on the provider's own
-        id and is the first thing that happens, before any write.
+        id and is the first thing that happens, before any write — for WhatsApp
+        it is the *only* replay protection there is, since Meta signs no
+        timestamp.
         """
-        channel = build_channel("email")
-        address = channel.normalise_address(payload.from_address)
+        channel = build_channel(inbound.channel)
+        address = channel.normalise_address(inbound.from_address)
+        if not address:
+            raise ConflictError("An inbound message needs a sender address.")
 
         duplicate = await self.messages.find_by_provider_id(
-            self.organization_id, payload.provider_message_id
+            self.organization_id, inbound.provider_message_id
         )
         if duplicate is not None:
             logger.info(
                 "inbound_message_duplicate",
-                extra={"provider_message_id": payload.provider_message_id},
+                extra={
+                    "provider_message_id": inbound.provider_message_id,
+                    "channel": inbound.channel,
+                },
             )
             return duplicate, False
 
         conversation = await self.conversations.find_by_identity(
-            self.organization_id, channel="email", external_id=address
+            self.organization_id, channel=inbound.channel, external_id=address
         )
         if conversation is None:
-            matched_type, matched_id, owner_id = await self._match_record(address)
+            matched_type, matched_id, owner_id = await self._match_record(
+                inbound.channel, address
+            )
             conversation = Conversation(
                 organization_id=self.organization_id,
-                channel="email",
+                channel=inbound.channel,
                 external_id=address,
-                display_name=payload.from_name,
-                subject=payload.subject,
+                display_name=inbound.from_name,
+                subject=inbound.subject,
                 entity_type=matched_type,
                 entity_id=matched_id,
-                # The record's owner inherits the thread. Nobody owns mail from
-                # a stranger, and `_scoped` makes unowned threads visible to
-                # everyone precisely so it does not sit unanswered.
+                # The record's owner inherits the thread. Nobody owns a message
+                # from a stranger, and `_scoped` makes unowned threads visible
+                # to everyone precisely so it does not sit unanswered.
                 owner_id=owner_id,
             )
             self.session.add(conversation)
             await self.session.flush()
-        elif payload.from_name and not conversation.display_name:
-            conversation.display_name = payload.from_name
+        elif inbound.from_name and not conversation.display_name:
+            conversation.display_name = inbound.from_name
 
         message = Message(
             organization_id=self.organization_id,
@@ -356,21 +391,21 @@ class InboundMessageService:
             direction="inbound",
             status="received",
             from_address=address,
-            to_address=payload.to_address.strip().lower(),
-            subject=payload.subject,
-            body_text=payload.body_text,
-            body_html=payload.body_html,
-            provider_message_id=payload.provider_message_id,
-            rfc_message_id=payload.rfc_message_id,
-            in_reply_to=payload.in_reply_to,
+            to_address=inbound.to_address.strip().lower(),
+            subject=inbound.subject,
+            body_text=inbound.body_text,
+            body_html=inbound.body_html,
+            provider_message_id=inbound.provider_message_id,
+            rfc_message_id=inbound.rfc_message_id,
+            in_reply_to=inbound.in_reply_to,
             sent_at=datetime.now(UTC),
-            metadata_=payload.metadata,
+            metadata_=dict(inbound.metadata),
         )
         self.session.add(message)
         await self.session.flush()
 
         conversation.last_message_at = datetime.now(UTC)
-        conversation.last_message_preview = _preview(payload.body_text)
+        conversation.last_message_preview = _preview(inbound.body_text)
         conversation.unread_count += 1
         await self.session.flush()
 
@@ -381,7 +416,7 @@ class InboundMessageService:
                 category="mention",
                 type="message.received",
                 title=f"New message from {conversation.display_name or address}",
-                body=_preview(payload.body_text),
+                body=_preview(inbound.body_text),
                 entity_type=conversation.entity_type,
                 entity_id=conversation.entity_id,
                 metadata={"conversation_id": str(conversation.id)},
@@ -391,37 +426,52 @@ class InboundMessageService:
             "inbound_message_ingested",
             extra={
                 "message_id": str(message.id),
+                "channel": inbound.channel,
                 "matched": conversation.entity_type is not None,
             },
         )
         return message, True
 
     async def _match_record(
-        self, address: str
+        self, channel: str, address: str
     ) -> tuple[str | None, UUID | None, UUID | None]:
-        """Find the lead or client with this email address.
+        """Find the lead or client this address belongs to.
 
         Exact match only, and leads before clients — a lead is the newer, more
         actively worked record, so an address on both is far likelier to be
         about the lead. Returns the record's owner too, so the thread lands with
         the person already responsible for the relationship.
 
-        Compared with `lower()` on both sides: the stored address may have been
-        typed with capitals by whoever created the lead, while the inbound one
-        is already normalised, and a raw comparison would miss the match and
-        file real customer mail as coming from a stranger.
+        The column and the comparison depend on the channel. Email compares
+        `lower()` on both sides, because the stored address was typed by a
+        person while the inbound one is normalised. Phone strips every
+        non-digit from the stored value, because a CRM's phone column contains
+        every spelling a human has ever used — `+1 (415) 555-0100`,
+        `415-555-0100`, `4155550100` — and matching raw would fail on all but
+        one of them.
 
-        No fuzzy matching, deliberately. Filing a stranger's mail onto a
+        No fuzzy matching, deliberately. Filing a stranger's message onto a
         customer's record is worse than leaving it unfiled, and unfiled is
         visible and fixable.
         """
+        if channel == "email":
+            lead_column = func.lower(Lead.email)
+            client_column = func.lower(Client.email)
+        else:
+            # Postgres regexp_replace with the 'g' flag: strip everything that
+            # is not a digit, matching how the channel normalises the inbound
+            # address. Unindexed and deliberately so — this runs once per new
+            # conversation, not per message, over a tenant's contact list.
+            lead_column = func.regexp_replace(Lead.phone, r"\D", "", "g")
+            client_column = func.regexp_replace(Client.phone, r"\D", "", "g")
+
         lead = (
             (
                 await self.session.execute(
                     select(Lead)
                     .where(Lead.organization_id == self.organization_id)
                     .where(Lead.deleted_at.is_(None))
-                    .where(func.lower(Lead.email) == address)
+                    .where(lead_column == address)
                     .order_by(Lead.created_at.desc())
                     .limit(1)
                 )
@@ -438,7 +488,7 @@ class InboundMessageService:
                     select(Client)
                     .where(Client.organization_id == self.organization_id)
                     .where(Client.deleted_at.is_(None))
-                    .where(func.lower(Client.email) == address)
+                    .where(client_column == address)
                     .order_by(Client.created_at.desc())
                     .limit(1)
                 )

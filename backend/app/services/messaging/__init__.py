@@ -17,6 +17,7 @@ from app.services.messaging.base import (
     OutboundMessage,
 )
 from app.services.messaging.email_channel import EmailChannel
+from app.services.messaging.whatsapp_channel import WhatsAppChannel, parse_inbound
 
 __all__ = [
     "DeliveryResult",
@@ -25,7 +26,9 @@ __all__ = [
     "MessageChannel",
     "MessagingError",
     "OutboundMessage",
+    "WhatsAppChannel",
     "build_channel",
+    "parse_inbound",
 ]
 
 _channels: dict[str, MessageChannel] = {}
@@ -43,12 +46,14 @@ def build_channel(channel: str) -> MessageChannel:
     match channel:
         case "email":
             adapter: MessageChannel = EmailChannel()
-        case "whatsapp" | "sms":
+        case "whatsapp":
+            adapter = WhatsAppChannel()
+        case "sms":
             # Declared in the schema, deliberately not implemented. Raising is
             # the honest answer: a silent no-op would let a user believe a
             # message was sent.
             raise MessagingError(
-                f"The {channel} channel is not available yet.", retryable=False
+                "The sms channel is not available yet.", retryable=False
             )
         case unknown:
             raise MessagingError(f"Unknown channel: {unknown}", retryable=False)

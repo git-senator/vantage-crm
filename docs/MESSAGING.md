@@ -1,10 +1,11 @@
 # Messaging
 
-Status: **Phase 3.4 implemented (email). WhatsApp is Phase 3.6.**
+Status: **Phase 3.4 (email) and Phase 3.6 (WhatsApp) implemented.**
 Related: [JOBS.md](./JOBS.md) · [NOTIFICATIONS.md](./NOTIFICATIONS.md) · [SECURITY.md](./SECURITY.md) · [ROADMAP.md](./ROADMAP.md)
 
-Two tables and one channel abstraction. Email ships now; WhatsApp will be an
-adapter plus an enum value that already exists.
+Two tables and one channel abstraction. Email shipped in 3.4; WhatsApp arrived
+in 3.6 as an adapter and a webhook translator, with the inbox, threading, record
+matching, unread counts and outbound job unchanged.
 
 ---
 
@@ -158,3 +159,72 @@ Sanitising server-side was the alternative and was rejected for now: it would
 mean one more parser processing hostile input in the API process, and the
 product does not yet need rich inbound rendering. When it does, the sanitiser
 belongs at render time, in one place, with the raw copy retained.
+
+
+---
+
+## 7. WhatsApp (Phase 3.6)
+
+The whole phase is one adapter, one webhook translator and one arm of
+`build_channel`. That is the return on making `channel` a column in 3.4: not a
+single line of the ingestion pipeline changed.
+
+### What is genuinely different
+
+**Addresses are phone numbers.** Normalisation is E.164 with the `+` stripped,
+matching what Meta sends inbound — so an outbound message and an inbound one to
+the same person land on one thread with no translation step for somebody to
+forget. `+1 (415) 555-0100`, `1-415-555-0100` and `14155550100` are one
+conversation.
+
+Record matching strips every non-digit from the *stored* value too, because a
+CRM's phone column holds every spelling a human has ever typed. **A number
+stored without a country code will not match**, and that is deliberate: matching
+on a trailing-digit suffix files a Colombian number onto a US contact often
+enough to be worse than an unfiled thread — and unfiled is visible and fixable.
+There is a test pinning that behaviour so the limitation stays known.
+
+**The 24-hour session window.** Outside 24 hours of the customer's last inbound
+message, WhatsApp permits only pre-approved template messages; free-form text is
+rejected by the API (error 131047). The adapter translates that into a terminal,
+readable error — "WhatsApp only allows free-form replies within 24 hours…" —
+rather than a retryable failure. Retrying cannot help, since the window will not
+reopen until the customer writes again. Sending templates requires registering
+and getting them approved in advance and is a product decision, deliberately out
+of scope; what ships is an honest boundary.
+
+**Email and WhatsApp from the same person are separate threads.** A conversation
+is keyed by (channel, address), so both file against the same lead while their
+transcripts stay distinct. Merging them would interleave two different media in
+one unreadable log.
+
+### Webhook differences from mail
+
+Meta's scheme, not ours:
+
+| | Inbound mail | WhatsApp |
+|---|---|---|
+| Signature | `X-Vantage-Signature`, raw hex | `X-Hub-Signature-256`, `sha256=` prefixed |
+| Timestamp | signed, ±5 min | **none** |
+| Tenant | signed header | resolved from config (Meta sends no hint) |
+| Handshake | — | `GET` echoing `hub.challenge` as bare text |
+
+The missing timestamp matters: replay protection rests entirely on
+deduplication by provider message id, which makes that a correctness
+requirement here rather than a nicety.
+
+`GET /whatsapp/webhook` returns the challenge as **bare text**, not JSON — Meta
+compares the body byte for byte and a quoted string fails the check. The verify
+token is compared in constant time; it is not a signature, but it is still a
+secret and leaking its prefix through timing costs nothing to avoid.
+
+The `POST` **always answers 202 once the signature verifies**, even when nothing
+is ingested. Meta retries any non-2xx for hours, so erroring on a status
+receipt, an unsupported media type or an unroutable number would produce an
+infinite redelivery loop over something that can never succeed. What could not
+be processed is logged instead.
+
+Media, location, reactions and interactive replies are skipped rather than
+stored as empty text. Each needs real handling — a media message means fetching
+the object from Meta and storing it — and pretending an image is a blank message
+is worse than being explicit that it was not ingested.
