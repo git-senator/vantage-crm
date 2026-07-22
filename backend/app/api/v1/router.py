@@ -14,6 +14,7 @@ from app.api.v1 import (
     audit,
     auth,
     clients,
+    dashboard,
     deals,
     leads,
     notes,
@@ -49,7 +50,7 @@ api_router.include_router(
     attachments.router, prefix="/attachments", tags=["attachments"]
 )
 api_router.include_router(timeline.router, prefix="/timeline", tags=["timeline"])
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 
 
-# Phase 2.8:  dashboard (added with its slice)
 # Phase 3:    documents (real storage behind the attachment placeholders)
