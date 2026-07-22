@@ -242,7 +242,7 @@ deal_stage_history
 
 `pipeline_stages` as a table is a genuine domain requirement, not over-engineering: the prototype hard-codes six stages, but brokerages reconfigure pipelines constantly, and an enum makes that a migration every time.
 
-### Activity, tasks, documents, notifications
+### Activity, tasks, notes, attachments, documents, notifications
 
 ```
 activities                      -- user-facing business timeline
@@ -250,14 +250,35 @@ activities                      -- user-facing business timeline
   entity_type TEXT, entity_id UUID,          -- polymorphic
   type,                                       -- call|email|meeting|note|showing|stage_change
   subject, body TEXT, occurred_at,
-  metadata JSONB, created_at
+  metadata JSONB, search_vector, created_at
   INDEX (organization_id, entity_type, entity_id, occurred_at DESC)
 
 tasks
   id, organization_id, assignee_id, created_by,
   title, description, status, priority, due_at, completed_at,
   entity_type, entity_id,                     -- optional link
-  <audit columns>
+  search_vector, <audit columns>
+
+notes                           -- durable, editable rich-text annotations
+  id, organization_id, author_id,
+  entity_type, entity_id,                     -- polymorphic, REQUIRED
+                                              --   (lead|client|property|deal|task)
+  title NULL, body TEXT, content_format,      -- markdown|html|plain
+  is_pinned, search_vector, <audit + soft delete>
+  INDEX (organization_id, entity_type, entity_id) WHERE deleted_at IS NULL
+  -- A note is a document, not an event: distinct from an `activity` of type
+  -- `note`. Both share the polymorphic shape so one timeline merges them.
+
+attachments                     -- file metadata; NO bytes until Phase 3
+  id, organization_id, uploaded_by,
+  entity_type, entity_id,                     -- polymorphic
+  filename, content_type,
+  size_bytes NULL, checksum_sha256 NULL,      -- filled by the upload pipeline
+  storage_backend, storage_key NULL,          -- the S3 key it WILL occupy
+  status,                                     -- pending_upload|available|quarantined|failed
+  <audit + soft delete>
+  -- Phase 2.8 placeholder. Phase 3 adds the object store behind `storage_key`
+  -- as an additive change; nothing serves a row that is not `available`.
 
 documents
   id, organization_id, uploaded_by,

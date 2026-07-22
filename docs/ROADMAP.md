@@ -94,9 +94,11 @@ Frontend
 **Delivered so far:** 2.1 refresh concurrency (R7), 2.2 Redis rate limiting,
 2.3 the Leads vertical slice — the reference implementation the remaining
 entities copy — 2.4 Clients plus Lead → Client conversion, 2.5 Properties, 2.6
-Deals and the Kanban board, and 2.7 Activities and Tasks. The CRM-core entities
-are now complete; full-text search across them and the deletion of the last
-`mock-data` fixtures are what remain before the phase exit criteria.
+Deals and the Kanban board, 2.7 Activities and Tasks, and 2.8 Notes, the unified
+timeline, the attachment placeholders and the live dashboard. The CRM-core
+entities are complete and every record's detail page now shows real notes,
+timeline and files; the remaining `mock-data` fixtures belong to modules that
+are intentionally later phases (messages, calendar, documents, reports).
 
 2.4 proved the pattern generalises: Clients is a near-mechanical copy of the
 Leads slice, and the only genuinely new work was the conversion action and the
@@ -148,16 +150,44 @@ that stamps the timestamp, logs on the linked record and audits, exactly as a
 deal stage transition is. Assignment carries a notification seam that logs
 rather than sends; delivery is Phase 3 queued work.
 
+2.8 completed the record-level surface across six commits — 2.8a Notes, 2.8b
+Attachments, 2.8c the unified timeline, 2.8d the dashboard aggregates, 2.8e the
+frontend panels, 2.8f the live dashboard. **Notes are a separate table from
+`activities`**, deliberately: an activity is a terse timeline *event*, a note is
+a durable, editable *document*, and collapsing them would make one of the two
+wrong. Both share the polymorphic `(entity_type, entity_id)` shape so the
+**unified timeline merges them on one axis** — activity by `occurred_at`, note by
+`created_at` — with no third source: task events arrive through the activities
+they already generate, and the audit log stays out because it is the security
+record, not the business timeline. `EntityAccess` gained a `task` case, since a
+note may annotate a task.
+
+**Attachments ship as a placeholder architecture**, not storage. A registered
+file is metadata only — `pending_upload` status, a computed `storage_key` it
+*will* occupy, no bytes — and the presign upload/download methods raise
+`NotImplementedError` pointing at Phase 3. The point is that Phase 3's S3 layer
+is an additive change behind a seam that already exists, and the attachments UI
+is real today.
+
+The **dashboard now reads live data** within the caller's scope — there is no
+separate "dashboard scope", so a total can never exceed what the user could
+reach by browsing — and its recent-activity panel is the same timeline feed the
+records show. `mock-data.ts` was **shrunk, not deleted**: only slices with a real
+backend were removed (the `leads` fixture), and the file stays for the modules
+still awaiting their own phase.
+
 **Deliverables**
-- Clients, Properties, Pipelines + Stages, Deals, Activities, Tasks
+- Clients, Properties, Pipelines + Stages, Deals, Activities, Tasks, Notes
+- Attachments as a metadata placeholder (real object storage is Phase 3)
 - `deal_stage_history` (analytics substrate and Phase 5 training data)
 - Lead → Client conversion as a domain action, transactional
-- Unified activity timeline across entities
-- Full-text search (`tsvector` + `pg_trgm`) on leads, clients, properties
+- Unified activity + note timeline across every entity, and a live dashboard
+- Full-text search (`tsvector` + `pg_trgm`) on leads, clients, properties, deals, tasks, notes
 - Detail routes the prototype never had: `/leads/[id]`, `/clients/[id]`, `/properties/[id]`, `/deals/[id]`
 - Deals Kanban wired to real stage transitions (drag-and-drop persists)
 - All forms submit with validation against generated types
-- `mock-data.ts` **deleted**
+- `mock-data.ts` **shrunk** to only the still-unbacked modules; full deletion is
+  a later-phase exit criterion (documents in Phase 3, reports in Phase 4)
 
 **Exit criteria**
 - All 14 routes render live data; no fixtures remain in the repository
@@ -277,7 +307,7 @@ making before the first table exists rather than after the thirtieth.
 | R3 | Client-boundary leak recurs during data port | **High — MITIGATED** | Lint rule + `server-only` caught a real violation during Phase 1.5 and forced a correct module split. Still live for the Phase 2 data port. | 0 ✅ |
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
-| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4), Properties (2.5) and Deals (2.6) are ported and their fixtures deleted; tasks, documents, calendar, messages and the dashboard's remaining panels are what is left | 1–2 |
+| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6) and the dashboard (2.8) are ported and their fixtures deleted; every record detail page now shows live notes/timeline/files. What remains is intentionally later-phase — documents (3), reports (4), and the calendar/messages/notifications prototype pages | 1–2 |
 | R11 | Audit metadata could not serialise `Decimal`; a failed audit write poisoned the caller's transaction | ~~High~~ **CLOSED** | Found in 2.6, live since 2.3 — reachable from any money-field edit on leads, clients or properties, and no test had changed one. Values now coerce to JSON-safe types (Decimal → string, never float), comparison happens before coercion, and the insert runs in a SAVEPOINT so an audit failure genuinely cannot break the request it describes | 2.6 ✅ |
 | R12 | Read-after-write returned stale relationship state | ~~Medium~~ **CLOSED** | SQLAlchemy does not overwrite loaded state on a fresh query, so a stage transition returned the deal's *old* stage and therefore its old derived status — the Kanban card would snap back. `populate_existing` on the deal and pipeline read paths | 2.6 ✅ |
 | R7 | Refresh rotation logs users out under concurrency | ~~High~~ **CLOSED** | Redis lock on the presented token plus a 10s rotation grace window. Proven by 10 genuinely parallel refreshes all succeeding, and by the suite passing with Redis deliberately unreachable | 2.1 ✅ |

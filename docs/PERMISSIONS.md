@@ -48,6 +48,7 @@ properties.view  properties.manage properties.assign
 deals.view       deals.manage      deals.approve
 tasks.view       tasks.manage
 activities.view  activities.manage
+notes.view       notes.manage
 documents.view   documents.manage  documents.sign
 reports.view     reports.export
 users.view       users.manage
@@ -59,6 +60,17 @@ ai.use           ai.configure        ← declared now; used in Phase 5
 ```
 
 AI permissions exist already so Phase 5 does not require re-seeding roles.
+
+**Child records follow the parent.** Activities, notes and attachments hang off
+a polymorphic `(entity_type, entity_id)` pair and have **no scope anchor of their
+own**. Their visibility is resolved through one shared boundary — `EntityAccess`
+— against the parent record's own permission: you can read a lead's notes,
+timeline and files exactly when you can read the lead. `notes.view`/`notes.manage`
+and `activities.view`/`activities.manage` gate *writing* and the cross-entity
+feed, not per-record reads. Attachments deliberately reuse `documents.view` /
+`documents.manage` rather than minting their own key. Editing or deleting a note
+or activity additionally requires authorship, or the permission at ALL scope — a
+colleague rewriting your note is not a correction.
 
 ---
 
