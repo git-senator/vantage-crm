@@ -469,3 +469,99 @@ export interface Page<T> {
   data: T[];
   meta: PageMeta;
 }
+
+// --- Notes, Timeline, Attachments (Phase 2.8) ---
+
+/** Entities that notes, the timeline and attachments hang off. */
+export type RecordEntityType = "lead" | "client" | "property" | "deal" | "task";
+
+export type NoteContentFormat = "markdown" | "html" | "plain";
+
+export interface Note {
+  id: string;
+  entity_type: RecordEntityType;
+  entity_id: string;
+  title: string | null;
+  body: string;
+  content_format: NoteContentFormat;
+  is_pinned: boolean;
+  author: OwnerSummary | null;
+  /** True when the caller wrote it — the UI shows edit controls only then. */
+  is_own: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NoteInput {
+  entity_type: RecordEntityType;
+  entity_id: string;
+  title?: string | null;
+  body: string;
+  content_format?: NoteContentFormat;
+  is_pinned?: boolean;
+}
+
+export type TimelineKind = "activity" | "note";
+
+export interface TimelineItem {
+  kind: TimelineKind;
+  id: string;
+  entity_type: string;
+  entity_id: string;
+  /** occurred_at for activities, created_at for notes — the merge axis. */
+  timestamp: string;
+  type: string;
+  title: string | null;
+  body: string | null;
+  actor: OwnerSummary | null;
+  is_system: boolean;
+  is_pinned: boolean;
+  metadata: Record<string, unknown>;
+}
+
+export type AttachmentStatus =
+  | "pending_upload"
+  | "available"
+  | "quarantined"
+  | "failed";
+
+export interface Attachment {
+  id: string;
+  entity_type: RecordEntityType;
+  entity_id: string;
+  filename: string;
+  content_type: string;
+  size_bytes: number | null;
+  status: AttachmentStatus;
+  storage_backend: string;
+  uploader: OwnerSummary | null;
+  /** Phase 3 fills these; null today. */
+  upload_url: string | null;
+  download_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AttachmentInput {
+  entity_type: RecordEntityType;
+  entity_id: string;
+  filename: string;
+  content_type: string;
+}
+
+// --- Dashboard (Phase 2.8) ---
+
+export interface DashboardSummary {
+  leads: { open: number; total: number };
+  clients: { total: number };
+  properties: { active: number; total: number };
+  deals: {
+    open_count: number;
+    open_value: string;
+    weighted_value: string;
+    won_this_month_count: number;
+    won_this_month_value: string;
+  };
+  tasks: { open: number; overdue: number };
+  recent_activity: TimelineItem[];
+}

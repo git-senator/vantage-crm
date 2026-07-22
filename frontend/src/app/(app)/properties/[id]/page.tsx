@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getProperty } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/server";
+import { RecordActivity } from "@/components/shared/record-activity";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 import { formatCurrency, formatNumber, titleize } from "@/lib/format";
 
@@ -270,6 +271,13 @@ export default async function PropertyDetailPage({
           )}
         </div>
       </div>
+
+      <RecordActivity
+        entityType="property"
+        entityId={property.id}
+        canManageNotes={hasPermission(session, "notes.manage")}
+        canManageDocuments={hasPermission(session, "documents.manage")}
+      />
     </div>
   );
 }

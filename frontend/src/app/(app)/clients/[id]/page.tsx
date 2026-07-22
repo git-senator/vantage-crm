@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getClient } from "@/lib/api/clients";
 import { ApiError } from "@/lib/api/server";
+import { RecordActivity } from "@/components/shared/record-activity";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 import { formatPrice, titleize } from "@/lib/format";
 
@@ -230,6 +231,13 @@ export default async function ClientDetailPage({
           )}
         </div>
       </div>
+
+      <RecordActivity
+        entityType="client"
+        entityId={client.id}
+        canManageNotes={hasPermission(session, "notes.manage")}
+        canManageDocuments={hasPermission(session, "documents.manage")}
+      />
     </div>
   );
 }
