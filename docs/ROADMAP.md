@@ -395,6 +395,38 @@ how an enquiry sits unanswered for a week; replying claims it.
 The messages page reads live data and `mock-data.ts` lost its conversation
 fixtures.
 
+**3.5 Calendar — delivered.** Events, attendees, conflict reporting and a
+reminder sweep. See [CALENDAR.md](./CALENDAR.md).
+
+Two decisions carry the phase. The first is that **every calendar query is an
+overlap test, not a containment one** — an event that began this morning and
+runs into the afternoon belongs in the afternoon's view, and the obvious
+`starts_at BETWEEN …` misses exactly the long events people most need to see.
+The list endpoint requires a window for the same reason a calendar has one: an
+unbounded calendar is a full-table scan dressed as a feature.
+
+The second is that **conflicts are reported, never enforced**. Refusing a
+double-booking would be the system claiming to know better than the person
+holding the calendar — sometimes it is a broker covering two open houses on the
+same street — while staying silent would let a clashing showing reach a client.
+Tentative events neither conflict nor are conflicted with, since a pencilled-in
+showing is precisely what you expect to be booked against while it is arranged,
+and an event never conflicts with itself or every update would report one.
+
+Internal and external attendees share one table, because a showing has an agent
+(a user) and a buyer (an address) and splitting them would double every query
+that asks who is coming. Times are instants rather than wall-clock, with all-day
+as a flag over a range — one representation of time, and the timezone anchoring
+that costs is the honest trade.
+
+`reminded_at` makes a five-minute reminder sweep safe to run: stamped in the
+same transaction as the notification it raises, so an event is reminded about
+exactly once. Moving an event clears it, because the reminder that matters is
+the one for the new time.
+
+The calendar page and the dashboard's today panel read live data, and
+`mock-data.ts` lost its event fixtures.
+
 **Deliverables**
 - S3-compatible storage; private bucket, public access blocked at policy ✅
 - Presigned upload/download with short TTLs ✅
@@ -403,6 +435,7 @@ fixtures.
 - ARQ worker pool + scheduled jobs ✅
 - Email/notification delivery via queue ✅
 - Conversations and email: outbound send, inbound ingestion, record matching ✅
+- Calendar: events, attendees, conflict reporting, reminder sweep ✅
 - Document versioning and lifecycle (`draft → awaiting_signature → signed → expired`)
 - Expiry reminders and digest jobs
 
@@ -512,7 +545,7 @@ making before the first table exists rather than after the thirtieth.
 | R3 | Client-boundary leak recurs during data port | **High — MITIGATED** | Lint rule + `server-only` caught a real violation during Phase 1.5 and forced a correct module split. Still live for the Phase 2 data port. | 0 ✅ |
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
-| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6), the dashboard (2.8) and notifications (3.3) are ported and their fixtures deleted; every record detail page shows live notes/timeline/files, and 3.1 made those files real uploads rather than metadata. What remains is intentionally later-phase — reports (4) and the calendar prototype page | 1–3 |
+| R6 | 18 modules import `mock-data` | ~~Medium~~ **NEARLY CLOSED** | Typed data layer; ported resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6), the dashboard (2.8), notifications (3.3), messages (3.4) and the calendar (3.5) are all live and their fixtures deleted; record detail pages show live notes, timeline and real uploaded files. What remains is `revenueByMonth` and the contacts/team fixtures the ported pages still borrow for chrome — reporting is Phase 4 | 1–3 |
 | R11 | Audit metadata could not serialise `Decimal`; a failed audit write poisoned the caller's transaction | ~~High~~ **CLOSED** | Found in 2.6, live since 2.3 — reachable from any money-field edit on leads, clients or properties, and no test had changed one. Values now coerce to JSON-safe types (Decimal → string, never float), comparison happens before coercion, and the insert runs in a SAVEPOINT so an audit failure genuinely cannot break the request it describes | 2.6 ✅ |
 | R12 | Read-after-write returned stale relationship state | ~~Medium~~ **CLOSED** | SQLAlchemy does not overwrite loaded state on a fresh query, so a stage transition returned the deal's *old* stage and therefore its old derived status — the Kanban card would snap back. `populate_existing` on the deal and pipeline read paths | 2.6 ✅ |
 | R7 | Refresh rotation logs users out under concurrency | ~~High~~ **CLOSED** | Redis lock on the presented token plus a 10s rotation grace window. Proven by 10 genuinely parallel refreshes all succeeding, and by the suite passing with Redis deliberately unreachable | 2.1 ✅ |

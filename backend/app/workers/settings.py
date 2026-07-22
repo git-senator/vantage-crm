@@ -26,6 +26,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.db.session import dispose_engine
 from app.services.storage import get_object_storage
+from app.workers.jobs.calendar import sweep_calendar_reminders
 from app.workers.jobs.documents import (
     scan_attachment,
     sweep_abandoned_uploads,
@@ -68,6 +69,7 @@ class WorkerSettings:
         scan_attachment,
         sweep_abandoned_uploads,
         sweep_scan_backlog,
+        sweep_calendar_reminders,
         deliver_notification_email,
         deliver_message,
         send_email,
@@ -87,6 +89,16 @@ class WorkerSettings:
             cast(WorkerCoroutine, sweep_scan_backlog),
             minute={5, 20, 35, 50},
             second=0,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Every five minutes. A reminder that arrives four minutes late is
+        # still useful; one that arrives an hour late is not, so this is the
+        # one sweep whose cadence is a product decision rather than a load one.
+        cron(
+            cast(WorkerCoroutine, sweep_calendar_reminders),
+            minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
+            second=30,
             run_at_startup=False,
             max_tries=2,
         ),

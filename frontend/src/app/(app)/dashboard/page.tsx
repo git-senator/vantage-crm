@@ -17,7 +17,7 @@ import { OwnerAvatar } from "@/components/shared/owner-avatar";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatGrid, type Stat } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { AvatarStack, UserAvatar } from "@/components/shared/user-avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,13 +34,21 @@ import { getDashboardSummary } from "@/lib/api/dashboard";
 import { listDeals } from "@/lib/api/deals";
 import { listLeads } from "@/lib/api/leads";
 import { getTaskQueue } from "@/lib/api/tasks";
+import { listCalendarEvents } from "@/lib/api/calendar";
 import { requireSession } from "@/lib/auth/session";
-// Still mock, and deliberately so: `calendarEvents` belongs to the calendar
-// module (no backend yet) and `revenueByMonth` to reporting (Phase 4). Every
-// other panel on this page now reads live data.
-import { calendarEvents, revenueByMonth } from "@/lib/mock-data";
+// Still mock, and deliberately so: `revenueByMonth` belongs to reporting
+// (Phase 4). Every other panel on this page reads live data.
+import { revenueByMonth } from "@/lib/mock-data";
 
 export const metadata: Metadata = { title: "Dashboard" };
+
+/** 24-hour clock time, in the viewer's timezone. */
+function formatClock(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 /** "just now", "3h ago", "2d ago", else a date. */
 function relativeTime(iso: string): string {
@@ -86,12 +94,21 @@ export default async function DashboardPage() {
   // rather than by the API because the list endpoint orders by created_at for
   // keyset pagination — a genuine "top N by value" needs a sorted aggregate
   // endpoint, which is Phase 4 reporting work. Over one page this is exact.
-  const [summary, openDeals, hotLeadsPage, taskQueue] = await Promise.all([
-    getDashboardSummary(),
-    listDeals({ status: "open", limit: 50 }),
-    listLeads({ temperature: "hot", limit: 5 }),
-    getTaskQueue(5),
-  ]);
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart.getTime() + 86_400_000);
+
+  const [summary, openDeals, hotLeadsPage, taskQueue, todayEvents] =
+    await Promise.all([
+      getDashboardSummary(),
+      listDeals({ status: "open", limit: 50 }),
+      listLeads({ temperature: "hot", limit: 5 }),
+      getTaskQueue(5),
+      listCalendarEvents({
+        start: dayStart.toISOString(),
+        end: dayEnd.toISOString(),
+      }),
+    ]);
 
   const topDeals = [...openDeals.data]
     .sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0))
@@ -99,7 +116,9 @@ export default async function DashboardPage() {
   const hotLeads = hotLeadsPage.data.slice(0, 4);
   const openTasks = taskQueue.filter((t) => t.status !== "done").slice(0, 5);
   const recent = summary.recent_activity;
-  const todaysEvents = calendarEvents.filter((e) => e.date === "2026-07-20");
+  // Today, in the viewer's day rather than a fixed date: the panel is "what is
+  // on my plate now", which stops meaning that the moment it is hard-coded.
+  const todaysEvents = todayEvents;
 
   const stats: Stat[] = [
     {
@@ -227,8 +246,10 @@ export default async function DashboardPage() {
                 className="flex gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
               >
                 <div className="tabular w-14 shrink-0 text-xs">
-                  <p className="font-medium">{event.start}</p>
-                  <p className="text-muted-foreground">{event.end}</p>
+                  <p className="font-medium">{formatClock(event.starts_at)}</p>
+                  <p className="text-muted-foreground">
+                    {formatClock(event.ends_at)}
+                  </p>
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{event.title}</p>
@@ -237,9 +258,11 @@ export default async function DashboardPage() {
                       {event.location}
                     </p>
                   )}
-                  <div className="mt-2">
-                    <AvatarStack users={event.attendees} max={3} />
-                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {event.owner.full_name}
+                    {event.attendees.length > 0 &&
+                      ` + ${event.attendees.length}`}
+                  </p>
                 </div>
               </div>
             ))}

@@ -6,7 +6,6 @@ import "server-only";
 import type {
   ActivityItem,
   SessionUser,
-  CalendarEvent,
   CrmDocument,
   Task,
   TeamMember,
@@ -137,98 +136,7 @@ export const tasks: Task[] = [
   },
 ];
 
-/* --------------------------------------------------------------- calendar */
-
-export const calendarEvents: CalendarEvent[] = [
-  {
-    id: "E-1",
-    title: "Showing — 1428 Sanchez",
-    kind: "showing",
-    date: "2026-07-20",
-    start: "10:00",
-    end: "11:00",
-    location: "1428 Sanchez St",
-    attendees: [team.marcus, contacts.harper],
-  },
-  {
-    id: "E-2",
-    title: "Buyer consult — Villanueva",
-    kind: "call",
-    date: "2026-07-20",
-    start: "13:30",
-    end: "14:00",
-    attendees: [team.priya, contacts.rosa],
-  },
-  {
-    id: "E-3",
-    title: "Pipeline review",
-    kind: "internal",
-    date: "2026-07-20",
-    start: "16:00",
-    end: "17:00",
-    location: "Conference room A",
-    attendees: [team.avery, team.marcus, team.priya, team.jonah],
-  },
-  {
-    id: "E-4",
-    title: "Inspection — 62 Laurel Grove",
-    kind: "showing",
-    date: "2026-07-22",
-    start: "09:00",
-    end: "12:00",
-    location: "62 Laurel Grove Ct",
-    attendees: [team.jonah],
-  },
-  {
-    id: "E-5",
-    title: "Closing — Okonkwo listing",
-    kind: "closing",
-    date: "2026-07-29",
-    start: "11:00",
-    end: "12:30",
-    location: "Bay Title, 400 Montgomery",
-    attendees: [team.priya, team.sofia, contacts.nadia],
-  },
-  {
-    id: "E-6",
-    title: "Open house — 1428 Sanchez",
-    kind: "open-house",
-    date: "2026-07-25",
-    start: "13:00",
-    end: "16:00",
-    location: "1428 Sanchez St",
-    attendees: [team.priya, team.dmitri],
-  },
-  {
-    id: "E-7",
-    title: "Offer review — Tanaka / Folsom",
-    kind: "call",
-    date: "2026-07-23",
-    start: "15:00",
-    end: "16:00",
-    attendees: [team.avery, contacts.yuki],
-  },
-  {
-    id: "E-8",
-    title: "Listing presentation — Duarte",
-    kind: "internal",
-    date: "2026-07-27",
-    start: "10:30",
-    end: "11:30",
-    location: "540 Valencia St",
-    attendees: [team.marcus],
-  },
-  {
-    id: "E-9",
-    title: "Showing — 1150 Harrison #305",
-    kind: "showing",
-    date: "2026-07-21",
-    start: "17:30",
-    end: "18:15",
-    location: "1150 Harrison St",
-    attendees: [team.jonah, contacts.theo],
-  },
-];
+/* --- calendar: ported to the live API in Phase 3.5; fixtures removed --- */
 
 /* --- messages: ported to the live API in Phase 3.4; fixtures removed --- */
 

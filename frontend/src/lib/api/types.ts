@@ -735,3 +735,76 @@ export interface MessageSendInput {
   entity_type?: "lead" | "client" | "deal" | null;
   entity_id?: string | null;
 }
+
+// --- Calendar (Phase 3.5) ---
+
+export type CalendarEventType =
+  | "showing"
+  | "call"
+  | "meeting"
+  | "closing"
+  | "open_house"
+  | "personal";
+
+export type CalendarEventStatus = "confirmed" | "tentative" | "cancelled";
+
+export interface EventAttendee {
+  id: string;
+  user_id: string | null;
+  email: string | null;
+  display_name: string | null;
+  response: "needs_action" | "accepted" | "declined" | "tentative";
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  event_type: CalendarEventType;
+  status: CalendarEventStatus;
+  /** Instants, not wall-clock — an all-day event is a flag over a range. */
+  starts_at: string;
+  ends_at: string;
+  is_all_day: boolean;
+  reminder_minutes: number | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  owner: OwnerSummary;
+  attendees: EventAttendee[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** An overlapping event on the same person's calendar. Reported, not enforced. */
+export interface ScheduleConflict {
+  event_id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+}
+
+export interface CalendarEventSaved {
+  event: CalendarEvent;
+  conflicts: ScheduleConflict[];
+}
+
+export interface CalendarEventInput {
+  title: string;
+  description?: string | null;
+  location?: string | null;
+  event_type?: CalendarEventType;
+  status?: CalendarEventStatus;
+  starts_at: string;
+  ends_at: string;
+  is_all_day?: boolean;
+  reminder_minutes?: number | null;
+  entity_type?: "lead" | "client" | "property" | "deal" | null;
+  entity_id?: string | null;
+  owner_id?: string | null;
+  attendees?: Array<{
+    user_id?: string | null;
+    email?: string | null;
+    display_name?: string | null;
+  }>;
+}

@@ -9,6 +9,7 @@ its table.
 from app.models.activity import Activity
 from app.models.attachment import Attachment
 from app.models.audit import AuditLog
+from app.models.calendar import CalendarEvent, EventAttendee
 from app.models.client import Client
 from app.models.conversation import Conversation, Message
 from app.models.deal import Deal, DealStageHistory
@@ -35,10 +36,12 @@ __all__ = [
     "Activity",
     "Attachment",
     "AuditLog",
+    "CalendarEvent",
     "Client",
     "Conversation",
     "Deal",
     "DealStageHistory",
+    "EventAttendee",
     "JobFailure",
     "Lead",
     "Message",
