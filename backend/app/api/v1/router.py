@@ -22,6 +22,7 @@ from app.api.v1 import (
     properties,
     roles,
     tasks,
+    timeline,
 )
 
 api_router = APIRouter()
@@ -47,7 +48,8 @@ api_router.include_router(notes.router, prefix="/notes", tags=["notes"])
 api_router.include_router(
     attachments.router, prefix="/attachments", tags=["attachments"]
 )
+api_router.include_router(timeline.router, prefix="/timeline", tags=["timeline"])
 
 
-# Phase 2.8:  timeline, dashboard (added with their slices)
+# Phase 2.8:  dashboard (added with its slice)
 # Phase 3:    documents (real storage behind the attachment placeholders)
