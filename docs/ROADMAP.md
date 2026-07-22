@@ -1,6 +1,6 @@
 # Vantage CRM — Implementation Roadmap
 
-Six phases. Each has explicit deliverables and **exit criteria** — a phase is not
+Seven phases. Each has explicit deliverables and **exit criteria** — a phase is not
 finished because the code exists, but because the criteria demonstrably pass.
 
 Sequencing principle: **the first vertical slice goes all the way down.**
@@ -128,7 +128,7 @@ the other entities' timelines remain for the Activities slice.
 
 The load-bearing decision is that **a stage transition is a domain action, not a
 field edit**. `DealUpdate` has no `stage_id`, and there is a test asserting it.
-`deal_stage_history` — the substrate Phase 4 velocity and cycle-time reporting
+`deal_stage_history` — the substrate Phase 5 velocity and cycle-time reporting
 is computed from — is written on creation and on every move, with the measured
 time in the stage being left, under a row lock so two concurrent drags cannot
 both claim to have left the same stage.
@@ -187,7 +187,7 @@ still awaiting their own phase.
 - Deals Kanban wired to real stage transitions (drag-and-drop persists)
 - All forms submit with validation against generated types
 - `mock-data.ts` **shrunk** to only the still-unbacked modules; full deletion is
-  a later-phase exit criterion (documents in Phase 3, reports in Phase 4)
+  a later-phase exit criterion (documents in Phase 3, reports in Phase 5)
 
 **Exit criteria**
 - The CRM-core routes render live data; the fixtures still present belong to
@@ -208,7 +208,7 @@ generates a realistic, RLS-correct dataset (~250k rows at `--scale 1.0`, ~90 s)
 spread across a pool of agents, and `benchmark` drives the repository
 `list_page` path and reports p50/p95/p99 against the exit threshold. The
 benchmark is the evidence the latency criterion is met, and both are the tools
-Phase 4's reporting work and any future regression check reuse.
+Phase 5's reporting work and any future regression check reuse.
 
 ---
 
@@ -459,7 +459,7 @@ succeed.
 **3.7 MFA — delivered.** TOTP with single-use recovery codes, a two-step login,
 and role-based enforcement. See [MFA.md](./MFA.md). This was scheduled for Phase
 4 in the original plan and was pulled forward with the rest of the platform
-services; Phase 4's remaining MFA work is the production hardening around it
+services; Phase 5's remaining MFA work is the production hardening around it
 (KMS-managed secret encryption), not the feature.
 
 TOTP is implemented rather than imported, which is the one place in this
@@ -522,7 +522,73 @@ able to undo it.
 
 ---
 
-## Phase 4 — Analytics, admin, production hardening
+## Phase 4 — Automation engine ✅ COMPLETE
+
+*Workflows that react to what happens in the CRM. See
+[AUTOMATION.md](./AUTOMATION.md).*
+
+Four decisions carry the phase.
+
+**A transactional outbox, not the best-effort enqueue used everywhere else.**
+Every other enqueue in this codebase may be lost, because the worst case is a
+missing notification. Here it is a *phantom trigger* — a workflow reacting to a
+change that rolled back and emailing a real customer about something that never
+happened. The event row commits in the caller's transaction; the enqueue stays
+best-effort, and a sweep re-finds what it drops. `workflow_events` is
+deliberately not the audit log despite firing at the same moments: one answers
+*what happened, for the record*, the other *what should react*, and only the
+second needs retry and replay.
+
+**A tree, not a DAG.** One outgoing edge per node, two for a condition, no
+joins. Joins are the single thing a DAG buys and they bring partial state, join
+timeouts and runs half-finished in two places. Cycles are refused at publish
+time rather than bounded by a step budget, because a loop that emails a client
+forty times because the budget was fifty is not a smaller bug. Validation
+refuses only at publish — a draft is allowed to be incoherent, or the builder is
+unusable halfway through building.
+
+**A workflow can never trigger another workflow.** Its own writes emit events
+like any change, so "when a lead is updated, update the lead" is a loop whose
+output is outbound email. The marker comes from the authorization context rather
+than a flag threaded through every service call that one could forget.
+
+**Authoring is administrative, and that is what makes execution safe.**
+`automations.manage` is held only by owner and admin — both already at ALL scope
+— so the system context a run uses is never wider than its author's. Running as
+the author instead sounds tighter and behaves worse: the workflow silently stops
+when they change role, and the failure is a customer who never got their
+follow-up. Stated plainly: a workflow can act on records no individual agent
+could see.
+
+Smaller decisions worth recording. Actions are thin calls into existing services
+— `create_task` through `TaskService`, `change_deal_stage` through `move_stage`
+so stage history survives — never a second implementation with looser rules. A
+missing field never matches a condition, and numeric comparisons are typed by
+the operator because `"10" > "9"` has opposite answers as text and as a number.
+Delays park the run with a `resume_at` and hold no worker; business-hours delays
+count *working* minutes, so "wait 2 hours" from 5pm is 10am rather than 7pm.
+`call_webhook` resolves the host and refuses private addresses — without that it
+is an SSRF primitive with a form in the UI. Runs pin their version, so editing a
+live workflow cannot change what an in-flight execution does halfway through.
+
+The builder is a vertical chain rather than a free-form canvas, deliberately
+matching the tree the backend accepts: a canvas that let you draw arbitrary
+edges would let you draw workflows the engine refuses. Every control is
+generated from the registry the server serves, so the palette cannot drift from
+what the executor can run.
+
+**Exit criteria**
+- A workflow fires from a real CRM mutation and its action lands through the
+  real service ✅
+- A workflow's own writes cannot trigger another workflow ✅
+- An in-flight run executes the version it started on, after the workflow is
+  edited and republished ✅
+- A failing step stops the run, records why, and does not run the step after ✅
+- Cycles, orphans and incompatible actions are refused at publish ✅
+
+---
+
+## Phase 5 — Analytics, admin, production hardening
 
 **Deliverables**
 - Dashboard and Reports on real aggregates (materialised views where needed)
@@ -543,36 +609,36 @@ able to undo it.
 
 ---
 
-## Phase 5 — AI layer
+## Phase 6 — AI layer
 
 *Additive. Touches services, never routers or repositories — this is what the
 Phase 0 layering bought.*
 
 **Deliverables**
 
-5a — Infrastructure
+6a — Infrastructure
 - `pgvector`; `entity_embeddings`, `ai_jobs`, `lead_scores`, `ai_generated_content`
 - Provider abstraction (no vendor lock-in at the call site)
 - Per-org token quotas and hard cost ceilings enforced pre-dispatch
 
-5b — Lead scoring
+6b — Lead scoring
 - Feature extraction from engagement, source, budget fit, response latency
 - Scores written with `explanation` JSONB — honouring the product's existing
   "three signals that drove it" promise
 - Rescoring on activity via queue, not on read
 
-5c — Sales assistant (RAG)
+6c — Sales assistant (RAG)
 - Embedding pipeline over org data, incrementally maintained by `content_hash`
 - **Retrieval filtered by `organization_id` + user scope predicate before
   similarity search** — the same scope resolver as SECURITY §1.3, one
   implementation shared with the CRM
 - Citations back to source records
 
-5d — Generated messaging
+6d — Generated messaging
 - Email/SMS drafting from CRM context
 - Always `draft` → explicit human approval → send. No autonomous sending, ever.
 
-5e — Lead discovery
+6e — Lead discovery
 - Scheduled ingestion workers with a domain allowlist and egress proxy
 - Deduplication against existing leads
 - Auto-qualification proposals surfaced for human confirmation
@@ -612,13 +678,13 @@ making before the first table exists rather than after the thirtieth.
 | R3 | Client-boundary leak recurs during data port | **High — MITIGATED** | Lint rule + `server-only` caught a real violation during Phase 1.5 and forced a correct module split. Still live for the Phase 2 data port. | 0 ✅ |
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
-| R6 | 18 modules import `mock-data` | ~~Medium~~ **NEARLY CLOSED** | Typed data layer; ported resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6), the dashboard (2.8), notifications (3.3), messages (3.4) and the calendar (3.5) are all live and their fixtures deleted; record detail pages show live notes, timeline and real uploaded files. What remains is `revenueByMonth` and the contacts/team fixtures the ported pages still borrow for chrome — reporting is Phase 4 | 1–3 |
+| R6 | 18 modules import `mock-data` | ~~Medium~~ **NEARLY CLOSED** | Typed data layer; ported resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6), the dashboard (2.8), notifications (3.3), messages (3.4) and the calendar (3.5) are all live and their fixtures deleted; record detail pages show live notes, timeline and real uploaded files. What remains is `revenueByMonth` and the contacts/team fixtures the ported pages still borrow for chrome — reporting is Phase 5 | 1–3 |
 | R11 | Audit metadata could not serialise `Decimal`; a failed audit write poisoned the caller's transaction | ~~High~~ **CLOSED** | Found in 2.6, live since 2.3 — reachable from any money-field edit on leads, clients or properties, and no test had changed one. Values now coerce to JSON-safe types (Decimal → string, never float), comparison happens before coercion, and the insert runs in a SAVEPOINT so an audit failure genuinely cannot break the request it describes | 2.6 ✅ |
 | R12 | Read-after-write returned stale relationship state | ~~Medium~~ **CLOSED** | SQLAlchemy does not overwrite loaded state on a fresh query, so a stage transition returned the deal's *old* stage and therefore its old derived status — the Kanban card would snap back. `populate_existing` on the deal and pipeline read paths | 2.6 ✅ |
 | R7 | Refresh rotation logs users out under concurrency | ~~High~~ **CLOSED** | Redis lock on the presented token plus a 10s rotation grace window. Proven by 10 genuinely parallel refreshes all succeeding, and by the suite passing with Redis deliberately unreachable | 2.1 ✅ |
 | R8 | `SET` instead of `SET LOCAL` leaks tenant context across pooled connections | ~~Critical~~ **CLOSED** | `set_config(..., true)` throughout; proven by `TestTransactionScopedContext` — context does not survive the transaction on a reused connection | 1 ✅ |
-| R9 | RAG retrieval bypasses RBAC | **Critical** | Shared scope resolver; pre-filter before similarity search; leakage test | 5 |
-| R10 | AI cost runaway | Medium | Per-org quotas, hard ceilings, per-job cost recording | 5 |
+| R9 | RAG retrieval bypasses RBAC | **Critical** | Shared scope resolver; pre-filter before similarity search; leakage test | 6 |
+| R10 | AI cost runaway | Medium | Per-org quotas, hard ceilings, per-job cost recording | 6 |
 
 R8 and R9 are the two failures that would be silent, severe, and hardest to
 detect after the fact. Both have a dedicated test as a phase exit criterion.

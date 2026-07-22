@@ -12,6 +12,7 @@ import {
   Sparkles,
   Target,
   Users,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 
@@ -57,6 +58,10 @@ export const navigation: NavGroup[] = [
   {
     label: "Insights",
     items: [{ title: "Reports", href: "/reports", icon: BarChart3 }],
+  },
+  {
+    label: "Automation",
+    items: [{ title: "Workflows", href: "/automations", icon: Workflow }],
   },
 ];
 

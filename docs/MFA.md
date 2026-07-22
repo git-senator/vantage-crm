@@ -153,7 +153,7 @@ rather than being duplicated into the frontend where it can drift.
 oversight.
 
 Encryption at rest for this column needs a key managed somewhere other than
-beside the data — a KMS — which is Phase 4's secrets work. What is in place
+beside the data — a KMS — which is Phase 5's secrets work. What is in place
 meanwhile:
 
 * the column is in `NEVER_DIFF_FIELDS`, so it cannot reach the audit log;

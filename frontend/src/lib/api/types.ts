@@ -841,3 +841,160 @@ export interface MfaChallengeRequired {
   challenge_token: string;
   expires_at: string;
 }
+
+// --- Automation (Phase 4) ---
+
+export interface WorkflowAuthor {
+  id: string;
+  full_name: string;
+  initials: string;
+  avatar_hue: number;
+}
+
+export interface WorkflowSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  is_enabled: boolean;
+  published_version_id: string | null;
+  author: WorkflowAuthor | null;
+  /** The live version's trigger, so the list needs no per-row fetch. */
+  trigger_type: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type WorkflowVersionStatus = "draft" | "published" | "archived";
+
+export interface WorkflowVersion {
+  id: string;
+  version: number;
+  status: WorkflowVersionStatus;
+  trigger_type: string;
+  definition: WorkflowDefinition;
+  published_at: string | null;
+  created_at: string;
+}
+
+export interface WorkflowDetail {
+  workflow: WorkflowSummary;
+  draft: WorkflowVersion | null;
+  published: WorkflowVersion | null;
+  versions: WorkflowVersion[];
+}
+
+/**
+ * The node graph.
+ *
+ * A tree: one outgoing edge per node, two for a condition. Deliberately not a
+ * DAG — see docs/AUTOMATION.md for why joins are out of scope.
+ */
+export interface WorkflowDefinition {
+  trigger?: { type?: string; config?: Record<string, unknown> };
+  start_node?: string | null;
+  nodes?: Record<string, WorkflowNode>;
+}
+
+export type WorkflowNodeType = "action" | "condition" | "delay";
+
+export interface WorkflowComparison {
+  field: string;
+  operator: string;
+  value?: unknown;
+}
+
+export interface WorkflowNode {
+  type: WorkflowNodeType;
+  label?: string | null;
+  action?: string | null;
+  config?: Record<string, unknown>;
+  comparisons?: WorkflowComparison[];
+  mode?: "all" | "any";
+  on_true?: string | null;
+  on_false?: string | null;
+  next?: string | null;
+}
+
+export type WorkflowRunStatus =
+  | "pending"
+  | "running"
+  | "waiting"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
+
+export interface WorkflowRun {
+  id: string;
+  workflow_id: string;
+  version_id: string;
+  status: WorkflowRunStatus;
+  entity_type: string | null;
+  entity_id: string | null;
+  current_node_id: string | null;
+  resume_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  error: string | null;
+  attempts: number;
+  created_at: string;
+}
+
+export interface WorkflowRunStep {
+  id: string;
+  sequence: number;
+  node_id: string;
+  node_type: string;
+  /** Copied at execution time, so a later edit cannot rewrite history. */
+  node_label: string | null;
+  status: "succeeded" | "failed" | "skipped";
+  output: Record<string, unknown>;
+  error: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface WorkflowRunDetail {
+  run: WorkflowRun;
+  steps: WorkflowRunStep[];
+}
+
+export interface RegistryFieldOption {
+  value: string;
+  label: string;
+}
+
+export interface RegistryField {
+  key: string;
+  label: string;
+  kind: string;
+  required: boolean;
+  help_text: string | null;
+  options: RegistryFieldOption[];
+  default: unknown;
+}
+
+export interface RegistryEntry {
+  key: string;
+  label: string;
+  description: string;
+  category: string;
+  fields: RegistryField[];
+  entity_type: string | null;
+  entity_types: string[];
+  /** True when the action contacts somebody outside the workspace. */
+  external: boolean;
+  takes_value: boolean | null;
+  value_kind: string | null;
+}
+
+/** The builder's palette, served from the registries the executor reads. */
+export interface Registries {
+  triggers: RegistryEntry[];
+  actions: RegistryEntry[];
+  operators: RegistryEntry[];
+}
+
+export interface WorkflowValidation {
+  valid: boolean;
+  errors: string[];
+}

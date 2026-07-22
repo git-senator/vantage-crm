@@ -27,6 +27,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 | [MESSAGING.md](docs/MESSAGING.md) | Conversations, email send/receive, inbound webhook |
 | [CALENDAR.md](docs/CALENDAR.md) | Events, attendees, conflict reporting, reminders |
 | [MFA.md](docs/MFA.md) | TOTP, recovery codes, two-step login, role enforcement |
+| [AUTOMATION.md](docs/AUTOMATION.md) | Workflow engine, triggers, actions, conditions, the builder |
 
 ## Stack
 

@@ -140,7 +140,7 @@ Cookies are sent automatically, so cookie auth requires CSRF defence.
 
 ### 2.6 MFA
 
-Schema provisioned in Phase 1 (`users.mfa_secret`, `mfa_enabled`), TOTP enforcement shipped in Phase 4. Required for `owner` and `admin` before production go-live.
+Schema provisioned in Phase 1 (`users.mfa_secret`, `mfa_enabled`), TOTP enforcement shipped in Phase 3.7. Required for `owner` and `admin` before production go-live.
 
 ---
 

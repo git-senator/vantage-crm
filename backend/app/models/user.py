@@ -96,7 +96,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     #:
     #: Stored as issued, and that is a stated trade-off rather than an
     #: oversight: encryption at rest for this column needs a key managed
-    #: somewhere other than beside the data — a KMS — which is Phase 4's
+    #: somewhere other than beside the data — a KMS — which is Phase 5's
     #: secrets work. What is in place meanwhile is that the column is in
     #: `NEVER_DIFF_FIELDS`, so it cannot reach the audit log, is excluded from
     #: every read schema, and the logger's redaction list covers it. The
