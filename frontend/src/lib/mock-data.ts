@@ -10,7 +10,6 @@ import type {
   Conversation,
   CrmDocument,
   Message,
-  Notification,
   Task,
   TeamMember,
 } from "@/types";
@@ -398,66 +397,7 @@ export const documents: CrmDocument[] = [
   },
 ];
 
-/* ---------------------------------------------------------- notifications */
-
-export const notifications: Notification[] = [
-  {
-    id: "N-1",
-    title: "Offer accepted on 88 Townsend PH2",
-    body: "Omar Haddad's counter was accepted at $3,250,000. Contingency period starts today.",
-    timestamp: "12 minutes ago",
-    read: false,
-    category: "deal",
-  },
-  {
-    id: "N-2",
-    title: "New high-intent lead",
-    body: "Harper Lindqvist scored 92 — pre-approved and actively touring in Noe Valley.",
-    timestamp: "2 hours ago",
-    read: false,
-    category: "lead",
-  },
-  {
-    id: "N-3",
-    title: "Sofia Kowalski mentioned you",
-    body: "\"@Avery the disclosure packet is blocked until we get the HOA docs.\"",
-    timestamp: "3 hours ago",
-    read: false,
-    category: "mention",
-  },
-  {
-    id: "N-4",
-    title: "Task due today",
-    body: "Send comparable analysis to Harper — due 4:00 PM.",
-    timestamp: "5 hours ago",
-    read: true,
-    category: "task",
-  },
-  {
-    id: "N-5",
-    title: "Document expired",
-    body: "Lead-Based Paint Disclosure for 1428 Sanchez needs to be re-issued.",
-    timestamp: "Yesterday",
-    read: true,
-    category: "system",
-  },
-  {
-    id: "N-6",
-    title: "Showing confirmed",
-    body: "Theo Bergström confirmed 1150 Harrison #305 for Jul 21 at 5:30 PM.",
-    timestamp: "Yesterday",
-    read: true,
-    category: "deal",
-  },
-  {
-    id: "N-7",
-    title: "Weekly pipeline report ready",
-    body: "Your team closed $1.4M in volume last week, up 12% week over week.",
-    timestamp: "Jul 18, 2026",
-    read: true,
-    category: "system",
-  },
-];
+/* --- notifications: ported to the live API in Phase 3.3; fixture removed --- */
 
 /* ---------------------------------------------------------------- activity */
 

@@ -42,7 +42,7 @@ class JobName:
     SWEEP_ABANDONED_UPLOADS: Final = "sweep_abandoned_uploads"
     SWEEP_SCAN_BACKLOG: Final = "sweep_scan_backlog"
     SEND_EMAIL: Final = "send_email"
-    NOTIFY_TASK_ASSIGNED: Final = "notify_task_assigned"
+    DELIVER_NOTIFICATION_EMAIL: Final = "deliver_notification_email"
 
 
 def redis_settings(settings: Settings | None = None) -> RedisSettings:

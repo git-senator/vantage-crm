@@ -314,6 +314,44 @@ the task at send time: between assignment and delivery it may have been
 reassigned or completed, and mailing someone about work that is no longer theirs
 is worse than not mailing them.
 
+**3.3 Notifications — delivered.** An in-app notification centre with per-user,
+per-category delivery preferences, and the email path behind the queue. See
+[NOTIFICATIONS.md](./NOTIFICATIONS.md).
+
+The split that carries the phase: **a service says what happened and to whom;
+the centre decides how it is delivered.** `TaskService` did not change when
+email delivery arrived and will not change when push does — it raises a
+notification and stops. Phase 3.2's dedicated task-assignment email job was
+deleted in the process, replaced by one `deliver_notification_email` for every
+category, because the wording that distinguishes an assignment from a quarantine
+notice already exists as the notification's own title and body. Per-event email
+templates are how the app and the inbox end up saying subtly different things.
+
+**Muting hides the badge, not the history.** A muted notification is still
+written, pre-read: a preference governs whether something is *surfaced*, not
+whether it happened, and a user who later asks "when was I told about this?"
+should get an answer. Absent preferences mean the category default rather than
+off, so adding a category later cannot silently mute it for everyone.
+
+**A notification belongs to its recipient and to nobody else** — not their
+manager, not an admin at ALL scope, because "who was told what" is somebody's
+inbox rather than an administrative view. That predicate lives in the repository
+rather than the RLS policy, matching the system-wide split (RLS is the tenant
+boundary; row visibility is a SQL predicate) — and because a notification is
+created by one user *for another*, a `WITH CHECK` on the recipient would refuse
+every assignment notification ever sent. The endpoints therefore take no
+permission at all, and there is no create endpoint: an API that let a client
+post a notification to another user is a phishing surface inside the product.
+
+Two smaller decisions worth recording: nobody is notified about their own
+action, and email defaults on only where the recipient is likely away from the
+product and the thing is addressed to them personally (tasks, mentions) —
+defaulting it on everywhere is how a CRM lands in a spam filter, taking its
+password resets with it.
+
+The notifications page and the topbar badge now read live data, and
+`mock-data.ts` lost its last interactive fixture.
+
 **Deliverables**
 - S3-compatible storage; private bucket, public access blocked at policy ✅
 - Presigned upload/download with short TTLs ✅
@@ -430,7 +468,7 @@ making before the first table exists rather than after the thirtieth.
 | R3 | Client-boundary leak recurs during data port | **High — MITIGATED** | Lint rule + `server-only` caught a real violation during Phase 1.5 and forced a correct module split. Still live for the Phase 2 data port. | 0 ✅ |
 | R4 | Pydantic/TypeScript drift | Medium | OpenAPI type generation, CI-verified | 1 |
 | R5 | 33 vendored UI primitives don't auto-update | Low | Quarterly review; documented ownership | ongoing |
-| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6) and the dashboard (2.8) are ported and their fixtures deleted; every record detail page now shows live notes/timeline/files, and 3.1 made those files real uploads rather than metadata. What remains is intentionally later-phase — reports (4) and the calendar/messages/notifications prototype pages | 1–3 |
+| R6 | 18 modules import `mock-data` | Medium — **reducing** | Typed data layer; port resource by resource. Leads (2.3), Clients (2.4), Properties (2.5), Deals (2.6), the dashboard (2.8) and notifications (3.3) are ported and their fixtures deleted; every record detail page shows live notes/timeline/files, and 3.1 made those files real uploads rather than metadata. What remains is intentionally later-phase — reports (4) and the calendar/messages prototype pages | 1–3 |
 | R11 | Audit metadata could not serialise `Decimal`; a failed audit write poisoned the caller's transaction | ~~High~~ **CLOSED** | Found in 2.6, live since 2.3 — reachable from any money-field edit on leads, clients or properties, and no test had changed one. Values now coerce to JSON-safe types (Decimal → string, never float), comparison happens before coercion, and the insert runs in a SAVEPOINT so an audit failure genuinely cannot break the request it describes | 2.6 ✅ |
 | R12 | Read-after-write returned stale relationship state | ~~Medium~~ **CLOSED** | SQLAlchemy does not overwrite loaded state on a fresh query, so a stage transition returned the deal's *old* stage and therefore its old derived status — the Kanban card would snap back. `populate_existing` on the deal and pipeline read paths | 2.6 ✅ |
 | R7 | Refresh rotation logs users out under concurrency | ~~High~~ **CLOSED** | Redis lock on the presented token plus a 10s rotation grace window. Proven by 10 genuinely parallel refreshes all succeeding, and by the suite passing with Redis deliberately unreachable | 2.1 ✅ |

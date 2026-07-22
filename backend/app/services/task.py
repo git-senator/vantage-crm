@@ -39,8 +39,8 @@ from app.schemas.task import TaskCreate, TaskFilters, TaskUpdate
 from app.services.activity import ActivityService
 from app.services.audit import AuditService, build_diff
 from app.services.entity_access import EntityAccess
+from app.services.notification_center import NotificationCenter
 from app.services.rbac import AuthorizationContext, RbacService
-from app.workers.queue import JobName, enqueue
 
 logger = get_logger(__name__)
 
@@ -384,20 +384,15 @@ class TaskService:
     async def _notify_assignment(
         self, task: Task, assignee_id: UUID, actor: User
     ) -> None:
-        """Queue "a task was assigned to you".
+        """Raise "a task was assigned to you".
 
-        Phase 2.7 left this as a seam that only logged; Phase 3.2 wired it to
-        the queue. It enqueues rather than sends: an inline SMTP call inside a
-        request transaction would make task assignment as slow and as
-        failure-prone as the mail provider.
-
-        The enqueue is best-effort by design (see app/workers/queue.py) — a
-        lost notification costs one email about work the assignee can still see
-        in their own task list, which is not worth failing an assignment over.
-
-        Nothing about the task is passed beyond its id. The job re-reads at
-        send time, because a task reassigned or completed in the interval must
-        not generate an email claiming otherwise.
+        Phase 2.7 left this as a seam that only logged. Phase 3.2 wired it to a
+        dedicated email job. Phase 3.3 replaced that with the notification
+        centre, which is the version that scales: this service says *what
+        happened and to whom*, and the centre decides — from the recipient's own
+        preferences — whether that also becomes an email. A service that reached
+        for the mail queue directly would be a service that has to be edited
+        every time somebody adds a delivery channel.
 
         Self-assignment is skipped — nobody needs telling about their own work.
         """
@@ -408,19 +403,17 @@ class TaskService:
         if assignee is None:  # pragma: no cover - guarded by _assert_can_assign_to
             return
 
-        await enqueue(
-            JobName.NOTIFY_TASK_ASSIGNED,
-            str(task.id),
-            str(assignee_id),
-            str(self.auth.organization_id),
-        )
-        logger.info(
-            "task_assignment_notified",
-            extra={
-                "task_id": str(task.id),
-                "assignee_id": str(assignee_id),
-                "assigned_by": str(actor.id),
-            },
+        due = f" Due {task.due_at:%d %b %Y}." if task.due_at else ""
+        await NotificationCenter(self.session).raise_notification(
+            organization_id=self.auth.organization_id,
+            recipient_id=assignee_id,
+            actor_id=actor.id,
+            category="task",
+            type="task.assigned",
+            title=f"{actor.full_name} assigned you a task",
+            body=f"{task.title}.{due}",
+            entity_type="task",
+            entity_id=task.id,
         )
 
     async def _assert_can_assign_to(self, assignee_id: UUID) -> None:

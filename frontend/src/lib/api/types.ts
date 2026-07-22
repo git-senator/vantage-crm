@@ -627,3 +627,45 @@ export interface DashboardSummary {
   tasks: { open: number; overdue: number };
   recent_activity: TimelineItem[];
 }
+
+// --- Notifications (Phase 3.3) ---
+
+export type NotificationCategory =
+  | "lead"
+  | "deal"
+  | "task"
+  | "document"
+  | "mention"
+  | "system";
+
+export interface Notification {
+  id: string;
+  category: NotificationCategory;
+  /** The specific event, e.g. `task.assigned`. Finer than `category`. */
+  type: string;
+  title: string;
+  body: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown>;
+  /** Null for machine-generated notifications. */
+  actor: OwnerSummary | null;
+  read_at: string | null;
+  created_at: string;
+}
+
+export interface NotificationList {
+  data: Notification[];
+  /** Travels with the list so the bell needs no second round trip. */
+  unread_count: number;
+}
+
+export interface NotificationPreference {
+  category: NotificationCategory;
+  in_app: boolean;
+  email: boolean;
+}
+
+export interface UnreadCount {
+  unread_count: number;
+}

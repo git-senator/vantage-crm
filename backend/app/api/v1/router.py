@@ -19,6 +19,7 @@ from app.api.v1 import (
     jobs,
     leads,
     notes,
+    notifications,
     organizations,
     pipelines,
     properties,
@@ -48,6 +49,9 @@ api_router.include_router(
 )
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(notes.router, prefix="/notes", tags=["notes"])
+api_router.include_router(
+    notifications.router, prefix="/notifications", tags=["notifications"]
+)
 api_router.include_router(
     attachments.router, prefix="/attachments", tags=["attachments"]
 )

@@ -1,8 +1,8 @@
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { fetchUnreadCount } from "@/lib/api/notifications";
 import { requireSession } from "@/lib/auth/session";
-import { notifications } from "@/lib/mock-data";
 import type { SessionUser } from "@/types";
 
 /**
@@ -30,9 +30,10 @@ export default async function AppLayout({
     email: session.email,
   };
 
-  // Notifications remain fixture-backed until Phase 2 delivers the endpoint.
-  // Read on the server and reduced to a count before crossing the boundary.
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  // One integer, from an endpoint that returns exactly that. The topbar never
+  // sees a notification body, which is the boundary rule this layout exists to
+  // enforce (docs/SECURITY.md §4).
+  const unreadCount = await fetchUnreadCount();
 
   return (
     <SidebarProvider>

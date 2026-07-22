@@ -115,34 +115,40 @@ class NotificationService:
             )
         )
 
-    async def send_task_assigned(
-        self, *, to: EmailAddress, task_title: str, due_on: str | None
+    async def send_notification(
+        self, *, to: EmailAddress, subject: str, body: str, category: str
     ) -> SendResult:
-        """Phase 3.2 wires the seam Phase 2.7 left in TaskService.
+        """The email copy of an in-app notification.
 
-        No deep link yet — the frontend has no per-task route, and a URL that
-        404s is worse than no URL. The task list is a real destination today.
+        One template for every category rather than one per event type. The
+        wording that distinguishes a task assignment from a quarantine notice
+        already exists — it is the notification's own title and body, written
+        once by the service that raised it. Duplicating it into per-event email
+        templates is how the two drift apart and a user gets an email that says
+        something subtly different from what the app shows.
         """
-        subject = f"Task assigned: {task_title}"
-        due_line = f"Due {due_on}." if due_on else "No due date."
-        text_body = (
-            f"Hello {to.name or 'there'},\n\n"
-            f"A task has been assigned to you: {task_title}\n{due_line}\n\n"
-            "It is waiting in your Vantage CRM task list.\n"
-        )
-        html_body = (
-            f"<p>Hello {to.name or 'there'},</p>"
-            f"<p>A task has been assigned to you: <strong>{task_title}</strong><br>"
-            f"{due_line}</p>"
-            "<p>It is waiting in your Vantage CRM task list.</p>"
-        )
+        greeting = f"Hello {to.name or 'there'},"
+        lines = [greeting, "", subject]
+        if body:
+            lines += ["", body]
+        lines += ["", "Open Vantage CRM to see the details.", ""]
+        text_body = "\n".join(lines)
+
+        html_body = f"<p>{greeting}</p><p><strong>{subject}</strong></p>"
+        if body:
+            html_body += f"<p>{body}</p>"
+        html_body += "<p>Open Vantage CRM to see the details.</p>"
+
         return await self._send(
             EmailMessage(
                 to=[to],
                 subject=subject,
                 html_body=html_body,
                 text_body=text_body,
-                tags={"category": "task_assigned"},
+                # Category, not the specific type: tags land in provider-side
+                # deliverability metrics, and a high-cardinality tag makes those
+                # metrics useless.
+                tags={"category": f"notification_{category}"},
             )
         )
 

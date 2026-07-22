@@ -50,6 +50,7 @@ from app.repositories.attachment import AttachmentRepository
 from app.schemas.attachment import AttachmentCreate, PresignedDownload, PresignedUpload
 from app.services.audit import AuditService
 from app.services.entity_access import EntityAccess
+from app.services.notification_center import NotificationCenter
 from app.services.rbac import AuthorizationContext
 from app.services.storage import (
     ObjectNotFoundError,
@@ -538,6 +539,24 @@ class AttachmentService:
                     "scanner": scanner,
                 },
             )
+            if attachment.uploaded_by is not None:
+                # The person who uploaded it is the one who needs to know, and
+                # they will otherwise just see a file that quietly never became
+                # available. `actor_id` stays None — a machine decided this.
+                await NotificationCenter(self.session).raise_notification(
+                    organization_id=self.auth.organization_id,
+                    recipient_id=attachment.uploaded_by,
+                    category="system",
+                    type="document.quarantined",
+                    title="A file you uploaded was quarantined",
+                    body=(
+                        f"{attachment.filename} was flagged by the malware "
+                        f"scanner and has been removed."
+                    ),
+                    entity_type=attachment.entity_type,
+                    entity_id=attachment.entity_id,
+                    metadata={"filename": attachment.filename},
+                )
             logger.warning(
                 "attachment_quarantined",
                 extra={

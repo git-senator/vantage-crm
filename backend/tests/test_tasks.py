@@ -29,6 +29,7 @@ from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedEr
 from app.core.permissions import Scope
 from app.models.activity import Activity
 from app.models.audit import AuditLog
+from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.rbac import Team, TeamMember
 from app.models.task import Task
@@ -308,53 +309,54 @@ class TestAssignment:
                 _payload(assignee_id=outsider.id), _user
             )
 
-    async def test_reassignment_queues_the_notification(
-        self, db: AsyncSession, organization: Organization, rbac_seeded, caplog, monkeypatch
+    async def test_reassignment_raises_a_notification(
+        self, db: AsyncSession, organization: Organization, rbac_seeded
     ) -> None:  # type: ignore[no-untyped-def]
         """Phase 2.7 left this as a seam that only logged; Phase 3.2 wired it to
-        the queue. Assignment must reach it exactly once, and must pass only the
-        ids — the job re-reads at send time, because a task reassigned in the
-        interval must not generate an email claiming otherwise."""
-        import logging
-
-        queued: list[tuple] = []
-
-        async def _capture(job_name: str, *args: object, **kwargs: object) -> str:
-            queued.append((job_name, args))
-            return "job-id"
-
-        monkeypatch.setattr("app.services.task.enqueue", _capture)
-
+        an email job; Phase 3.3 replaced that with the notification centre. This
+        service now says *what happened and to whom*, and the centre decides how
+        it is delivered — so what is asserted here is the notification, not a
+        transport."""
         manager = await make_user(db, organization, "mgr@vantage.example")
         member = await make_user(db, organization, "mem@vantage.example")
         team = Team(organization_id=organization.id, name="Eastside")
         db.add(team)
         await db.flush()
         for u in (manager, member):
-            db.add(TeamMember(team_id=team.id, user_id=u.id, organization_id=organization.id))
+            db.add(
+                TeamMember(
+                    team_id=team.id, user_id=u.id, organization_id=organization.id
+                )
+            )
         await db.flush()
 
         manager_auth = await auth_for(db, manager, "manager")
         service = TaskService(db, manager_auth)
         task = await service.create_task(_payload(), manager)
 
-        with caplog.at_level(logging.INFO):
-            await service.assign_task(task.id, member.id, manager)
+        await service.assign_task(task.id, member.id, manager)
 
-        assert any(
-            r.message == "task_assignment_notified" for r in caplog.records
+        rows = (
+            (
+                await db.execute(
+                    select(Notification).where(Notification.user_id == member.id)
+                )
+            )
+            .unique()
+            .scalars()
+            .all()
         )
-        assert len(queued) == 1
-        job_name, args = queued[0]
-        assert job_name == "notify_task_assigned"
-        assert args == (str(task.id), str(member.id), str(organization.id))
+        assert len(rows) == 1
+        assert rows[0].type == "task.assigned"
+        assert rows[0].entity_id == task.id
+        assert rows[0].actor_id == manager.id
 
     async def test_assignment_survives_an_unreachable_queue(
         self, db: AsyncSession, organization: Organization, rbac_seeded, monkeypatch
     ) -> None:  # type: ignore[no-untyped-def]
-        """A queue outage must not become an application outage. The cost of a
-        lost enqueue here is one email about work the assignee can still see in
-        their own task list."""
+        """A queue outage must not become an application outage. The in-app
+        notification is written regardless — it is a database row, not a queued
+        message — and only the optional email copy is lost."""
 
         async def _explode(*args: object, **kwargs: object) -> None:
             raise ConnectionError("redis is down")
@@ -380,6 +382,18 @@ class TestAssignment:
 
         assigned = await service.assign_task(task.id, member.id, manager)
         assert assigned.assignee_id == member.id
+
+        rows = (
+            (
+                await db.execute(
+                    select(Notification).where(Notification.user_id == member.id)
+                )
+            )
+            .unique()
+            .scalars()
+            .all()
+        )
+        assert len(rows) == 1
 
 
 # ------------------------------------------------------------ scope as SQL

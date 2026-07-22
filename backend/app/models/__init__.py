@@ -14,6 +14,7 @@ from app.models.deal import Deal, DealStageHistory
 from app.models.job import JobFailure
 from app.models.lead import Lead
 from app.models.note import Note
+from app.models.notification import Notification, NotificationPreference
 from app.models.organization import Organization
 from app.models.pipeline import Pipeline, PipelineStage
 from app.models.property import Property
@@ -39,6 +40,8 @@ __all__ = [
     "JobFailure",
     "Lead",
     "Note",
+    "Notification",
+    "NotificationPreference",
     "Organization",
     "Permission",
     "Pipeline",

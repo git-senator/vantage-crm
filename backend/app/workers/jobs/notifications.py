@@ -1,9 +1,11 @@
 """Notification jobs — where email delivery finally happens.
 
-Phase 2.7 left a seam in `TaskService._notify_assignment`: it recorded that a
-notification *should* be sent and logged it, because an inline SMTP call inside
-a request transaction makes task assignment as slow and as failure-prone as the
-mail provider. This is the other side of that seam.
+Phase 3.2 wired task assignment straight to an email job. Phase 3.3 replaced
+that with the notification centre: a service raises a notification, the centre
+decides — from the recipient's own preferences — whether it also becomes an
+email, and this job delivers it. One delivery path for every notification type
+beats one job per event, which is how a notification system ends up with six
+subtly different ideas of what "already sent" means.
 
 The transactional-outbox purist would say the enqueue should be part of the
 caller's transaction. It is not, and the reason is proportionality: the failure
@@ -17,11 +19,14 @@ module knows nothing about SES.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy import select, update
+
 from app.core.logging import get_logger
-from app.repositories.task import TaskRepository
+from app.models.notification import Notification
 from app.repositories.user import UserRepository
 from app.services.notifications.base import EmailAddress, NotificationError
 from app.services.notifications.service import NotificationService
@@ -31,50 +36,70 @@ from app.workers.runner import job
 logger = get_logger(__name__)
 
 
-@job(organization_arg=2)
-async def notify_task_assigned(
-    ctx: dict[str, Any], task_id: str, assignee_id: str, organization_id: str
+@job(organization_arg=1)
+async def deliver_notification_email(
+    ctx: dict[str, Any], notification_id: str, organization_id: str
 ) -> str:
-    """Tell someone a task landed on them.
+    """Email one notification to its recipient.
 
-    Reads the task and the assignee at *send* time rather than trusting what
-    was enqueued: between assignment and delivery the task may have been
-    reassigned, completed, or deleted, and mailing someone about work that is
-    no longer theirs is worse than not mailing them at all.
+    The in-app row is the source of truth and already exists — this job only
+    delivers a copy. It re-reads the row at send time rather than trusting the
+    enqueue: a notification the user has already read in the app does not need
+    to arrive in their inbox thirty seconds later, and `emailed_at` makes a
+    duplicate delivery impossible even if the job runs twice.
     """
     organization = UUID(organization_id)
 
     async with tenant_scope(organization) as session:
-        task = await TaskRepository(session).get(UUID(task_id), organization)
-        if task is None or task.deleted_at is not None:
-            return "task_gone"
-        if str(task.assignee_id) != assignee_id:
-            return "reassigned"
-        if task.completed_at is not None:
-            return "already_done"
+        notification = (
+            await session.execute(
+                select(Notification)
+                .where(Notification.id == UUID(notification_id))
+                .where(Notification.organization_id == organization)
+            )
+        ).unique().scalar_one_or_none()
 
-        assignee = await UserRepository(session).get(UUID(assignee_id), organization)
-        if assignee is None or not assignee.is_active:
-            return "assignee_unavailable"
+        if notification is None:
+            return "gone"
+        if notification.emailed_at is not None:
+            return "already_sent"
+        if notification.read_at is not None:
+            # Seen in the app before the queue got to it. Sending anyway is how
+            # a product teaches people that its emails are not worth opening.
+            return "already_read"
 
-        recipient = EmailAddress(address=assignee.email, name=assignee.full_name)
-        due = task.due_at.strftime("%d %b %Y") if task.due_at else None
+        recipient = await UserRepository(session).get(
+            notification.user_id, organization
+        )
+        if recipient is None or not recipient.is_active:
+            return "recipient_unavailable"
 
-    # Outside the transaction: a mail provider round trip has no business
-    # holding a database connection open, and nothing after this point writes.
+        to = EmailAddress(address=recipient.email, name=recipient.full_name)
+        subject = notification.title
+        body = notification.body or ""
+
     try:
-        await NotificationService().send_task_assigned(
-            to=recipient, task_title=task.title, due_on=due
+        await NotificationService().send_notification(
+            to=to, subject=subject, body=body, category=notification.category
         )
     except NotificationError as exc:
         if not exc.retryable:
-            # A rejected address will be rejected again. Dead-letter it now
-            # rather than spending five attempts proving that.
             logger.warning(
-                "task_assignment_email_rejected", extra={"task_id": task_id}
+                "notification_email_rejected",
+                extra={"notification_id": notification_id},
             )
             return "rejected"
         raise
+
+    # Stamped in a second transaction, deliberately: the first one is closed
+    # before a mail provider round trip, and a connection held open across a
+    # network call to a third party is a connection lost to its timeout.
+    async with tenant_scope(organization) as session:
+        await session.execute(
+            update(Notification)
+            .where(Notification.id == UUID(notification_id))
+            .values(emailed_at=datetime.now(UTC))
+        )
 
     return "sent"
 

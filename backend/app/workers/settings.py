@@ -31,7 +31,7 @@ from app.workers.jobs.documents import (
     sweep_abandoned_uploads,
     sweep_scan_backlog,
 )
-from app.workers.jobs.notifications import notify_task_assigned, send_email
+from app.workers.jobs.notifications import deliver_notification_email, send_email
 from app.workers.queue import close_queue, redis_settings
 
 logger = get_logger(__name__)
@@ -67,7 +67,7 @@ class WorkerSettings:
         scan_attachment,
         sweep_abandoned_uploads,
         sweep_scan_backlog,
-        notify_task_assigned,
+        deliver_notification_email,
         send_email,
     ]
 
