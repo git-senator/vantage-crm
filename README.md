@@ -22,6 +22,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 | [AUTHENTICATION.md](docs/AUTHENTICATION.md) | Token design, login, rotation, RLS bootstrap |
 | [PERMISSIONS.md](docs/PERMISSIONS.md) | Permission registry, roles, scope resolution |
 | [DOCUMENTS.md](docs/DOCUMENTS.md) | Object storage, upload workflow, file verification |
+| [JOBS.md](docs/JOBS.md) | Worker architecture, queue semantics, retry and dead-lettering |
 
 ## Stack
 

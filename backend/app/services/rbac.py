@@ -46,7 +46,13 @@ def _cache_key(user_id: UUID) -> str:
 class AuthorizationContext:
     """Everything needed to authorize a request, resolved once per request."""
 
-    user_id: UUID
+    #: `None` for machine work. Background jobs run through the same services
+    #: as requests rather than a laxer parallel implementation, and there is no
+    #: user behind a cron tick — so the actor is genuinely absent rather than
+    #: faked with a placeholder id that a query might later join on. Only ALL
+    #: scope is meaningful without one, which `owner_ids_for_scope` enforces.
+    #: See app/workers/context.py.
+    user_id: UUID | None
     organization_id: UUID
     role_keys: tuple[str, ...]
     #: permission key -> widest granted scope
@@ -142,13 +148,23 @@ class RbacService:
 
     # ------------------------------------------------------------ scope
 
-    async def team_member_ids(self, user_id: UUID, organization_id: UUID) -> list[UUID]:
+    async def team_member_ids(
+        self, user_id: UUID | None, organization_id: UUID
+    ) -> list[UUID]:
         """Every user sharing a team with this user, including themselves.
 
         Used to turn `Scope.TEAM` into a WHERE clause. Always contains the user
         so a manager on no team still sees their own records rather than
         nothing.
+
+        `None` — machine work, which has no actor — yields an empty list, and
+        therefore a predicate that matches nothing. TEAM scope is meaningless
+        without someone to be on a team with, and failing closed is the only
+        safe reading of it.
         """
+        if user_id is None:
+            return []
+
         team_ids = (
             await self.session.execute(
                 select(TeamMember.team_id)
@@ -178,6 +194,19 @@ class RbacService:
         Repositories turn this into `WHERE owner_id IN (...)`. Returning None
         for ALL avoids generating a pointless IN clause over every user.
         """
+        if scope is Scope.ALL:
+            return None
+
+        if context.user_id is None:
+            # A narrow scope with no actor to anchor it is not "everything" —
+            # it is a bug in whatever built this context. Returning an empty
+            # list fails closed: the predicate matches no rows.
+            logger.error(
+                "scope_without_actor",
+                extra={"scope": scope.value, "roles": list(context.role_keys)},
+            )
+            return []
+
         match scope:
             case Scope.OWN:
                 return [context.user_id]
@@ -185,8 +214,6 @@ class RbacService:
                 return await self.team_member_ids(
                     context.user_id, context.organization_id
                 )
-            case Scope.ALL:
-                return None
 
     # ------------------------------------------------------- assignment
 
@@ -305,6 +332,10 @@ class RbacService:
             return None
 
     async def _write_cache(self, context: AuthorizationContext) -> None:
+        if context.user_id is None:
+            # A machine context is constructed per job, never resolved from the
+            # database, so there is nothing to cache and no key to cache under.
+            return
         payload = {
             "org": str(context.organization_id),
             "roles": list(context.role_keys),

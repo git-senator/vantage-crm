@@ -4,11 +4,11 @@ Like notes, an attachment has no scope anchor of its own — visibility follows
 the record it hangs off, and the service proves readability of the parent
 before listing. Ordering is newest-first within a record.
 
-The two maintenance queries at the bottom are the exception to every other rule
-in this file: they run **without tenant scope**, because the background jobs
-that call them sweep across all tenants and have no request context to inherit
-one from. They are therefore not reachable from any request path, take no
-user-supplied predicate, and return only what a job needs to act on. See
+The two maintenance queries at the bottom back the background jobs. They are
+still tenant-scoped — deliberately, because RLS is enabled on this table and a
+query with no tenant context bound would return zero rows whatever it asked
+for. The sweeper resolves the tenant list separately and then runs each
+organization's work with its context bound, so no job path bypasses RLS. See
 `app/workers/`.
 """
 
@@ -59,16 +59,17 @@ class AttachmentRepository(BaseRepository[Attachment]):
     # ------------------------------------------------- maintenance queries
 
     async def list_abandoned(
-        self, *, before: datetime, limit: int = 500
+        self, organization_id: UUID, *, before: datetime, limit: int = 500
     ) -> list[Attachment]:
-        """Registrations whose upload window has elapsed, across all tenants.
+        """Registrations whose upload window has elapsed.
 
         Oldest first, and batch-limited: a sweep that tried to reap a year's
-        backlog in one transaction would hold locks for the duration and be
-        rolled back by any single failure in it.
+        backlog in one transaction would hold locks for the duration and lose
+        the whole batch to any single failure in it.
         """
         query = (
             select(Attachment)
+            .where(Attachment.organization_id == organization_id)
             .where(Attachment.status == "pending_upload")
             .where(Attachment.deleted_at.is_(None))
             .where(Attachment.upload_expires_at.is_not(None))
@@ -78,10 +79,13 @@ class AttachmentRepository(BaseRepository[Attachment]):
         )
         return list((await self.session.execute(query)).unique().scalars().all())
 
-    async def list_pending_scan(self, *, limit: int = 100) -> list[Attachment]:
-        """Uploads awaiting a malware verdict, across all tenants."""
+    async def list_pending_scan(
+        self, organization_id: UUID, *, limit: int = 100
+    ) -> list[Attachment]:
+        """Uploads awaiting a malware verdict."""
         query = (
             select(Attachment)
+            .where(Attachment.organization_id == organization_id)
             .where(Attachment.scan_status == "pending")
             .where(Attachment.deleted_at.is_(None))
             .where(Attachment.storage_key.is_not(None))

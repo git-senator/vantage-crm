@@ -174,6 +174,33 @@ async def db(engine) -> AsyncIterator[AsyncSession]:  # type: ignore[no-untyped-
         await session.rollback()
 
 
+@pytest_asyncio.fixture(autouse=True)
+async def _bind_app_session_factory(engine):  # type: ignore[no-untyped-def]
+    """Point `app.db.session` at the test engine.
+
+    Background jobs open their own sessions rather than receiving one — a job
+    has no request to inherit a session from — so anything exercising
+    `session_scope` (the dead-letter writer, the sweeps) would otherwise reach
+    for the *configured* database instead of the test one and quietly do
+    nothing useful.
+
+    Sessions opened this way commit independently of the test's own
+    transaction, which is exactly the property being tested: the dead-letter
+    row must survive the failure of whatever was running.
+    """
+    from app.db import session as session_module
+
+    previous_engine = session_module._engine
+    previous_factory = session_module._session_factory
+    session_module._engine = engine
+    session_module._session_factory = async_sessionmaker(
+        bind=engine, expire_on_commit=False, autoflush=False
+    )
+    yield
+    session_module._engine = previous_engine
+    session_module._session_factory = previous_factory
+
+
 # ---------------------------------------------------------------- storage
 
 

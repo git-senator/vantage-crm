@@ -191,6 +191,30 @@ class Settings(BaseSettings):
     #: which is honest about the fact that nothing looked at it.
     MALWARE_SCAN_ENABLED: bool = False
 
+    #: Which scanner backs that switch. `eicar` detects the EICAR test file and
+    #: nothing else — it exists to prove the quarantine pipeline, not to protect
+    #: anything, and production refuses to start with scanning enabled while it
+    #: is the configured engine. See app/services/storage/scanning.py.
+    MALWARE_SCANNER: Literal["eicar"] = "eicar"
+
+    #: Largest object the scanner will read into memory. Beyond this the file
+    #: is left unscanned and unpublished rather than the worker being asked to
+    #: buffer an arbitrary amount of hostile input.
+    MALWARE_SCAN_MAX_BYTES: int = 16 * 1024 * 1024
+
+    # ---------------------------------------------------------- workers
+    #: How many jobs one worker process runs concurrently. Jobs are I/O bound
+    #: (database, storage, mail), so this is well above the core count.
+    WORKER_MAX_JOBS: int = 10
+    #: Seconds before a job is considered hung and cancelled. Longer than any
+    #: legitimate job here — the checksum of a 25 MB object is seconds.
+    WORKER_JOB_TIMEOUT: int = 300
+    #: Attempts before a job is dead-lettered. ARQ backs off exponentially
+    #: between them.
+    WORKER_MAX_TRIES: int = 5
+    #: How often the sweeps run, in minutes.
+    WORKER_SWEEP_INTERVAL_MINUTES: int = 15
+
     # ------------------------------------------------------------ mail
     # Provider is swappable; business logic depends on NotificationService,
     # never on SES. See app/services/notifications/.
@@ -278,6 +302,13 @@ class Settings(BaseSettings):
             problems.append(
                 "S3_ACCESS_KEY_ID must be set when S3_ENDPOINT_URL is "
                 "configured (a custom endpoint has no instance role)"
+            )
+        if self.MALWARE_SCAN_ENABLED and self.MALWARE_SCANNER == "eicar":
+            problems.append(
+                "MALWARE_SCAN_ENABLED is on with the 'eicar' scanner, which "
+                "detects only the EICAR test file. Configure a real engine or "
+                "turn scanning off — a scanner that catches nothing is worse "
+                "than none, because it looks like protection"
             )
         if self.S3_PRESIGN_TTL_SECONDS > 3600:
             problems.append(

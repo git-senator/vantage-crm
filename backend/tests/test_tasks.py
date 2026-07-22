@@ -308,12 +308,22 @@ class TestAssignment:
                 _payload(assignee_id=outsider.id), _user
             )
 
-    async def test_reassignment_fires_the_notification_seam(
-        self, db: AsyncSession, organization: Organization, rbac_seeded, caplog
+    async def test_reassignment_queues_the_notification(
+        self, db: AsyncSession, organization: Organization, rbac_seeded, caplog, monkeypatch
     ) -> None:  # type: ignore[no-untyped-def]
-        """The seam logs a pending notification rather than sending — delivery
-        is Phase 3 queued work. Assignment must reach it exactly once."""
+        """Phase 2.7 left this as a seam that only logged; Phase 3.2 wired it to
+        the queue. Assignment must reach it exactly once, and must pass only the
+        ids — the job re-reads at send time, because a task reassigned in the
+        interval must not generate an email claiming otherwise."""
         import logging
+
+        queued: list[tuple] = []
+
+        async def _capture(job_name: str, *args: object, **kwargs: object) -> str:
+            queued.append((job_name, args))
+            return "job-id"
+
+        monkeypatch.setattr("app.services.task.enqueue", _capture)
 
         manager = await make_user(db, organization, "mgr@vantage.example")
         member = await make_user(db, organization, "mem@vantage.example")
@@ -332,9 +342,44 @@ class TestAssignment:
             await service.assign_task(task.id, member.id, manager)
 
         assert any(
-            r.message == "task_assignment_pending_notification"
-            for r in caplog.records
+            r.message == "task_assignment_notified" for r in caplog.records
         )
+        assert len(queued) == 1
+        job_name, args = queued[0]
+        assert job_name == "notify_task_assigned"
+        assert args == (str(task.id), str(member.id), str(organization.id))
+
+    async def test_assignment_survives_an_unreachable_queue(
+        self, db: AsyncSession, organization: Organization, rbac_seeded, monkeypatch
+    ) -> None:  # type: ignore[no-untyped-def]
+        """A queue outage must not become an application outage. The cost of a
+        lost enqueue here is one email about work the assignee can still see in
+        their own task list."""
+
+        async def _explode(*args: object, **kwargs: object) -> None:
+            raise ConnectionError("redis is down")
+
+        monkeypatch.setattr("app.workers.queue.get_queue", _explode)
+
+        manager = await make_user(db, organization, "mgr@vantage.example")
+        member = await make_user(db, organization, "mem@vantage.example")
+        team = Team(organization_id=organization.id, name="Eastside")
+        db.add(team)
+        await db.flush()
+        for u in (manager, member):
+            db.add(
+                TeamMember(
+                    team_id=team.id, user_id=u.id, organization_id=organization.id
+                )
+            )
+        await db.flush()
+
+        manager_auth = await auth_for(db, manager, "manager")
+        service = TaskService(db, manager_auth)
+        task = await service.create_task(_payload(), manager)
+
+        assigned = await service.assign_task(task.id, member.id, manager)
+        assert assigned.assignee_id == member.id
 
 
 # ------------------------------------------------------------ scope as SQL

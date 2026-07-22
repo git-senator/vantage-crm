@@ -259,14 +259,69 @@ URL minted against compose's internal `minio:9000` cannot be rewritten to a
 browser-reachable host afterwards. Presigning therefore runs on a second client
 bound to `S3_PUBLIC_ENDPOINT_URL`. On real S3 the two collapse into one.
 
+**3.2 Background jobs — delivered.** ARQ on the existing Redis, one worker
+service, and the document pipeline moved behind it. See [JOBS.md](./JOBS.md).
+
+The decision that shaped the phase: **a job is a service call with a different
+trigger.** Job functions bind a tenant and call the same service methods a
+request does, rather than reimplementing business logic with looser rules. That
+sounds like style until you meet its consequence — RLS is FORCEd on every
+business table, so a worker with no tenant context bound *sees nothing*. A sweep
+written the obvious way runs cleanly, touches zero rows, and reports success:
+silent, and indistinguishable from "there was no work to do".
+
+The tempting fix is `BYPASSRLS` on the worker's role, which is one broad grant
+to solve one narrow problem and would exempt every query the worker ever makes.
+Instead a locked-down `SECURITY DEFINER` function returns the list of
+organization ids and nothing else, and each tenant's work then runs under RLS
+exactly like a request. The only thing crossing a tenant boundary is a list of
+uuids. Services also need an actor, so machine work gets an explicit
+`system_context` with ALL scope on *only* the permissions that job requires and
+`user_id=None` — genuinely absent rather than a placeholder id something could
+later join on, with narrow scopes failing closed rather than reading "no actor,
+therefore no restriction".
+
+**Retry and dead-lettering are not configuration.** ARQ re-queues on `arq.Retry`
+and nothing else, so a job raising `ValueError` would fail once and never run
+again; and its lifecycle hooks receive neither the function name, the arguments,
+nor the exception, so a hook cannot write a useful failure record without
+reading the result back out of Redis. Both therefore live in one `@job`
+decorator, which re-raises as `Retry(defer=…)` with jittered exponential backoff
+while attempts remain and writes the dead-letter row on the attempt that gives
+up. Measured on the live stack: 1.48s, 3.76s, 7.65s, 9.14s, then dead-lettered.
+
+`job_failures` holds one row per (job name, key) rather than per attempt, and a
+later success resolves rather than deletes it. Its RLS policy is deliberately a
+shade wider than the standard one — a tenant-less row is infrastructure, and
+those are exactly the failures an operator most needs to see.
+
+**Enqueueing is best-effort and that is a stated trade-off**, not an oversight:
+a Redis blip must not turn a successful assignment into a 500, so a lost job is
+genuinely lost — which is why every job here is either reconstructible from
+database state (`sweep_scan_backlog` re-finds its work) or genuinely optional (a
+notification). Nothing whose loss would corrupt data goes through the queue.
+
+The scanner ships honest about its limits: `EicarSignatureScanner` detects the
+EICAR test file and nothing else, and production refuses to start with scanning
+enabled while it is configured. A scanner that catches nothing is worse than
+none, because it looks like protection. What is real is everything around it —
+verdict, quarantine, byte deletion, audit, never-served — and a scanner *outage*
+leaves files unpublished rather than waved through, because "we could not check
+it" is not "it is fine".
+
+Phase 2.7's task-assignment seam is now wired to the queue, and the job re-reads
+the task at send time: between assignment and delivery it may have been
+reassigned or completed, and mailing someone about work that is no longer theirs
+is worse than not mailing them.
+
 **Deliverables**
 - S3-compatible storage; private bucket, public access blocked at policy ✅
 - Presigned upload/download with short TTLs ✅
-- Post-upload pipeline: magic-byte MIME verification, checksum, quarantine ✅ (virus scan wired in 3.2)
+- Post-upload pipeline: magic-byte MIME verification, checksum, virus scan, quarantine ✅
 - Entity attachments on leads, clients, properties, deals, tasks and notes ✅
-- ARQ worker pool + scheduled jobs
+- ARQ worker pool + scheduled jobs ✅
+- Email/notification delivery via queue ✅
 - Document versioning and lifecycle (`draft → awaiting_signature → signed → expired`)
-- Email/notification delivery via queue
 - Expiry reminders and digest jobs
 
 **Exit criteria**
@@ -277,8 +332,11 @@ bound to `S3_PUBLIC_ENDPOINT_URL`. On real S3 the two collapse into one.
   key tampering and GET-as-PUT are each refused by signature verification, and a
   user who cannot read the parent record never receives a URL at all
 - Upload → scan → visible, with an infected fixture quarantined and audited,
-  never served
-- Failed jobs retry with backoff and surface in a dead-letter view
+  never served ✅ — an EICAR fixture is quarantined, its bytes deleted, a
+  `document.quarantined` entry raised, and the download path refuses it
+- Failed jobs retry with backoff and surface in a dead-letter view ✅ — measured
+  on the live worker at 1.48s / 3.76s / 7.65s / 9.14s before dead-lettering,
+  with the row readable at `GET /api/v1/jobs/failures`
 
 ---
 

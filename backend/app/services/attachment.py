@@ -65,6 +65,11 @@ from app.services.storage.validation import (
     verify_content,
 )
 
+# `app.workers.queue` depends only on config and logging — enqueueing is not
+# business logic and pulls no job code in, so this does not invert the
+# api -> services -> repositories layering.
+from app.workers.queue import JobName, enqueue
+
 logger = get_logger(__name__)
 
 ENTITY_TYPE = "attachment"
@@ -359,6 +364,16 @@ class AttachmentService:
             # claim" and "the bytes are not malware" there is a window, and a
             # file must not be servable inside it. The scan job publishes it.
             attachment.scan_status = "pending"
+            # A lost enqueue is survivable — the scan-backlog sweep re-finds
+            # anything still `pending` — so this must not fail the request. The
+            # job id is derived from the attachment so a retry of this call
+            # cannot queue the same scan twice.
+            await enqueue(
+                JobName.SCAN_ATTACHMENT,
+                str(attachment.id),
+                str(self.auth.organization_id),
+                job_id=f"scan:{attachment.id}",
+            )
         else:
             attachment.scan_status = "skipped"
             attachment.status = "available"
@@ -444,6 +459,130 @@ class AttachmentService:
         logger.warning(
             "attachment_rejected",
             extra={"attachment_id": str(attachment.id), "reason": reason},
+        )
+
+    # ------------------------------------------------ background pipeline
+    #
+    # Called by the worker (app/workers/jobs/documents.py), which runs them
+    # through this same service with a tenant-bound session and an explicit
+    # system authorization context — not through a parallel implementation
+    # with looser rules.
+
+    async def list_pending_scan(self, limit: int = 100) -> list[Attachment]:
+        self.auth.require("documents.view")
+        return await self.attachments.list_pending_scan(
+            self.auth.organization_id, limit=limit
+        )
+
+    async def list_abandoned(self, limit: int = 500) -> list[Attachment]:
+        self.auth.require("documents.view")
+        return await self.attachments.list_abandoned(
+            self.auth.organization_id, before=datetime.now(UTC), limit=limit
+        )
+
+    async def apply_scan_result(
+        self,
+        attachment_id: UUID,
+        *,
+        verdict: str,
+        signature: str | None = None,
+        scanner: str = "unknown",
+    ) -> Attachment:
+        """Record a malware verdict and resolve the file's fate.
+
+        `clean` publishes what finalization already verified. `infected`
+        quarantines it **and deletes the bytes** — a quarantined file is not a
+        file kept somewhere safer, it is a file that no longer exists, because
+        the only thing anyone would do with it is accidentally serve it. The
+        row stays, so the audit trail records that it was here.
+
+        `failed` (the scanner itself was unavailable) deliberately changes
+        nothing but the scan state: the file stays unpublished and the next
+        sweep picks it up again. A scanner outage must not publish files.
+        """
+        self.auth.require("documents.manage")
+        attachment = await self.attachments.get(
+            attachment_id, self.auth.organization_id
+        )
+        if attachment is None:
+            raise NotFoundError("Attachment not found.")
+
+        now = datetime.now(UTC)
+        attachment.scanned_at = now
+
+        if verdict == "infected":
+            attachment.scan_status = "infected"
+            attachment.status = "quarantined"
+            attachment.failure_reason = (
+                f"Quarantined by the malware scanner ({signature or 'unknown'})."
+            )
+            if attachment.storage_key:
+                try:
+                    await self.storage.delete(attachment.storage_key)
+                except StorageError:
+                    logger.exception(
+                        "quarantined_object_delete_failed",
+                        extra={"attachment_id": str(attachment.id)},
+                    )
+            await self.session.flush()
+            await self.audit.record(
+                action=AuditAction.DOCUMENT_QUARANTINED,
+                organization_id=self.auth.organization_id,
+                actor_id=None,
+                actor_email=None,
+                entity_type=ENTITY_TYPE,
+                entity_id=attachment.id,
+                metadata={
+                    "filename": attachment.filename,
+                    "signature": signature,
+                    "scanner": scanner,
+                },
+            )
+            logger.warning(
+                "attachment_quarantined",
+                extra={
+                    "attachment_id": str(attachment.id),
+                    "signature": signature,
+                },
+            )
+            return attachment
+
+        if verdict == "clean":
+            attachment.scan_status = "clean"
+            if attachment.status == "pending_upload" and attachment.size_bytes:
+                attachment.status = "available"
+                attachment.available_at = now
+                attachment.upload_expires_at = None
+        else:
+            attachment.scan_status = "failed"
+
+        await self.session.flush()
+        return attachment
+
+    async def expire_abandoned(self, attachment: Attachment) -> None:
+        """Close out a registration whose upload never arrived.
+
+        Deletes anything at the key first. A PUT that completed just as the
+        window closed would otherwise leave an object with no row that will
+        ever reference it — invisible, unbilled to any feature, and permanent.
+        """
+        if attachment.storage_key:
+            try:
+                await self.storage.delete(attachment.storage_key)
+            except StorageError:
+                logger.exception(
+                    "abandoned_object_delete_failed",
+                    extra={"attachment_id": str(attachment.id)},
+                )
+
+        attachment.status = "failed"
+        attachment.failure_reason = "The upload was not completed in time."
+        attachment.upload_expires_at = None
+        attachment.scan_status = "skipped"
+        await self.session.flush()
+        logger.info(
+            "attachment_upload_abandoned",
+            extra={"attachment_id": str(attachment.id)},
         )
 
     # ----------------------------------------------------------- downloads

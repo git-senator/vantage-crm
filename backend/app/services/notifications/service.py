@@ -115,5 +115,62 @@ class NotificationService:
             )
         )
 
+    async def send_task_assigned(
+        self, *, to: EmailAddress, task_title: str, due_on: str | None
+    ) -> SendResult:
+        """Phase 3.2 wires the seam Phase 2.7 left in TaskService.
+
+        No deep link yet — the frontend has no per-task route, and a URL that
+        404s is worse than no URL. The task list is a real destination today.
+        """
+        subject = f"Task assigned: {task_title}"
+        due_line = f"Due {due_on}." if due_on else "No due date."
+        text_body = (
+            f"Hello {to.name or 'there'},\n\n"
+            f"A task has been assigned to you: {task_title}\n{due_line}\n\n"
+            "It is waiting in your Vantage CRM task list.\n"
+        )
+        html_body = (
+            f"<p>Hello {to.name or 'there'},</p>"
+            f"<p>A task has been assigned to you: <strong>{task_title}</strong><br>"
+            f"{due_line}</p>"
+            "<p>It is waiting in your Vantage CRM task list.</p>"
+        )
+        return await self._send(
+            EmailMessage(
+                to=[to],
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+                tags={"category": "task_assigned"},
+            )
+        )
+
+    async def send_raw(
+        self,
+        *,
+        to: EmailAddress,
+        subject: str,
+        html_body: str,
+        text_body: str,
+        category: str = "general",
+    ) -> SendResult:
+        """Escape hatch for callers composing their own message.
+
+        Kept deliberately unattractive relative to the intents above: a feature
+        that builds its own copy here is a feature whose wording changes when
+        somebody edits a job file, which is precisely what putting templates in
+        this class was meant to prevent.
+        """
+        return await self._send(
+            EmailMessage(
+                to=[to],
+                subject=subject,
+                html_body=html_body,
+                text_body=text_body,
+                tags={"category": category},
+            )
+        )
+
     async def verify(self) -> bool:
         return await self._provider.verify_configuration()
