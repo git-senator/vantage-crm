@@ -148,6 +148,17 @@ queue the same scan twice.
 | `sweep_abandoned_uploads` | cron :00/:15/:30/:45 | Closes expired registrations, deletes late objects |
 | `notify_task_assigned` | on assignment | Emails the assignee, re-reading state at send time |
 | `send_email` | ad hoc | Generic queued delivery |
+| `deliver_message` | on send | Delivers a CRM message over its channel |
+| `dispatch_workflow_event` | on the outbox | Matches an event to published workflows |
+| `execute_workflow_run` | on dispatch | Runs one workflow to its next pause |
+| `sweep_workflow_events` | cron every minute :45 | The outbox net — normally finds nothing |
+| `sweep_workflow_runs` | cron every minute :15 | Resumes runs parked on a delay |
+| `sweep_calendar_reminders` | cron every 5 min :30 | Sends event reminders that have come due |
+| `snapshot_metrics` | cron 00:07 daily | Records **yesterday** per owner, per tenant |
+| `backfill_metrics` | manual | Rebuilds up to 30 days of history after a gap |
+| `run_report_export` | on export request | Renders a report and stores the file |
+| `sweep_scheduled_reports` | cron hourly :12 | Queues due reports; re-queues stranded runs |
+| `sweep_expired_exports` | cron 03:40 daily | Deletes export objects past retention; keeps the rows |
 
 Crons are staggered rather than all firing at `:00`: two sweeps starting
 simultaneously across every tenant is a self-inflicted thundering herd on a
@@ -156,16 +167,27 @@ database that is also serving requests.
 Multiple worker replicas are safe — ARQ's cron jobs are `unique=True`, so a
 scheduled tick is claimed by one worker rather than run by each.
 
-### Scanning, and an honest limitation
+Two cadence choices are worth stating, because both look arbitrary and are not.
+`snapshot_metrics` runs at 00:07 for the day that *just ended*: a snapshot of a
+finished day is complete, while one of the current day is a partial reading the
+next run would have to correct. `sweep_scheduled_reports` runs hourly rather
+than per minute, because a daily report is due once a day and scanning every
+tenant's schedule 1,440 times to find nothing is not a bargain — an hour is the
+worst case by which a scheduled report can be late.
+
+### Scanning
+
+Two engines ship. `ClamAvScanner` — clamd over the INSTREAM protocol — is the
+production answer, added in Phase 5.6; see [HARDENING.md §2](./HARDENING.md).
 
 `EicarSignatureScanner` detects the **EICAR test file** and nothing else. It is
-not antivirus. It exists because the quarantine pipeline — scan, verdict,
+not antivirus. It stays because the quarantine pipeline — scan, verdict,
 quarantine, delete the bytes, audit, never serve — is real code that needs
 proving end to end, and EICAR is the standard harmless way to prove it.
 
 `assert_production_ready` refuses to start a production process with scanning
-enabled *and* this scanner configured. A scanner that catches nothing is worse
-than none, because it looks like protection.
+enabled *and* the EICAR scanner configured. A scanner that catches nothing is
+worse than none, because it looks like protection.
 
 Three verdicts, three outcomes:
 
