@@ -215,6 +215,14 @@ class Message(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     #: in the recipient's own mail client rather than starting a new chain.
     rfc_message_id: Mapped[str | None] = mapped_column(String(500), nullable=True)
     in_reply_to: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    #: The full References chain, oldest first. Stored rather than recomputed
+    #: from the conversation because a thread is not the same thing as a
+    #: conversation: the counterparty may reply from a different client, fork
+    #: the thread, or loop somebody in, and the chain they are threading on is
+    #: whatever their headers say — not what our message list implies.
+    references: Mapped[list[str]] = mapped_column(
+        postgresql.ARRAY(Text), nullable=False, default=list, server_default="{}"
+    )
 
     sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

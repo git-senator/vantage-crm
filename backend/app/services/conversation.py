@@ -46,6 +46,13 @@ from app.schemas.conversation import (
 )
 from app.services.audit import AuditService
 from app.services.messaging import InboundMessage, MessagingError, build_channel
+from app.services.messaging.threading import (
+    build_references,
+    domain_of,
+    generate_message_id,
+    normalise_message_id,
+    parse_references,
+)
 from app.services.notification_center import NotificationCenter
 from app.services.rbac import AuthorizationContext, RbacService
 from app.workers.queue import JobName, enqueue
@@ -143,6 +150,13 @@ class ConversationService:
             owner_id=actor.id,
         )
 
+        # Threading is decided here, before the send, so the id this message
+        # will carry is recorded even if delivery never happens — a reply to it
+        # must be able to reference an id that exists in our own data, not one
+        # discovered later from a provider response.
+        parent = await self.messages.latest_threadable(
+            conversation.id, self.auth.organization_id
+        )
         message = Message(
             organization_id=self.auth.organization_id,
             conversation_id=conversation.id,
@@ -153,6 +167,17 @@ class ConversationService:
             to_address=address,
             subject=payload.subject or conversation.subject,
             body_text=payload.body_text,
+            rfc_message_id=(
+                generate_message_id(domain_of(actor.email))
+                if payload.channel == "email"
+                else None
+            ),
+            in_reply_to=parent.rfc_message_id if parent is not None else None,
+            references=(
+                build_references(parent.references, parent.rfc_message_id)
+                if parent is not None
+                else []
+            ),
         )
         self.session.add(message)
         await self.session.flush()
@@ -328,6 +353,7 @@ class InboundMessageService:
                 body_html=payload.body_html,
                 rfc_message_id=payload.rfc_message_id,
                 in_reply_to=payload.in_reply_to,
+                references=parse_references(payload.references),
                 metadata={k: str(v) for k, v in payload.metadata.items()},
             )
         )
@@ -397,8 +423,9 @@ class InboundMessageService:
             body_text=inbound.body_text,
             body_html=inbound.body_html,
             provider_message_id=inbound.provider_message_id,
-            rfc_message_id=inbound.rfc_message_id,
-            in_reply_to=inbound.in_reply_to,
+            rfc_message_id=normalise_message_id(inbound.rfc_message_id),
+            in_reply_to=normalise_message_id(inbound.in_reply_to),
+            references=list(inbound.references),
             sent_at=datetime.now(UTC),
             metadata_=dict(inbound.metadata),
         )

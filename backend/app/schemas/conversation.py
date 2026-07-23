@@ -118,6 +118,10 @@ class InboundEmailPayload(BaseModel):
     provider_message_id: str = Field(min_length=1, max_length=255)
     rfc_message_id: str | None = Field(default=None, max_length=500)
     in_reply_to: str | None = Field(default=None, max_length=500)
+    #: The raw References header, verbatim. Parsed rather than validated here:
+    #: real senders fold it across lines with every combination of spaces and
+    #: tabs, so a strict schema would reject mail that threads perfectly well.
+    references: str | None = Field(default=None, max_length=4000)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

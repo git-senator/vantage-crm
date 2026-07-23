@@ -199,16 +199,50 @@ class Settings(BaseSettings):
     #: which is honest about the fact that nothing looked at it.
     MALWARE_SCAN_ENABLED: bool = False
 
-    #: Which scanner backs that switch. `eicar` detects the EICAR test file and
-    #: nothing else — it exists to prove the quarantine pipeline, not to protect
-    #: anything, and production refuses to start with scanning enabled while it
-    #: is the configured engine. See app/services/storage/scanning.py.
-    MALWARE_SCANNER: Literal["eicar"] = "eicar"
+    #: Which scanner backs that switch. `clamav` is the production answer,
+    #: spoken to over clamd's INSTREAM protocol. `eicar` detects the EICAR test
+    #: file and nothing else — it exists to prove the quarantine pipeline, not
+    #: to protect anything, and production refuses to start with scanning
+    #: enabled while it is the configured engine.
+    #: See app/services/storage/scanning.py.
+    MALWARE_SCANNER: Literal["eicar", "clamav"] = "eicar"
+
+    CLAMAV_HOST: str = "clamav"
+    CLAMAV_PORT: int = 3310
+    #: Wraps the whole exchange. A scanner that hangs holds a worker slot
+    #: indefinitely, and a queue of stalled scans is worse than a scan that
+    #: gives up and is retried.
+    CLAMAV_TIMEOUT_SECONDS: float = 30.0
 
     #: Largest object the scanner will read into memory. Beyond this the file
     #: is left unscanned and unpublished rather than the worker being asked to
     #: buffer an arbitrary amount of hostile input.
     MALWARE_SCAN_MAX_BYTES: int = 16 * 1024 * 1024
+
+    # ------------------------------------------------- secrets at rest
+    #: Where data keys come from. `local` reads them from configuration —
+    #: correct cryptography, ordinary key management, honest for local and
+    #: staging. `aws_kms` uses envelope encryption, so the plaintext data key
+    #: never reaches disk and every unwrap is an IAM call CloudTrail records.
+    #: See app/core/secrets.py.
+    ENCRYPTION_PROVIDER: Literal["local", "aws_kms"] = "local"
+
+    #: `id:base64-key,id:base64-key`. More than one so a rotation is a config
+    #: change rather than a migration: the key id travels inside each token, so
+    #: old values stay readable while new writes use the active key.
+    ENCRYPTION_KEYS: SecretStr = SecretStr("")
+    ENCRYPTION_ACTIVE_KEY_ID: str = "primary"
+
+    #: The KMS key ARN or alias, when the provider is `aws_kms`.
+    KMS_KEY_ID: str | None = None
+    #: Falls back to S3_REGION, since a deployment almost always keeps its key
+    #: and its bucket in one region and two settings that must agree are two
+    #: settings that will eventually disagree.
+    KMS_REGION: str | None = None
+
+    @property
+    def kms_region(self) -> str:
+        return self.KMS_REGION or self.S3_REGION
 
     # ---------------------------------------------------------- workers
     #: How many jobs one worker process runs concurrently. Jobs are I/O bound
@@ -336,6 +370,24 @@ class Settings(BaseSettings):
                 "S3_ACCESS_KEY_ID must be set when S3_ENDPOINT_URL is "
                 "configured (a custom endpoint has no instance role)"
             )
+        # Encryption at rest for secret columns. Checked rather than assumed:
+        # the failure mode is silent — everything works, and the TOTP secrets
+        # sit in the database in the clear waiting for the one dump that matters.
+        from app.core.secrets import encryption_configured
+
+        if not encryption_configured(self):
+            problems.append(
+                "Secret encryption is not configured. Set ENCRYPTION_KEYS "
+                "(id:base64-key) or ENCRYPTION_PROVIDER=aws_kms with KMS_KEY_ID "
+                "— without it MFA secrets are stored in plaintext"
+            )
+        elif self.ENCRYPTION_PROVIDER == "local":
+            problems.append(
+                "ENCRYPTION_PROVIDER is 'local' in production: the key lives in "
+                "this process's environment, so anything that reads the "
+                "environment reads the key. Use aws_kms"
+            )
+
         if self.MALWARE_SCAN_ENABLED and self.MALWARE_SCANNER == "eicar":
             problems.append(
                 "MALWARE_SCAN_ENABLED is on with the 'eicar' scanner, which "

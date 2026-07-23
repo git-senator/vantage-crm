@@ -40,6 +40,13 @@ class EmailMessage:
     cc: list[EmailAddress] = field(default_factory=list)
     bcc: list[EmailAddress] = field(default_factory=list)
     tags: dict[str, str] = field(default_factory=dict)
+    #: Extra RFC 5322 headers — Message-ID, In-Reply-To, References. Present
+    #: because threading cannot be expressed any other way: a reply is a reply
+    #: because of its headers, not because of its subject line. An adapter that
+    #: cannot set headers must fall back to a plain send rather than dropping
+    #: them silently, since a thread that quietly stops threading looks like the
+    #: feature was never built.
+    headers: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.to:

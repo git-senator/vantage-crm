@@ -640,6 +640,30 @@ decisions worth carrying forward:
 - CSV injection is neutralised once, at the cell boundary; exports are queued
   and stored, never rendered inline; scheduled runs carry no fake actor.
 
+**5.6 admin and hardening — delivered.** See [HARDENING.md](./HARDENING.md).
+
+- **Secrets at rest.** A `KeyProvider`/`SecretBox` pair with a local and a KMS
+  envelope provider; the TOTP secret is sealed. The key id travels inside each
+  token, so rotation is a config change rather than a migration. Legacy
+  plaintext still reads and is re-sealed on the next read — refusing it would
+  have locked every enrolled user out at deploy time. It protects a database
+  dump, not code execution in the API process, and the docs say so rather than
+  claiming more.
+- **A real scanner.** ClamAV over clamd's INSTREAM protocol. `failed` stays a
+  distinct verdict from `clean` so "we could not tell" never becomes "safe", and
+  clamd's `ERROR` maps to `failed` rather than `infected` — quarantining on a
+  size-limit error would delete a legitimate document.
+- **Email threading.** Message-ID, In-Reply-To and References, with the id
+  generated and stored *before* the send: a reply must reference an id that
+  exists, and a provider-assigned one is unknowable at compose time. SES
+  switches to raw MIME when headers are present.
+- **Operational visibility.** The admin panel reports what readiness cannot —
+  worker heartbeats, snapshot freshness, delivery rates that are `null` rather
+  than `0%` over no traffic.
+- Three new production gates: unconfigured encryption, the `local` key provider,
+  and scanning enabled with the EICAR engine. Each is a silent failure mode
+  where everything works and the gap is invisible until the incident.
+
 **Exit criteria**
 - Every pre-production gate in [SECURITY.md §6](./SECURITY.md) is checked
 - Restore from backup rehearsed end to end against a live-shaped dataset

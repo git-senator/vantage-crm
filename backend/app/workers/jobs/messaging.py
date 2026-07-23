@@ -77,6 +77,11 @@ async def deliver_message(
             body_text=message.body_text,
             body_html=message.body_html,
             in_reply_to=message.in_reply_to,
+            references=list(message.references),
+            # The id was minted and stored when the message was composed, so a
+            # retry sends the *same* Message-ID rather than a new one — two ids
+            # for one message would fork the recipient's thread on a redelivery.
+            message_id=message.rfc_message_id,
         )
         channel_name = conversation.channel
 
@@ -124,7 +129,11 @@ async def deliver_message(
         sent.status = "sent"
         sent.sent_at = datetime.now(UTC)
         sent.provider_message_id = result.provider_message_id
-        sent.rfc_message_id = result.rfc_message_id
+        # Only when the channel produced one and nothing was stored: for email
+        # the id is ours and was written at compose time, and overwriting it
+        # here would replace the id a reply already references.
+        if sent.rfc_message_id is None:
+            sent.rfc_message_id = result.rfc_message_id
 
     logger.info(
         "message_delivered",

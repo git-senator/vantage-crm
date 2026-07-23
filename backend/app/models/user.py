@@ -94,15 +94,25 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     )
     #: Base32 TOTP secret.
     #:
-    #: Stored as issued, and that is a stated trade-off rather than an
-    #: oversight: encryption at rest for this column needs a key managed
-    #: somewhere other than beside the data — a KMS — which is Phase 5's
-    #: secrets work. What is in place meanwhile is that the column is in
-    #: `NEVER_DIFF_FIELDS`, so it cannot reach the audit log, is excluded from
-    #: every read schema, and the logger's redaction list covers it. The
-    #: residual exposure is a database dump, which is the same exposure the
-    #: password hashes have.
-    mfa_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    #: Sealed at rest since Phase 5.6 — a `vnt1.` envelope token, not the
+    #: base32 secret. `MfaService` opens it for verification and nothing else
+    #: reads it. Key management lives in `app/core/secrets.py`: configuration
+    #: keys locally, KMS envelope encryption in production, with the key id
+    #: inside each token so a rotation needs no rewrite.
+    #:
+    #: Values written before that ship are plaintext and still open — the
+    #: alternative was locking every enrolled user out at deploy time — and are
+    #: re-sealed on the next read, so the plaintext population drains.
+    #:
+    #: The other protections remain: the column is in `NEVER_DIFF_FIELDS` so it
+    #: cannot reach the audit log, it is excluded from every read schema, and
+    #: the logger redacts it.
+    #:
+    #: 1024, not 255: a KMS token carries the wrapped data key and the key ARN
+    #: alongside the ciphertext, which is ~420 characters — a 255-char column
+    #: works with the local provider and then truncates on the first production
+    #: enrolment, which is the worst possible place to discover it.
+    mfa_secret: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     mfa_enrolled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

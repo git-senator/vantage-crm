@@ -160,6 +160,7 @@ class NotificationService:
         html_body: str,
         text_body: str,
         category: str = "general",
+        headers: dict[str, str] | None = None,
     ) -> SendResult:
         """Escape hatch for callers composing their own message.
 
@@ -175,6 +176,7 @@ class NotificationService:
                 html_body=html_body,
                 text_body=text_body,
                 tags={"category": category},
+                headers=headers or {},
             )
         )
 

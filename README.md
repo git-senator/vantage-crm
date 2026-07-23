@@ -3,11 +3,11 @@
 A private, single-tenant real estate CRM built on foundations that scale to
 multi-tenant SaaS and an AI growth layer.
 
-**Current state: Phase 2 in progress.** Authentication, multi-tenancy with
-row-level security, RBAC and audit logging are complete. Refresh concurrency
-and distributed rate limiting are closed. **Leads** is fully implemented
-end-to-end and is the reference for the remaining CRM modules; clients,
-properties and deals are still fixture-backed.
+**Current state: Phase 5.** Authentication, multi-tenancy with row-level
+security, RBAC and audit logging are complete; so are the CRM core, documents
+and background jobs, the communication layer (notifications, email, calendar,
+WhatsApp, MFA), the automation engine, and — in this phase — analytics,
+reporting, the admin surface and production hardening.
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 
@@ -18,7 +18,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Topology, data flow, backend layering, API structure |
 | [DATABASE.md](docs/DATABASE.md) | Schema, tenancy/RLS, audit log, search, AI tables |
 | [SECURITY.md](docs/SECURITY.md) | RBAC, auth flow, OWASP mapping, AI-layer risks |
-| [ROADMAP.md](docs/ROADMAP.md) | Phases 0–5, exit criteria, risk register |
+| [ROADMAP.md](docs/ROADMAP.md) | Phases 0–6, exit criteria, risk register |
 | [AUTHENTICATION.md](docs/AUTHENTICATION.md) | Token design, login, rotation, RLS bootstrap |
 | [PERMISSIONS.md](docs/PERMISSIONS.md) | Permission registry, roles, scope resolution |
 | [DOCUMENTS.md](docs/DOCUMENTS.md) | Object storage, upload workflow, file verification |
@@ -30,14 +30,15 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 | [AUTOMATION.md](docs/AUTOMATION.md) | Workflow engine, triggers, actions, conditions, the builder |
 | [ANALYTICS.md](docs/ANALYTICS.md) | Metric registry, scoped aggregates, snapshots, dashboards, forecasting |
 | [REPORTING.md](docs/REPORTING.md) | Dataset registry, the query builder, CSV/XLSX/PDF export, scheduling |
+| [HARDENING.md](docs/HARDENING.md) | Secrets at rest, malware scanning, email threading, readiness gates |
 
 ## Stack
 
 | Layer | Technology |
 | --- | --- |
 | Frontend | Next.js 16 (App Router, RSC), TypeScript, Tailwind v4, shadcn/ui |
-| Backend | FastAPI, SQLAlchemy 2 (async), Pydantic v2, Python 3.12 |
-| Database | PostgreSQL 16 (row-level security, `pgvector` from Phase 5) |
+| Backend | FastAPI, SQLAlchemy 2 (async), Pydantic v2, Python 3.14 |
+| Database | PostgreSQL 16 (row-level security, `pgvector` from Phase 6) |
 | Cache / jobs | Redis 7, ARQ |
 | Storage | S3-compatible (MinIO locally, S3 in production) |
 | Email | Amazon SES behind a provider-agnostic `NotificationService` |
@@ -83,10 +84,10 @@ service. `curl localhost:8000` failing from the host is correct behaviour.
 
 ```
 crm/
-├── frontend/            Next.js app (unchanged design; data source changes in Phase 1)
+├── frontend/            Next.js app
 │   ├── src/app/         (app)/ route group + login
 │   ├── src/components/  ui/ (shadcn), shared/, layout/
-│   ├── src/lib/         mock-data (server-only), nav, format
+│   ├── src/lib/         api client, nav, format
 │   └── eslint-rules/    custom client-boundary rule
 ├── backend/
 │   ├── app/
@@ -95,8 +96,10 @@ crm/
 │   │   ├── api/v1/      routers
 │   │   ├── services/    business logic (incl. notifications/)
 │   │   ├── repositories/ data access — scoping enforcement point
-│   │   ├── workers/     ARQ tasks (Phase 3)
-│   │   └── ai/          AI layer (Phase 5)
+│   │   ├── workers/     ARQ tasks
+│   │   ├── analytics/   metric registry
+│   │   ├── reporting/   dataset registry, query builder, exporters
+│   │   └── automation/  workflow engine
 │   ├── alembic/         migrations
 │   └── tests/
 ├── docker/postgres/init/  role provisioning for RLS
@@ -164,6 +167,7 @@ BYPASSRLS, and owns nothing else. See docs/AUTHENTICATION.md §5.
 | 0 | Foundations, CI, security baseline | **Complete** |
 | 1 | Auth, multi-tenancy, RBAC, audit logging | **Complete** |
 | 2 | CRM core — leads, clients, properties, deals, activities, tasks, notes, timeline, dashboard | **Complete** — list p95 24.8 ms on 100k rows |
-| 3 | Documents, S3, background jobs | Planned (attachment placeholders in place) |
-| 4 | Analytics, admin, production hardening | Planned |
-| 5 | AI layer — scoring, assistant, generation, discovery | Planned |
+| 3 | Documents, S3, background jobs, notifications, email, calendar, WhatsApp, MFA | **Complete** |
+| 4 | Automation engine — workflows, triggers, actions, conditions, the builder | **Complete** |
+| 5 | Analytics, reporting, admin, production hardening | **Complete** |
+| 6 | AI layer — scoring, assistant, generation, discovery | Planned |

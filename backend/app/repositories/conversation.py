@@ -187,3 +187,24 @@ class MessageRepository(BaseRepository[Message]):
             .where(Message.provider_message_id == provider_message_id)
         )
         return (await self.session.execute(query)).unique().scalar_one_or_none()
+
+
+    async def latest_threadable(
+        self, conversation_id: UUID, organization_id: UUID
+    ) -> Message | None:
+        """The most recent message in the thread that carries a Message-ID.
+
+        The parent a reply should point at. Rows without an id are skipped
+        rather than treated as the parent: a WhatsApp message, or an email that
+        failed before it was ever assigned one, cannot anchor a chain, and
+        referencing nothing is better than referencing a gap.
+        """
+        query = (
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .where(Message.organization_id == organization_id)
+            .where(Message.rfc_message_id.is_not(None))
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        )
+        return (await self.session.execute(query)).scalars().first()

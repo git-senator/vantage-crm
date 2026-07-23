@@ -38,6 +38,7 @@ from app.core.audit_actions import AuditAction
 from app.core.config import Settings
 from app.core.exceptions import AuthenticationError, ConflictError
 from app.core.logging import get_logger
+from app.core.secrets import SecretBox, SecretsError, build_key_provider, is_token
 from app.core.security import verify_password
 from app.core.totp import (
     generate_recovery_codes,
@@ -68,6 +69,59 @@ class MfaService:
         self.session = session
         self.settings = settings
         self.audit = AuditService(session)
+        self._box: SecretBox | None = None
+
+    @property
+    def box(self) -> SecretBox:
+        """The sealing box, built from *this service's* settings.
+
+        Not the process-wide `get_secret_box()`: this service is already handed
+        its settings, and reaching past them to the global would make the key a
+        second, invisible configuration input — the kind that works in the app
+        and fails in a test for reasons unrelated to what the test is about.
+        """
+        if self._box is None:
+            self._box = SecretBox(build_key_provider(self.settings))
+        return self._box
+
+    # ------------------------------------------------- secret at rest
+
+    #: Bound into the ciphertext, so a sealed TOTP secret lifted into another
+    #: column fails authentication instead of working there.
+    SECRET_CONTEXT = "users.mfa_secret"  # noqa: S105 — a column name, not a secret
+
+    def _seal(self, secret: str) -> str:
+        """Encrypt a TOTP secret for storage.
+
+        A failure here must not be swallowed: silently storing plaintext after
+        encryption was configured is the exact outcome the feature exists to
+        prevent, and it would be invisible until a database dump leaked.
+        """
+        return self.box.encrypt(secret, context=self.SECRET_CONTEXT)
+
+    def _open(self, user: User) -> str | None:
+        """The user's TOTP secret in the clear, for verification only.
+
+        Values written before this feature shipped are plaintext and are
+        returned as-is — see app/core/secrets.py. They are re-sealed opportun-
+        istically here, so the plaintext population drains through ordinary use
+        rather than through a migration that has no key access.
+        """
+        stored = user.mfa_secret
+        if stored is None:
+            return None
+        try:
+            secret = self.box.decrypt(stored, context=self.SECRET_CONTEXT)
+        except SecretsError:
+            # A secret that cannot be opened is a secret nobody can authenticate
+            # against. Logged loudly and failed closed rather than treated as
+            # "no MFA", which would let a key misconfiguration silently downgrade
+            # every enrolled account to one factor.
+            logger.error("mfa_secret_unreadable", extra={"user_id": str(user.id)})
+            raise
+        if not is_token(stored):
+            user.mfa_secret = self._seal(secret)
+        return secret
 
     # ---------------------------------------------------------- enrolment
 
@@ -86,7 +140,7 @@ class MfaService:
             )
 
         secret = generate_secret()
-        user.mfa_secret = secret
+        user.mfa_secret = self._seal(secret)
         # Not enabled, and the counter is cleared so an old device's codes
         # cannot satisfy the new secret's replay guard.
         user.mfa_last_counter = None
@@ -109,12 +163,11 @@ class MfaService:
         """
         if user.mfa_enabled:
             raise ConflictError("Two-factor authentication is already on.")
-        if not user.mfa_secret:
+        secret = self._open(user)
+        if not secret:
             raise ConflictError("Start enrolment before activating.")
 
-        counter = verify_code(
-            user.mfa_secret, code, last_counter=user.mfa_last_counter
-        )
+        counter = verify_code(secret, code, last_counter=user.mfa_last_counter)
         if counter is None:
             logger.warning("mfa_activation_failed", extra={"user_id": str(user.id)})
             raise AuthenticationError(GENERIC_MFA_ERROR)
@@ -236,9 +289,11 @@ class MfaService:
             # still the right answer.
             raise AuthenticationError(GENERIC_MFA_ERROR)
 
-        counter = verify_code(
-            user.mfa_secret, code, last_counter=user.mfa_last_counter
-        )
+        secret = self._open(user)
+        if not secret:  # pragma: no cover — guarded above
+            raise AuthenticationError(GENERIC_MFA_ERROR)
+
+        counter = verify_code(secret, code, last_counter=user.mfa_last_counter)
         if counter is not None:
             user.mfa_last_counter = counter
             await self.session.flush()

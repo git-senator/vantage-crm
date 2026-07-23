@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_actions import AuditAction
 from app.core.exceptions import AuthenticationError, ConflictError
+from app.core.secrets import is_token
 from app.core.security import TokenDecodeError, decode_access_token
 from app.core.totp import (
     DIGITS,
@@ -167,11 +168,18 @@ class TestEnrolment:
     ) -> None:  # type: ignore[no-untyped-def]
         """A one-step version locks somebody out with a secret they never
         successfully scanned."""
-        secret, uri = await MfaService(db, settings).begin_enrolment(user)
+        service = MfaService(db, settings)
+        secret, uri = await service.begin_enrolment(user)
 
         assert secret and secret in uri
-        assert user.mfa_secret == secret
         assert user.mfa_enabled is False
+        # Sealed at rest, never stored as issued: the column holds a token, and
+        # the plaintext is only recoverable through the box.
+        assert user.mfa_secret != secret
+        assert is_token(user.mfa_secret or "")
+        assert service.box.decrypt(
+            user.mfa_secret or "", context=service.SECRET_CONTEXT
+        ) == secret
 
     async def test_activation_requires_a_real_code(
         self, db: AsyncSession, settings, user

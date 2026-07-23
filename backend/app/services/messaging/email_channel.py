@@ -4,24 +4,33 @@ Sends through the existing `EmailProvider` abstraction rather than reaching for
 boto3 — the provider swap that Phase 1 bought applies here too, and a CRM
 message and a password reset should not travel by different routes.
 
-**A known limitation, stated rather than hidden.** True threading needs
-`In-Reply-To` and `References` headers, which require the raw-MIME send API
-(`SendRawEmail`), and `EmailProvider.send` speaks the simple API. So a reply
-sent from the CRM threads correctly *in the CRM* — the conversation is keyed on
-the counterparty's address — but may start a new chain in the recipient's own
-mail client. `in_reply_to` is carried through this layer and stored, so closing
-the gap is a change to the provider adapter and not to anything above it.
+**Threading is real as of Phase 5.6.** The message carries its own
+`Message-ID`, generated here *before* the send and returned so the caller can
+record it — a reply must reference an id that already exists, and a
+provider-assigned id is unknowable at compose time. `In-Reply-To` and
+`References` come from the parent message, and the SES adapter switches to raw
+MIME when headers are present because the simple API has no way to carry them.
+
+The Message-ID is minted under the sending domain: a mismatched id is a weak
+DMARC signal and there is no reason to spend that credibility. See
+`app/services/messaging/threading.py`.
 """
 
 from __future__ import annotations
 
 import re
 
+from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
 from app.services.messaging.base import (
     DeliveryResult,
     MessagingError,
     OutboundMessage,
+)
+from app.services.messaging.threading import (
+    domain_of,
+    generate_message_id,
+    threading_headers,
 )
 from app.services.notifications.base import (
     EmailAddress,
@@ -41,8 +50,23 @@ _ADDRESS = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 class EmailChannel:
     name = "email"
 
-    def __init__(self, provider: EmailProvider | None = None) -> None:
+    def __init__(
+        self, provider: EmailProvider | None = None, settings: Settings | None = None
+    ) -> None:
         self._service = NotificationService(provider=provider)
+        self._settings = settings
+
+    @property
+    def settings(self) -> Settings:
+        """Resolved on first send, not in `__init__`.
+
+        Constructing a channel must not require a configured environment: the
+        adapter cache builds one at import-adjacent times, and a test that
+        passes a fake provider is not asking for the process's settings.
+        """
+        if self._settings is None:
+            self._settings = get_settings()
+        return self._settings
 
     def normalise_address(self, address: str) -> str:
         """Lowercase and strip any display name.
@@ -70,6 +94,19 @@ class EmailChannel:
             # A subjectless email is a deliverability problem, not a style one.
             raise MessagingError("Email requires a subject.", retryable=False)
 
+        # Ours, not the provider's. The caller may have generated it already so
+        # that it could be recorded before the send — which is what lets a reply
+        # to *this* message reference it — and this is the fallback for callers
+        # that did not.
+        message_id = message.message_id or generate_message_id(
+            domain_of(self.settings.EMAIL_FROM)
+        )
+        headers = threading_headers(
+            message_id=message_id,
+            in_reply_to=message.in_reply_to,
+            references=message.references,
+        )
+
         try:
             result = await self._service.send_raw(
                 to=EmailAddress(address=message.to_address, name=message.to_name),
@@ -77,6 +114,7 @@ class EmailChannel:
                 html_body=message.body_html or _as_html(message.body_text),
                 text_body=message.body_text,
                 category="crm_message",
+                headers=headers,
             )
         except NotificationError as exc:
             raise MessagingError(str(exc), retryable=exc.retryable) from exc
@@ -84,10 +122,11 @@ class EmailChannel:
         return DeliveryResult(
             provider_message_id=result.provider_message_id,
             channel=self.name,
-            # SES returns the id it will use in the Message-ID header, so the
-            # two are the same value here. Kept as separate fields because a
-            # different provider will not have that property.
-            rfc_message_id=result.provider_message_id,
+            # The id *we* set, not the provider's. They used to be the same
+            # value because SES assigned both; now that the header is ours, the
+            # provider id is only useful for looking the send up in SES, and
+            # conflating them would put an unthreadable id in the reply chain.
+            rfc_message_id=message_id,
         )
 
 
