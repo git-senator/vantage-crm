@@ -53,6 +53,7 @@ class JobName:
     RUN_REPORT_EXPORT: Final = "run_report_export"
     SWEEP_SCHEDULED_REPORTS: Final = "sweep_scheduled_reports"
     SWEEP_EXPIRED_EXPORTS: Final = "sweep_expired_exports"
+    RUN_AI_COMPLETION: Final = "run_completion"
 
 
 def redis_settings(settings: Settings | None = None) -> RedisSettings:

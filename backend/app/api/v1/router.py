@@ -11,6 +11,7 @@ from fastapi import APIRouter
 from app.api.v1 import (
     activities,
     admin,
+    ai,
     analytics,
     attachments,
     audit,
@@ -79,6 +80,7 @@ api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboar
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
+api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
 
 
 # Phase 3.1 replaced the attachment placeholders with real object storage;

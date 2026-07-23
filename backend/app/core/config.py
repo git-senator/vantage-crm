@@ -293,6 +293,39 @@ class Settings(BaseSettings):
     #: business phone number Meta *does* send.
     WHATSAPP_ORGANIZATION_ID: str = ""
 
+    # -------------------------------------------------------------- ai
+    # Provider is swappable; business logic depends on AIService, never on the
+    # Anthropic API. See app/services/ai/ and docs/AI.md.
+    #
+    # `echo` is the default deliberately: it never calls a model and cannot leak
+    # a customer's data to a third party during local development or a test run,
+    # which is the most serious class of AI-integration accident. Production must
+    # set a real provider *and* opt in — see assert_production_ready.
+    AI_PROVIDER: Literal["anthropic", "echo"] = "echo"
+
+    #: Master switch. Off by default: the AI layer sends CRM data to an external
+    #: model, so it is opt-in per deployment rather than on the moment a key is
+    #: present. Every AI entry point checks this before doing anything.
+    AI_ENABLED: bool = False
+
+    AI_API_BASE: str = "https://api.anthropic.com"
+    AI_API_KEY: SecretStr = SecretStr("")
+    #: The default model. Sonnet is the capable, cost-sensible default for
+    #: assistant and analysis work; cheaper models are selected per feature
+    #: (lead scoring runs on Haiku) rather than globally.
+    AI_MODEL: str = "claude-sonnet-5"
+    AI_TIMEOUT_SECONDS: float = 60.0
+
+    #: Hard monthly cost ceiling per organization, in USD. Enforced *before*
+    #: dispatch (SECURITY.md §5): once a tenant's month-to-date spend reaches
+    #: this, further calls are refused rather than merely logged. 0 disables the
+    #: ceiling, which production forbids.
+    AI_MONTHLY_COST_CEILING_USD: float = 50.0
+
+    #: Ceiling on tokens a single completion may generate. The per-call guard
+    #: that stops one runaway request, distinct from the tenant-month ceiling.
+    AI_MAX_OUTPUT_TOKENS: int = 1024
+
     # ------------------------------------------------------------- cors
     # Empty in production: the browser only ever talks to Next.js, which proxies
     # to this API over the internal network. See docs/ARCHITECTURE.md §2.
@@ -407,6 +440,22 @@ class Settings(BaseSettings):
                 "CORS_ORIGINS must be empty in production — the API is not "
                 "browser-facing; Next.js proxies to it internally"
             )
+        # The AI layer sends CRM data to an external model, so its production
+        # guards are about egress and cost, not just correctness.
+        if self.AI_ENABLED:
+            if self.AI_PROVIDER == "echo":
+                problems.append(
+                    "AI_ENABLED is on with the 'echo' provider, which answers "
+                    "nothing — configure a real AI_PROVIDER or turn the AI "
+                    "layer off"
+                )
+            if self.AI_PROVIDER == "anthropic" and not self.AI_API_KEY.get_secret_value():
+                problems.append("AI_PROVIDER is 'anthropic' but AI_API_KEY is unset")
+            if self.AI_MONTHLY_COST_CEILING_USD <= 0:
+                problems.append(
+                    "AI_MONTHLY_COST_CEILING_USD must be a positive ceiling in "
+                    "production — a disabled ceiling is unbounded model spend"
+                )
         if problems:
             raise RuntimeError("Unsafe production configuration:\n  - " + "\n  - ".join(problems))
 

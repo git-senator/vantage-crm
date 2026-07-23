@@ -231,7 +231,7 @@ Carried over from the audit as first-class requirements:
 
 ---
 
-## 5. AI-layer security (Phase 5, designed now)
+## 5. AI-layer security (Phase 6; infrastructure implemented in 6.1)
 
 The failure modes here are unlike the rest of the system and must be designed for in advance, not bolted on.
 
@@ -241,7 +241,7 @@ The failure modes here are unlike the rest of the system and must be designed fo
 | **Prompt injection via lead data.** A lead's "notes" field is attacker-controlled text that reaches a model prompt. | All CRM-sourced text is untrusted input. Strict system/user separation, delimited and escaped. Model output never authorises an action. |
 | **Autonomous action.** | No AI-initiated writes. Generated content lands in `ai_generated_content` as `draft`; a human transition to `approved` is required before anything sends. |
 | **Data egress to model providers.** | PII minimisation and redaction before egress. Per-org opt-in. Zero-retention provider agreements. Regional routing where required. |
-| **Cost exhaustion.** | Per-org token quotas and hard cost ceilings, enforced before dispatch. Every call's cost recorded in `ai_jobs`. |
+| **Cost exhaustion.** | Per-org hard cost ceilings, enforced before dispatch — a refused call sends and spends nothing. Every call's cost recorded in `ai_jobs`. **Implemented in 6.1** (docs/AI.md §7). |
 | **Output injection.** | Model output is untrusted: escaped on render, never `dangerouslySetInnerHTML`, never executed. |
 
 ---

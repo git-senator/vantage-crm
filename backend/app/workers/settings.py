@@ -26,6 +26,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.db.session import dispose_engine
 from app.services.storage import get_object_storage
+from app.workers.jobs.ai import run_completion
 from app.workers.jobs.analytics import backfill_metrics, snapshot_metrics
 from app.workers.jobs.automation import (
     dispatch_workflow_event,
@@ -94,6 +95,7 @@ class WorkerSettings:
         run_report_export,
         sweep_scheduled_reports,
         sweep_expired_exports,
+        run_completion,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [

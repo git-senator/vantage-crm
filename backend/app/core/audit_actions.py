@@ -89,6 +89,16 @@ class AuditAction:
     WORKFLOW_ENABLED: Final = "workflow.enabled"
     WORKFLOW_DISABLED: Final = "workflow.disabled"
 
+    # --- AI (Phase 6) ---
+    #: A completion was dispatched to a model provider. The auditable act is the
+    #: egress — customer data left for a third party — not the answer that came
+    #: back, so it is recorded whether or not the call succeeded.
+    AI_COMPLETION: Final = "ai.completion"
+    #: A tenant's cost ceiling refused a call before dispatch. Worth alerting on:
+    #: a workspace that keeps hitting its ceiling is either mis-budgeted or being
+    #: driven harder than anyone intended.
+    AI_BUDGET_EXCEEDED: Final = "ai.budget_exceeded"
+
 
 #: Actions that warrant alerting rather than just recording.
 HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
@@ -105,5 +115,8 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         # A quarantine means malware reached the bucket. Somebody should hear
         # about it the same day, not at the next audit review.
         AuditAction.DOCUMENT_QUARANTINED,
+        # Repeatedly hitting the AI cost ceiling is either a mis-budget or abuse,
+        # and either way is a same-day question rather than a monthly one.
+        AuditAction.AI_BUDGET_EXCEEDED,
     }
 )

@@ -708,12 +708,40 @@ Phase 0 layering bought.*
 - Deduplication against existing leads
 - Auto-qualification proposals surfaced for human confirmation
 
+**6.1 infrastructure — delivered.** See [AI.md](./AI.md).
+
+- **Provider abstraction, echo by default.** `CompletionProvider` behind the
+  same Protocol as email and storage; the Anthropic adapter talks to the
+  Messages API over httpx (no SDK); the echo provider is the default because it
+  never calls a model and cannot leak customer data during a test run.
+  Production refuses `AI_ENABLED` with the echo provider.
+- **The cost ceiling is enforced before dispatch**, not after. A refused call
+  sends nothing, spends nothing, is recorded `refused`, and audited
+  high-severity. Refused spend does not count toward the ceiling. Cost is
+  `Decimal` end to end, and an unknown model is priced high rather than free —
+  the dangerous direction for a budget guard is under-counting.
+- **Instructions and data are not confusable.** A prompt is a system string plus
+  fenced, escaped content blocks; untrusted CRM text is the default and cannot
+  forge its own closing delimiter. Redaction masks email, phone and long digit
+  runs before egress.
+- **`ai_jobs` is a ledger, not a transcript** — no prompt, no completion text,
+  so it does not re-introduce the PII redaction just removed. Every egress is
+  audited (`ai.completion`) whether or not the model answered.
+- Context builders ship as a scope-first framework; concrete builders arrive
+  with the features (6.3+). The background completion job runs through the same
+  `AIService.complete`, so the ceiling, ledger and audit hold off the request
+  path too.
+
+The remaining sub-phases (assistant, lead/deal/property intelligence, growth
+engine) fill these frameworks.
+
 **Exit criteria**
 - **RAG leakage test:** a user provably cannot retrieve, via the assistant, any
   record they cannot retrieve via the API
 - Prompt-injection fixtures in lead notes do not alter model behaviour or
   trigger privileged actions
-- Per-org cost ceilings enforced and observable
+- Per-org cost ceilings enforced and observable — **met at the infrastructure
+  level in 6.1**
 - Nothing generated reaches a customer without a recorded human approval
 
 ---
