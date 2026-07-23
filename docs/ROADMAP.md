@@ -625,6 +625,21 @@ decisions worth carrying forward:
   written with the host-local `date.today()` while every other timestamp is UTC —
   a deal closed near midnight fell outside the day it closed. Both fixed.
 
+**5.3 reporting — delivered.** See [REPORTING.md](./REPORTING.md).
+
+- **There is no user SQL.** A report is a specification whose every name is
+  resolved against a fixed registry; a filter that accepted a column name would
+  eventually accept `id) OR (1=1`, and a builder that accepted an expression is a
+  SQL console with a nicer font. Operators are closed and type-checked, LIKE
+  metacharacters are escaped, and values are coerced to the column's type.
+- **Sharing widens who may run a report, never what comes back.** Rows resolve
+  against the runner's scope. The alternative makes a saved report a
+  privilege-escalation primitive that looks like a feature in a demo.
+- **A truncated export reports `partial`, not `succeeded`**, with the total
+  alongside the row count.
+- CSV injection is neutralised once, at the cell boundary; exports are queued
+  and stored, never rendered inline; scheduled runs carry no fake actor.
+
 **Exit criteria**
 - Every pre-production gate in [SECURITY.md §6](./SECURITY.md) is checked
 - Restore from backup rehearsed end to end against a live-shaped dataset

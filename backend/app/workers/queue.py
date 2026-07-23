@@ -50,6 +50,9 @@ class JobName:
     SWEEP_WORKFLOW_RUNS: Final = "sweep_workflow_runs"
     SNAPSHOT_METRICS: Final = "snapshot_metrics"
     BACKFILL_METRICS: Final = "backfill_metrics"
+    RUN_REPORT_EXPORT: Final = "run_report_export"
+    SWEEP_SCHEDULED_REPORTS: Final = "sweep_scheduled_reports"
+    SWEEP_EXPIRED_EXPORTS: Final = "sweep_expired_exports"
 
 
 def redis_settings(settings: Settings | None = None) -> RedisSettings:

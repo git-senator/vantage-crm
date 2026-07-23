@@ -41,6 +41,11 @@ from app.workers.jobs.documents import (
 )
 from app.workers.jobs.messaging import deliver_message
 from app.workers.jobs.notifications import deliver_notification_email, send_email
+from app.workers.jobs.reports import (
+    run_report_export,
+    sweep_expired_exports,
+    sweep_scheduled_reports,
+)
 from app.workers.queue import close_queue, redis_settings
 
 logger = get_logger(__name__)
@@ -86,6 +91,9 @@ class WorkerSettings:
         sweep_workflow_runs,
         snapshot_metrics,
         backfill_metrics,
+        run_report_export,
+        sweep_scheduled_reports,
+        sweep_expired_exports,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -135,6 +143,26 @@ class WorkerSettings:
             cast(WorkerCoroutine, snapshot_metrics),
             hour={0},
             minute={7},
+            second=0,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Hourly. A daily report is due once a day, so checking every hour
+        # bounds how late one can be at an hour — while a per-minute check
+        # would scan every tenant's schedule 1,440 times to find nothing.
+        cron(
+            cast(WorkerCoroutine, sweep_scheduled_reports),
+            minute={12},
+            second=0,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Once a day, well away from the snapshot. Retention is not urgent —
+        # a file that lives an extra hour costs nothing.
+        cron(
+            cast(WorkerCoroutine, sweep_expired_exports),
+            hour={3},
+            minute={40},
             second=0,
             run_at_startup=False,
             max_tries=2,

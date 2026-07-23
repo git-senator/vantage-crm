@@ -38,6 +38,7 @@ from app.models.rbac import (
     UserRole,
 )
 from app.models.refresh_token import RefreshToken
+from app.models.report import ReportDefinition, ReportRun
 from app.models.task import Task
 from app.models.user import User
 
@@ -66,6 +67,8 @@ __all__ = [
     "PipelineStage",
     "Property",
     "RefreshToken",
+    "ReportDefinition",
+    "ReportRun",
     "Role",
     "RolePermission",
     "Task",
