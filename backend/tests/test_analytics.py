@@ -437,3 +437,55 @@ class TestPeriodArithmetic:
         """`days` divides. A zero-length window must not divide by zero."""
         moment = datetime(2026, 3, 15, 12, 0, tzinfo=UTC)
         assert Period(moment, moment, "instant").days == 1
+
+
+class TestCommission:
+    async def test_commission_follows_the_agreed_amount_not_the_rate(
+        self, db: AsyncSession, admin, pipeline, client_record
+    ) -> None:  # type: ignore[no-untyped-def]
+        """The stored amount is authoritative.
+
+        `DealService` computes it once from the rate and then leaves it alone,
+        because flat fees and negotiated splits are real. Analytics that
+        recomputed it would report a figure the brokerage never agreed to — so
+        this asserts an overridden amount survives into the metric.
+        """
+        user, auth = admin
+        service = DealService(db, auth)
+
+        deal = await service.create_deal(
+            DealCreate(
+                title="Negotiated split",
+                client_id=client_record.id,
+                value=Decimal("1000000.00"),
+                commission_rate=Decimal("0.0300"),
+                # Agreed at less than the rate implies. 30000 would be the
+                # computed figure; 12500 is what was signed.
+                commission_amount=Decimal("12500.00"),
+            ),
+            user,
+        )
+        await service.move_stage(
+            deal.id,
+            DealStageTransition(to_stage_id=stage_by_key(pipeline, "closed_won").id),
+            user,
+        )
+
+        values = {
+            metric.key: metric.value
+            for metric in await AnalyticsService(db, auth).kpis(
+                resolve_period("month"), compare=False
+            )
+        }
+        assert values["revenue_won"] == Decimal("1000000.0000")
+        assert values["commission_earned"] == Decimal("12500.0000")
+
+    async def test_commission_is_a_flow_and_is_snapshotted(self) -> None:
+        """It accumulates over a period, so a month is the sum of its days —
+        which is what makes it safe to store and roll up."""
+        from app.analytics.metrics import METRICS_BY_KEY, SNAPSHOT_METRICS
+
+        metric = METRICS_BY_KEY["commission_earned"]
+        assert metric.kind == "flow"
+        assert metric.summable
+        assert "commission_earned" in SNAPSHOT_METRICS

@@ -553,3 +553,48 @@ class TestTenantIsolation:
 
         result = await ReportService(db, admin_auth).preview(_leads_spec())
         assert result["row_count"] == 0
+
+
+class TestRouteOrdering:
+    """A literal route must not be swallowed by `/reports/{definition_id}`.
+
+    FastAPI matches in declaration order, and a path parameter matches a single
+    segment. `/reports/runs/history` is therefore safe wherever it sits — two
+    segments cannot bind to one parameter — but `/reports/datasets` is one
+    segment and would bind as `definition_id="datasets"`, failing UUID parsing
+    and returning a 422 on a route that plainly exists.
+
+    Asserted on resolution rather than on source order, so reordering the file
+    cannot quietly reintroduce it.
+    """
+
+    def test_datasets_resolves_before_the_definition_route(self) -> None:
+        from fastapi.routing import APIRoute
+
+        from app.api.v1.reports import router
+
+        matched = [
+            route.path
+            for route in router.routes
+            if isinstance(route, APIRoute) and route.path_regex.match("/datasets")
+        ]
+
+        assert matched, "no route matches /reports/datasets"
+        assert matched[0] == "/datasets", (
+            f"/reports/datasets is claimed by {matched[0]} first"
+        )
+
+    def test_a_parameter_cannot_span_segments(self) -> None:
+        """The property the runs routes rely on, stated once so nobody has to
+        rediscover why they are safe."""
+        from fastapi.routing import APIRoute
+
+        from app.api.v1.reports import router
+
+        parameterised = [
+            route
+            for route in router.routes
+            if isinstance(route, APIRoute) and route.path == "/{definition_id}"
+        ]
+        assert parameterised
+        assert not parameterised[0].path_regex.match("/runs/history")

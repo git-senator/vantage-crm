@@ -156,12 +156,17 @@ class AnalyticsRepository:
     async def closed_deal_stats(
         self, organization_id: UUID, owner_ids: list[UUID] | None,
         start: datetime, end: datetime,
-    ) -> tuple[int, int, Decimal]:
-        """`(won, lost, revenue_won)` for deals closed in the period.
+    ) -> tuple[int, int, Decimal, Decimal]:
+        """`(won, lost, revenue_won, commission_earned)` for the period.
 
-        One query rather than three: the predicate and the join are identical,
-        and three passes over the same rows to produce three numbers that always
+        One query rather than four: the predicate and the join are identical,
+        and four passes over the same rows to produce four numbers that always
         appear together is work for nothing.
+
+        Commission is the **stored** `commission_amount`, never recomputed from
+        the rate — the deal service treats the amount as authoritative precisely
+        because flat fees and negotiated splits are real, and an analytics layer
+        that recomputed it would report a number the brokerage never agreed to.
 
         Counted on `closed_at`, which the stage transition sets. A deal opened
         in January and won in March is March's win — asking on `created_at`
@@ -175,6 +180,12 @@ class AnalyticsRepository:
                 func.coalesce(
                     func.sum(case((PipelineStage.is_won, Deal.value), else_=0)), 0
                 ),
+                func.coalesce(
+                    func.sum(
+                        case((PipelineStage.is_won, Deal.commission_amount), else_=0)
+                    ),
+                    0,
+                ),
             )
             .select_from(Deal)
             .join(PipelineStage, PipelineStage.id == Deal.stage_id)
@@ -186,7 +197,12 @@ class AnalyticsRepository:
         )
         result = await self.session.execute(_scoped(query, Deal.owner_id, owner_ids))
         row = result.one()
-        return int(row[0] or 0), int(row[1] or 0), Decimal(row[2] or 0)
+        return (
+            int(row[0] or 0),
+            int(row[1] or 0),
+            Decimal(row[2] or 0),
+            Decimal(row[3] or 0),
+        )
 
     async def sales_cycle_days(
         self, organization_id: UUID, owner_ids: list[UUID] | None,

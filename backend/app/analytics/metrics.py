@@ -122,6 +122,11 @@ METRICS: tuple[MetricDefinition, ...] = (
         "flow", "currency", "Revenue", "deals.view",
     ),
     _metric(
+        "commission_earned", "Commission earned",
+        "Commission on deals won in the period, as agreed rather than recomputed.",
+        "flow", "currency", "Revenue", "deals.view",
+    ),
+    _metric(
         "pipeline_open_value", "Open pipeline",
         "Total value of open deals, as at the reading.",
         "level", "currency", "Revenue", "deals.view",
@@ -203,6 +208,7 @@ SNAPSHOT_METRICS: tuple[str, ...] = (
     "deals_won",
     "deals_lost",
     "revenue_won",
+    "commission_earned",
     "pipeline_open_value",
     "pipeline_weighted_value",
     "listings_active",

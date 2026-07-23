@@ -80,6 +80,53 @@ async def create_report(
     return ReportDefinitionRead.model_validate(record)
 
 
+# ---------------------------------------------------------------------------
+# Literal single-segment routes must stay above `/{definition_id}`.
+#
+# FastAPI matches in declaration order, and a path parameter matches one segment
+# — `[^/]+`. So `/reports/runs/history` is safe wherever it sits (two segments
+# cannot bind to one parameter), but `/reports/datasets` is **not**: with
+# `/{definition_id}` first it binds `definition_id="datasets"` and fails to
+# parse as a UUID, producing a 422 on a route that plainly exists.
+#
+# The runs routes are grouped here for readability; `/datasets` above is the one
+# whose position is load-bearing, and there is a test pinning it.
+# ---------------------------------------------------------------------------
+
+@router.get("/runs/history", response_model=list[ReportRunRead])
+async def list_runs(
+    session: TenantSessionDep,
+    auth: Authorization,
+    _user: CurrentUser,
+    definition_id: UUID | None = None,
+) -> list[ReportRunRead]:
+    rows = await ReportService(session, auth).list_runs(definition_id=definition_id)
+    return [ReportRunRead.model_validate(row) for row in rows]
+
+
+@router.get("/runs/{run_id}", response_model=ReportRunRead)
+async def get_run(
+    run_id: UUID,
+    session: TenantSessionDep,
+    auth: Authorization,
+    _user: CurrentUser,
+) -> ReportRunRead:
+    run = await ReportService(session, auth).get_run(run_id)
+    return ReportRunRead.model_validate(run)
+
+
+@router.get("/runs/{run_id}/download", response_model=DownloadResponse)
+async def download_run(
+    run_id: UUID,
+    session: TenantSessionDep,
+    auth: Authorization,
+    _user: CurrentUser,
+) -> DownloadResponse:
+    """A short-lived signed link. The bytes never pass through this process."""
+    url = await ReportService(session, auth).download_url(run_id)
+    return DownloadResponse(url=url, expires_in=DOWNLOAD_URL_TTL_SECONDS)
+
+
 @router.get("/{definition_id}", response_model=ReportDefinitionRead)
 async def get_report(
     definition_id: UUID,
@@ -150,37 +197,3 @@ async def export_report(
         job_id=f"report-export:{run.id}",
     )
     return ReportRunRead.model_validate(run)
-
-
-@router.get("/runs/history", response_model=list[ReportRunRead])
-async def list_runs(
-    session: TenantSessionDep,
-    auth: Authorization,
-    _user: CurrentUser,
-    definition_id: UUID | None = None,
-) -> list[ReportRunRead]:
-    rows = await ReportService(session, auth).list_runs(definition_id=definition_id)
-    return [ReportRunRead.model_validate(row) for row in rows]
-
-
-@router.get("/runs/{run_id}", response_model=ReportRunRead)
-async def get_run(
-    run_id: UUID,
-    session: TenantSessionDep,
-    auth: Authorization,
-    _user: CurrentUser,
-) -> ReportRunRead:
-    run = await ReportService(session, auth).get_run(run_id)
-    return ReportRunRead.model_validate(run)
-
-
-@router.get("/runs/{run_id}/download", response_model=DownloadResponse)
-async def download_run(
-    run_id: UUID,
-    session: TenantSessionDep,
-    auth: Authorization,
-    _user: CurrentUser,
-) -> DownloadResponse:
-    """A short-lived signed link. The bytes never pass through this process."""
-    url = await ReportService(session, auth).download_url(run_id)
-    return DownloadResponse(url=url, expires_in=DOWNLOAD_URL_TTL_SECONDS)

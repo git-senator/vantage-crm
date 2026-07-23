@@ -251,12 +251,13 @@ class AnalyticsService:
             values["deals_created"] = Decimal(
                 await self.repo.deals_created(organization, deals, period.start, period.end)
             )
-            won, lost, revenue = await self.repo.closed_deal_stats(
+            won, lost, revenue, commission = await self.repo.closed_deal_stats(
                 organization, deals, period.start, period.end
             )
             values["deals_won"] = Decimal(won)
             values["deals_lost"] = Decimal(lost)
             values["revenue_won"] = revenue
+            values["commission_earned"] = commission
             open_value, weighted = await self.repo.open_pipeline(organization, deals)
             values["pipeline_open_value"] = open_value
             values["pipeline_weighted_value"] = weighted
@@ -471,7 +472,7 @@ class AnalyticsService:
         scope can be rolled up from them.
         """
         repo = self.repo
-        won, lost, revenue = await repo.closed_deal_stats(
+        won, lost, revenue, commission = await repo.closed_deal_stats(
             organization, owner_ids, period.start, period.end
         )
         open_value, weighted = await repo.open_pipeline(organization, owner_ids)
@@ -493,6 +494,7 @@ class AnalyticsService:
             "deals_won": Decimal(won),
             "deals_lost": Decimal(lost),
             "revenue_won": revenue,
+            "commission_earned": commission,
             "pipeline_open_value": open_value,
             "pipeline_weighted_value": weighted,
             "listings_active": Decimal(await repo.listings_active(organization, owner_ids)),

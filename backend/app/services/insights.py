@@ -46,6 +46,7 @@ DASHBOARDS: dict[str, tuple[str, tuple[str, ...]]] = {
         "Executive",
         (
             "revenue_won",
+            "commission_earned",
             "pipeline_weighted_value",
             "deals_won",
             "win_rate",
@@ -87,6 +88,7 @@ DASHBOARDS: dict[str, tuple[str, tuple[str, ...]]] = {
         "Revenue",
         (
             "revenue_won",
+            "commission_earned",
             "average_deal_value",
             "listings_sold",
             "pipeline_weighted_value",
@@ -199,7 +201,7 @@ class InsightsService:
         if scope is False:
             return {"won": 0, "lost": 0, "win_rate": None, "reasons": []}
 
-        won, lost, _revenue = await self.analytics.repo.closed_deal_stats(
+        won, lost, _revenue, _commission = await self.analytics.repo.closed_deal_stats(
             self.auth.organization_id, scope, period.start, period.end
         )
         reasons = await self.analytics.repo.loss_reasons(
@@ -281,13 +283,18 @@ class InsightsService:
             }
 
         organization = self.auth.organization_id
-        _won, _lost, booked = await self.analytics.repo.closed_deal_stats(
+        _won, _lost, booked, _commission = await self.analytics.repo.closed_deal_stats(
             organization, scope, period.start, period.end
         )
         _open_value, weighted = await self.analytics.repo.open_pipeline(organization, scope)
 
         previous = period.previous
-        _pwon, _plost, previous_actual = await self.analytics.repo.closed_deal_stats(
+        (
+            _pwon,
+            _plost,
+            previous_actual,
+            _pcommission,
+        ) = await self.analytics.repo.closed_deal_stats(
             organization, scope, previous.start, previous.end
         )
 

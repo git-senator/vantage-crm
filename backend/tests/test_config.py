@@ -94,7 +94,40 @@ class TestProductionGuard:
             EMAIL_PROVIDER="ses",
             COOKIE_SECURE=True,
             DB_ECHO=False,
+            # Phase 5.6: a production config is not valid without a managed key.
+            # The local provider keeps the key in the process environment, so
+            # anything that can read the environment can read it.
+            ENCRYPTION_PROVIDER="aws_kms",
+            KMS_KEY_ID="arn:aws:kms:us-east-1:000000000000:key/abc",
         ).assert_production_ready()
+
+    def test_rejects_the_local_key_provider(self) -> None:
+        """Correct cryptography, ordinary key management — and ordinary is not
+        good enough for the column holding everyone's second factor."""
+        settings = _settings(
+            ENVIRONMENT="production",
+            POSTGRES_PASSWORD="a-real-password",
+            EMAIL_PROVIDER="ses",
+            COOKIE_SECURE=True,
+            DB_ECHO=False,
+            ENCRYPTION_PROVIDER="local",
+        )
+        with pytest.raises(RuntimeError, match="ENCRYPTION_PROVIDER"):
+            settings.assert_production_ready()
+
+    def test_rejects_kms_without_a_key(self) -> None:
+        """Reported as unconfigured rather than crashing at the first enrolment."""
+        settings = _settings(
+            ENVIRONMENT="production",
+            POSTGRES_PASSWORD="a-real-password",
+            EMAIL_PROVIDER="ses",
+            COOKIE_SECURE=True,
+            DB_ECHO=False,
+            ENCRYPTION_PROVIDER="aws_kms",
+            KMS_KEY_ID=None,
+        )
+        with pytest.raises(RuntimeError, match="Secret encryption is not configured"):
+            settings.assert_production_ready()
 
 
 class TestDsnConstruction:

@@ -79,7 +79,7 @@ visible only at ALL scope — the same rule they follow on every list endpoint.
 
 ## 3. The metric registry
 
-`app/analytics/metrics.py` is the single catalogue. Twenty-one metrics, each a
+`app/analytics/metrics.py` is the single catalogue. Twenty-two metrics, each a
 `MetricDefinition` carrying its label, description, unit, category, the
 permission that gates it, whether higher is better, and its **kind**.
 
@@ -98,6 +98,14 @@ convention someone has to remember.
 
 `higher_is_better` exists so the frontend never decides which direction is good.
 Without it, a dashboard eventually paints rising `tasks_overdue` green.
+
+### Commission
+
+`commission_earned` sums the **stored** `commission_amount` on won deals, never
+a figure recomputed from the rate. `DealService` computes the amount once and
+then leaves it alone, because flat fees and negotiated splits are real; an
+analytics layer that recomputed it would report a number the brokerage never
+agreed to, and would disagree with the deal record it came from.
 
 ### Ratios are derived, never stored
 
