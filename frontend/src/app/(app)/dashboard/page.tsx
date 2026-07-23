@@ -11,7 +11,10 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { RevenueChart } from "@/components/dashboard/revenue-chart";
+import {
+  RevenueChart,
+  type RevenuePoint,
+} from "@/components/dashboard/revenue-chart";
 import { EmptyState } from "@/components/shared/empty-state";
 import { OwnerAvatar } from "@/components/shared/owner-avatar";
 import { PageHeader } from "@/components/shared/page-header";
@@ -36,11 +39,37 @@ import { listLeads } from "@/lib/api/leads";
 import { getTaskQueue } from "@/lib/api/tasks";
 import { listCalendarEvents } from "@/lib/api/calendar";
 import { requireSession } from "@/lib/auth/session";
-// Still mock, and deliberately so: `revenueByMonth` belongs to reporting
-// (Phase 4). Every other panel on this page reads live data.
-import { revenueByMonth } from "@/lib/mock-data";
+import type { SeriesPoint } from "@/lib/api/types";
+import { getSeries } from "@/lib/api/analytics";
 
 export const metadata: Metadata = { title: "Dashboard" };
+
+/**
+ * Daily readings rolled up to months, for the revenue chart.
+ *
+ * Summed, not averaged: revenue_won is a *flow*, so a month is the total of
+ * its days. Doing this to a level metric such as pipeline_open_value would
+ * double-count every deal open on more than one day, which is exactly why the
+ * metric registry declares which kind each one is.
+ */
+function monthlyRevenue(points: SeriesPoint[]): RevenuePoint[] {
+  const months = new Map<string, number>();
+  for (const point of points) {
+    const key = point.date.slice(0, 7);
+    months.set(key, (months.get(key) ?? 0) + (Number(point.value) || 0));
+  }
+  return [...months.entries()].slice(-7).map(([month, closed]) => ({
+    month: new Date(month + "-01T00:00:00Z").toLocaleDateString(undefined, {
+      month: "short",
+      timeZone: "UTC",
+    }),
+    closed,
+    // The chart carries a second series, and open pipeline is a level rather
+    // than a flow — it has no monthly total to show. Left at zero rather than
+    // invented from a number that does not mean what the axis implies.
+    pipeline: 0,
+  }));
+}
 
 /** 24-hour clock time, in the viewer's timezone. */
 function formatClock(iso: string): string {
@@ -109,6 +138,10 @@ export default async function DashboardPage() {
         end: dayEnd.toISOString(),
       }),
     ]);
+
+  // Live since Phase 5.1. Snapshots for the history, today computed live —
+  // the seam lives in the API, so this chart cannot go flat at midnight.
+  const revenueSeries = await getSeries("revenue_won", 180);
 
   const topDeals = [...openDeals.data]
     .sort((a, b) => Number(b.value ?? 0) - Number(a.value ?? 0))
@@ -212,14 +245,12 @@ export default async function DashboardPage() {
             <CardDescription>
               Closed volume against open pipeline, in millions.
             </CardDescription>
-            <CardAction>
-              <Button variant="outline" size="sm">
-                Last 7 months
-              </Button>
-            </CardAction>
           </CardHeader>
           <CardContent>
-            <RevenueChart data={revenueByMonth} className="h-[280px] w-full" />
+            <RevenueChart
+              data={monthlyRevenue(revenueSeries.points)}
+              className="h-[280px] w-full"
+            />
           </CardContent>
         </Card>
 

@@ -253,7 +253,17 @@ Go-live blockers:
 - [ ] Independent review of RLS policies with a deliberate cross-tenant test suite
 - [ ] MFA enforced for `owner` and `admin`
 - [ ] Penetration test covering authn, authz, and the document pipeline
-- [ ] Secrets migrated out of environment variables into a managed store
+- [ ] Secrets migrated out of environment variables into a managed store —
+      the abstraction is in place (`ENCRYPTION_PROVIDER=aws_kms` + `KMS_KEY_ID`),
+      and `assert_production_ready` already refuses the local provider; what
+      remains is provisioning the key and the IAM policy. See
+      [HARDENING.md §1](./HARDENING.md)
+- [ ] Malware scanning pointed at a real engine (`MALWARE_SCANNER=clamav`) and
+      clamd reachable — production refuses to start with scanning enabled while
+      the EICAR placeholder is configured, so this fails closed rather than
+      silently. See [HARDENING.md §2](./HARDENING.md)
+- [ ] Export retention and the audit trail reviewed against the data-retention
+      policy: export *files* age out after 30 days, export *records* do not
 - [ ] Backup **restore** rehearsed end-to-end (an untested backup is not a backup)
 - [ ] Alerting live for refresh-reuse, permission changes, bulk export, failed-login spikes
 - [ ] Incident response runbook written and walked through
