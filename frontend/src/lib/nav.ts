@@ -1,4 +1,5 @@
 import {
+  Activity,
   BarChart3,
   Bell,
   Building2,
@@ -69,6 +70,9 @@ export const secondaryNavigation: NavItem[] = [
   { title: "Notifications", href: "/notifications", icon: Bell, badge: "3" },
   { title: "Profile", href: "/profile", icon: CircleUser },
   { title: "Settings", href: "/settings", icon: Settings },
+  // Admin-only. Listed here rather than in the sidebar groups because it is an
+  // operator surface, not a place anyone works from day to day.
+  { title: "System", href: "/settings/system", icon: Activity },
 ];
 
 /** Flat lookup used by the topbar to title the current page. */

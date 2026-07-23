@@ -998,3 +998,347 @@ export interface WorkflowValidation {
   valid: boolean;
   errors: string[];
 }
+
+// --- Analytics (Phase 5.1–5.5) ---
+
+/**
+ * Every numeric value arrives as a **string**. These are counts and money, and
+ * a revenue figure that has been through a JSON float has lost the precision
+ * NUMERIC exists to protect. Format with `formatPrice`, never with `Number()`
+ * arithmetic on the way to display.
+ */
+export type MetricKind = "flow" | "level";
+
+export interface Metric {
+  key: string;
+  label: string;
+  unit: string;
+  kind: MetricKind;
+  /** Which direction is good. Without it a dashboard paints rising overdue
+   * tasks green. */
+  higher_is_better: boolean;
+  /** Null means the caller has no grant on this metric — not that it is zero. */
+  value: string | null;
+  previous: string | null;
+  /** Null when the previous period was zero: coming from nothing is not a
+   * percentage improvement. */
+  delta_percent: string | null;
+}
+
+export interface MetricDefinition {
+  key: string;
+  label: string;
+  description: string;
+  kind: string;
+  unit: string;
+  category: string;
+  higher_is_better: boolean;
+}
+
+export interface AnalyticsPeriod {
+  start: string;
+  end: string;
+  label: string;
+}
+
+export type PeriodName =
+  | "today"
+  | "week"
+  | "month"
+  | "quarter"
+  | "year"
+  | "custom";
+
+export interface KpiResponse {
+  period: AnalyticsPeriod;
+  metrics: Metric[];
+}
+
+export interface SeriesPoint {
+  date: string;
+  value: string;
+}
+
+export interface SeriesResponse {
+  metric: MetricDefinition;
+  points: SeriesPoint[];
+}
+
+export interface StageBreakdown {
+  stage_id: string;
+  stage_name: string;
+  deal_count: number;
+  value: string;
+}
+
+export interface VelocityRow {
+  stage_id: string;
+  stage_name: string;
+  mean_days: string;
+  transitions: number;
+}
+
+export interface LossReason {
+  reason: string;
+  count: number;
+  value: string;
+}
+
+export interface SourceRow {
+  source: string;
+  created: number;
+  converted: number;
+  conversion_rate: string | null;
+}
+
+export interface AgentRow {
+  user_id: string;
+  full_name: string;
+  deals_won: number;
+  revenue: string;
+  leads_converted: number;
+}
+
+export interface ForecastPoint {
+  label: string;
+  weighted: string;
+  committed: string;
+}
+
+export interface ForecastResponse {
+  period: AnalyticsPeriod;
+  /** Already won. The floor a forecast cannot go below. */
+  booked: string;
+  weighted_pipeline: string;
+  /** booked + weighted_pipeline. The number to plan against. */
+  projected: string;
+  previous_actual: string | null;
+  breakdown: ForecastPoint[];
+}
+
+export interface Goal {
+  id: string;
+  owner_id: string | null;
+  metric_key: string;
+  target_value: string;
+  period_start: string;
+  period_end: string;
+  current_value: string | null;
+  percent_complete: string | null;
+}
+
+export interface AnalyticsDashboard {
+  key: string;
+  title: string;
+  period: AnalyticsPeriod;
+  metrics: Metric[];
+  stages: StageBreakdown[];
+  agents: AgentRow[];
+  velocity: VelocityRow[];
+  reasons: LossReason[];
+  sources: SourceRow[];
+  forecast: ForecastResponse | null;
+}
+
+export interface DashboardListing {
+  key: string;
+  title: string;
+}
+
+// --- Reporting (Phase 5.3) ---
+
+export type ExportFormat = "csv" | "xlsx" | "pdf";
+export type ReportSchedule = "none" | "daily" | "weekly" | "monthly";
+export type AggregateFunction = "count" | "sum" | "avg" | "min" | "max";
+
+export type FilterOperator =
+  | "eq"
+  | "ne"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "contains"
+  | "starts_with"
+  | "in"
+  | "not_in"
+  | "is_null"
+  | "is_not_null"
+  | "between";
+
+export interface ReportField {
+  key: string;
+  label: string;
+  type: string;
+  groupable: boolean;
+  aggregatable: boolean;
+  /** Excluded from exports unless explicitly requested. */
+  sensitive: boolean;
+}
+
+export interface ReportDataset {
+  key: string;
+  label: string;
+  description: string;
+  fields: ReportField[];
+}
+
+export interface ReportFilter {
+  field: string;
+  operator: FilterOperator;
+  value?: unknown;
+}
+
+export interface ReportAggregate {
+  function: AggregateFunction;
+  field?: string | null;
+  key?: string | null;
+  label?: string | null;
+}
+
+export interface ReportSpec {
+  dataset: string;
+  columns: string[];
+  filters: ReportFilter[];
+  group_by: string[];
+  aggregates: ReportAggregate[];
+  sort?: string | null;
+  sort_desc: boolean;
+  limit?: number | null;
+  include_sensitive: boolean;
+}
+
+export interface ReportPreview {
+  headers: string[];
+  rows: unknown[][];
+  row_count: number;
+  /** What the report would return uncapped. `truncated` is derived from it so
+   * a page cannot be mistaken for the whole answer. */
+  total_rows: number;
+  truncated: boolean;
+}
+
+export interface ReportDefinition {
+  id: string;
+  name: string;
+  description: string | null;
+  dataset: string;
+  definition: ReportSpec;
+  is_shared: boolean;
+  schedule: ReportSchedule;
+  schedule_format: ExportFormat;
+  owner_id: string | null;
+  last_run_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** `partial` is a success that hit the row cap — a distinct state, because a
+ * truncated export reporting success is the bug the status exists for. */
+export type ReportRunStatus =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "partial"
+  | "failed";
+
+export interface ReportRun {
+  id: string;
+  definition_id: string | null;
+  name: string;
+  dataset: string;
+  format: ExportFormat;
+  status: ReportRunStatus;
+  is_scheduled: boolean;
+  row_count: number;
+  total_rows: number;
+  size_bytes: number | null;
+  error: string | null;
+  requested_by: string | null;
+  started_at: string;
+  completed_at: string | null;
+}
+
+// --- Administration (Phase 5.6) ---
+
+export interface SnapshotFreshness {
+  last_snapshot_date: string | null;
+  fresh: boolean;
+  reason: string | null;
+}
+
+export interface SystemHealth {
+  /** `degraded`, never `down` — the API answered this request. */
+  status: string;
+  components: Record<string, boolean>;
+  checked_at: string;
+  snapshot: SnapshotFreshness;
+}
+
+export interface QueueStatus {
+  reachable: boolean;
+  /** Global, not per tenant — ARQ's queue partitions by nothing. */
+  queued_jobs: number | null;
+  /** A deep queue with zero workers is a different incident from one with four. */
+  workers_seen: number | null;
+  open_failures: number;
+}
+
+export interface JobHistoryRow {
+  job_name: string;
+  failures: number;
+  attempts: number;
+  unresolved: number;
+  last_failed_at: string;
+}
+
+export interface StorageUsage {
+  attachments: number;
+  attachment_bytes: number;
+  available: number;
+  pending_upload: number;
+  quarantined: number;
+  unscanned: number;
+  export_files: number;
+  export_bytes: number;
+}
+
+export interface EmailDelivery {
+  window_hours: number;
+  total: number;
+  sent: number;
+  failed: number;
+  queued: number;
+  /** Null over no messages — 0% would read as "all good" on a workspace whose
+   * email integration is switched off. */
+  failure_rate: number | null;
+  recent_failures: { reason: string; count: number }[];
+}
+
+export interface NotificationDelivery {
+  window_hours: number;
+  total: number;
+  unread: number;
+  emailed: number;
+  by_category: { category: string; count: number }[];
+}
+
+export interface AuditAnalytics {
+  window_hours: number;
+  total_events: number;
+  /** The number worth alerting on. */
+  denied: number;
+  exports: number;
+  by_action: { action: string; count: number }[];
+  by_actor: { actor_id: string | null; actor_email: string; count: number }[];
+}
+
+export interface AdminOverview {
+  health: SystemHealth;
+  queue: QueueStatus;
+  jobs: JobHistoryRow[];
+  storage: StorageUsage;
+  email: EmailDelivery;
+  notifications: NotificationDelivery;
+  audit: AuditAnalytics;
+}
