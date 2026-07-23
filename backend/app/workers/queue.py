@@ -48,6 +48,8 @@ class JobName:
     EXECUTE_WORKFLOW_RUN: Final = "execute_workflow_run"
     SWEEP_WORKFLOW_EVENTS: Final = "sweep_workflow_events"
     SWEEP_WORKFLOW_RUNS: Final = "sweep_workflow_runs"
+    SNAPSHOT_METRICS: Final = "snapshot_metrics"
+    BACKFILL_METRICS: Final = "backfill_metrics"
 
 
 def redis_settings(settings: Settings | None = None) -> RedisSettings:

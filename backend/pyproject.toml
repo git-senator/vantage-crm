@@ -21,6 +21,9 @@ dependencies = [
     "boto3>=1.35.0",
     "python-multipart>=0.0.20",
     "httpx>=0.28.0",   # WhatsApp Cloud API; the only outbound HTTP client
+    "cryptography>=44.0",  # envelope encryption for secrets at rest
+    "openpyxl>=3.1",       # XLSX export
+    "reportlab>=4.2",      # PDF export
     "email-validator>=2.2.0",
 ]
 
@@ -106,7 +109,7 @@ warn_unreachable = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["arq.*", "testcontainers.*"]
+module = ["arq.*", "testcontainers.*", "reportlab.*", "openpyxl.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

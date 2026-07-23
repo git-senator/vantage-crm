@@ -17,7 +17,7 @@ same way. What is specific to deals, and what most of this file is about:
 from __future__ import annotations
 
 import asyncio
-from datetime import date
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -400,7 +400,11 @@ class TestStageTransitions:
             DealStageTransition(to_stage_id=stage_by_key(pipeline, "closed_won").id),
             user,
         )
-        assert won.actual_close_date == date.today()
+        # UTC, not the host's local date. Every other timestamp in the system is
+        # UTC and analytics compares this column against UTC period bounds, so a
+        # local date would put a deal closed near midnight outside the very day
+        # it closed on any server not running UTC.
+        assert won.actual_close_date == datetime.now(UTC).date()
 
     async def test_reopening_clears_the_close_date_and_reason(
         self, db: AsyncSession, admin, pipeline, client_record

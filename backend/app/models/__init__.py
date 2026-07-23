@@ -7,6 +7,7 @@ its table.
 """
 
 from app.models.activity import Activity
+from app.models.analytics import Goal, MetricSnapshot
 from app.models.attachment import Attachment
 from app.models.audit import AuditLog
 from app.models.automation import (
@@ -50,9 +51,11 @@ __all__ = [
     "Deal",
     "DealStageHistory",
     "EventAttendee",
+    "Goal",
     "JobFailure",
     "Lead",
     "Message",
+    "MetricSnapshot",
     "MfaRecoveryCode",
     "Note",
     "Notification",

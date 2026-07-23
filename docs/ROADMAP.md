@@ -599,6 +599,32 @@ what the executor can run.
 - Backup + **restore rehearsal**, monitoring, alerting, runbooks
 - Penetration test and remediation
 
+**5.1 analytics engine — delivered.** See [ANALYTICS.md](./ANALYTICS.md). The
+decisions worth carrying forward:
+
+- **Analytics has no scope of its own.** A metric is readable exactly when its
+  entity is, resolved through the same grants the list endpoints use. A second
+  definition of visibility is a second thing to keep in step, and the first
+  divergence is a disclosure. A caller without a grant gets `null`, not `0` — a
+  blank panel is honest, a zero is a claim.
+- **Ratios are derived, never stored.** The average of thirty daily win rates is
+  not the month's win rate. Only summable components are snapshotted; every
+  ratio is recomputed at read time, and `validate_registry()` refuses to start if
+  a ratio's components are not themselves snapshotted.
+- **Snapshots are per owner**, because a scope rolls up by summing the ids the
+  resolver returns. An org-grain row could only answer an admin's question.
+- **The seam at today lives in one place.** History from `metric_snapshots`,
+  today computed live, implemented once in `series` — otherwise dashboards go
+  flat at midnight and fill in overnight, which reads as an outage.
+- **The cache key carries a scope digest.** Keying on tenant and window alone
+  serves one agent's numbers to another: a leak that passes every single-user
+  test.
+- Two pre-existing correctness bugs surfaced while building on the CRM core: the
+  loss-reason rollup grouped by a COALESCE expression that recompiles to a fresh
+  bind parameter (Postgres rejected the statement), and `actual_close_date` was
+  written with the host-local `date.today()` while every other timestamp is UTC —
+  a deal closed near midnight fell outside the day it closed. Both fixed.
+
 **Exit criteria**
 - Every pre-production gate in [SECURITY.md §6](./SECURITY.md) is checked
 - Restore from backup rehearsed end to end against a live-shaped dataset

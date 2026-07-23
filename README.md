@@ -28,6 +28,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 | [CALENDAR.md](docs/CALENDAR.md) | Events, attendees, conflict reporting, reminders |
 | [MFA.md](docs/MFA.md) | TOTP, recovery codes, two-step login, role enforcement |
 | [AUTOMATION.md](docs/AUTOMATION.md) | Workflow engine, triggers, actions, conditions, the builder |
+| [ANALYTICS.md](docs/ANALYTICS.md) | Metric registry, scoped aggregates, snapshots, dashboards, forecasting |
 
 ## Stack
 

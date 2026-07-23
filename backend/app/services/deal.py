@@ -17,7 +17,7 @@ is never silently recomputed out from under the person who agreed it.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID
 
@@ -214,8 +214,14 @@ class DealService:
             payload.value, payload.commission_rate
         )
         # A deal created directly into a terminal stage is closed today.
+        #
+        # UTC, not the host's local date. Every other timestamp in the system is
+        # stored in UTC and analytics compares this column against UTC period
+        # bounds; `date.today()` would make "closed today" mean something
+        # different on a server in Auckland than on one in Los Angeles, and a
+        # deal closed near midnight would fall outside the very day it closed.
         if stage.is_won or stage.is_lost:
-            deal.actual_close_date = date.today()
+            deal.actual_close_date = datetime.now(UTC).date()
 
         self.session.add(deal)
         await self.session.flush()
@@ -446,7 +452,8 @@ class DealService:
             else target.default_probability
         )
         if target.is_won or target.is_lost:
-            deal.actual_close_date = date.today()
+            # UTC — see create_deal.
+            deal.actual_close_date = datetime.now(UTC).date()
             deal.lost_reason = payload.lost_reason if target.is_lost else None
         else:
             # Reopened. Clearing both is what stops a revived deal reporting as

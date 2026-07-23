@@ -26,6 +26,7 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
 from app.db.session import dispose_engine
 from app.services.storage import get_object_storage
+from app.workers.jobs.analytics import backfill_metrics, snapshot_metrics
 from app.workers.jobs.automation import (
     dispatch_workflow_event,
     execute_workflow_run,
@@ -83,6 +84,8 @@ class WorkerSettings:
         execute_workflow_run,
         sweep_workflow_events,
         sweep_workflow_runs,
+        snapshot_metrics,
+        backfill_metrics,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -121,6 +124,18 @@ class WorkerSettings:
             cast(WorkerCoroutine, sweep_workflow_events),
             minute=set(range(60)),
             second=45,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Once a day, shortly after midnight UTC, for the day that just ended.
+        # Late enough that a deal closed at 23:59 is committed, early enough
+        # that the charts are right before anyone opens them. Deliberately not
+        # at :00 alongside the quarter-hour sweeps.
+        cron(
+            cast(WorkerCoroutine, snapshot_metrics),
+            hour={0},
+            minute={7},
+            second=0,
             run_at_startup=False,
             max_tries=2,
         ),

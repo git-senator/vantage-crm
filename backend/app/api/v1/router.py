@@ -10,6 +10,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     activities,
+    analytics,
     attachments,
     audit,
     auth,
@@ -73,6 +74,7 @@ api_router.include_router(
     whatsapp.router, prefix="/whatsapp", tags=["whatsapp"]
 )
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
+api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 
 
 # Phase 3.1 replaced the attachment placeholders with real object storage;
