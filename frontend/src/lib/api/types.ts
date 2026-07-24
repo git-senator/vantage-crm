@@ -1342,3 +1342,59 @@ export interface AdminOverview {
   notifications: NotificationDelivery;
   audit: AuditAnalytics;
 }
+
+// --- AI assistant (Phase 6.2) ---
+
+export interface AiStatus {
+  enabled: boolean;
+  provider: string;
+  model: string;
+  can_use: boolean;
+  can_configure: boolean;
+}
+
+export interface AiBudget {
+  ceiling_usd: string;
+  spent_usd: string;
+  remaining_usd: string | null;
+  exhausted: boolean;
+}
+
+export interface AiStatusResponse {
+  status: AiStatus;
+  budget: AiBudget;
+}
+
+export type AiAnchorEntity =
+  | "lead"
+  | "client"
+  | "property"
+  | "deal"
+  | "task"
+  | "note";
+
+export interface AiConversation {
+  id: string;
+  title: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  last_message_at: string | null;
+  created_at: string;
+}
+
+export type AiMessageRole = "user" | "assistant";
+
+export interface AiMessage {
+  id: string;
+  role: AiMessageRole;
+  content: string;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  /** True when the reply hit the per-call token cap and was cut short. */
+  truncated: boolean;
+  created_at: string;
+}
+
+export interface AiConversationDetail extends AiConversation {
+  messages: AiMessage[];
+}

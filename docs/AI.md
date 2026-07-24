@@ -13,6 +13,7 @@ that governs all of them.
 - [8. Background execution](#8-background-execution)
 - [9. Configuration](#9-configuration)
 - [10. API](#10-api)
+- [11. The assistant (6.2)](#11-the-assistant-62)
 
 ---
 
@@ -30,11 +31,12 @@ authorises an action). The security model was designed in advance in
 [SECURITY.md §5](./SECURITY.md), before any of this code existed; this document
 is how §5 is implemented.
 
-Phase 6.1 ships the **infrastructure** — the provider abstraction, the prompt
-framework, context builders, redaction, cost accounting and background execution.
-It ships no feature that uses them. The assistant (6.2), lead and deal
-intelligence (6.3–6.4), and the growth engine (6.6) fill the frameworks this
-milestone builds.
+Phase 6.1 shipped the **infrastructure** — the provider abstraction, the prompt
+framework, context builders, redaction, cost accounting and background execution
+(§3–§10). Phase 6.2 adds the **assistant** (§11), the first feature to use them.
+Lead and deal intelligence (6.3–6.4) and the growth engine (6.6) fill the same
+frameworks; none of them re-establishes the security model, because it lives in
+the infrastructure they all go through.
 
 ---
 
@@ -226,10 +228,89 @@ completions arrive with the features that need them.
 | --- | --- | --- | --- |
 | GET | `/status` | authenticated | enabled? provider, model, this caller's grants, budget |
 | GET | `/usage` | `ai.configure` | this month's spend per feature |
+| GET | `/conversations` | `ai.use` | the caller's own conversations |
+| POST | `/conversations` | `ai.use` | start one, optionally anchored to a record |
+| GET | `/conversations/{id}` | `ai.use` (owner) | a conversation and its turns |
+| DELETE | `/conversations/{id}` | `ai.use` (owner) | soft-delete it |
+| POST | `/conversations/{id}/messages` | `ai.use` (owner) | send a message, get the reply |
 
 `/status` is not gated on `ai.use` on purpose: a caller who cannot use AI still
 needs to be told so, so the UI hides the affordance rather than showing a button
 that will 403.
+
+---
+
+## 11. The assistant (6.2)
+
+A CRM assistant — a per-user chat that answers from CRM data, within what the
+user can see. It is a *composition* over the 6.1 infrastructure: it never talks
+to a model, only to `AIService.complete`, so every guarantee in §2–§7 holds for
+it without being re-established.
+
+### Persistence, and what is not persisted
+
+`ai_conversations` and `ai_messages` store the turns — the user's messages and
+the assistant's replies, which are the product the user comes back to. They do
+**not** store the composed prompt: the system preamble, the fenced CRM context,
+the safety rules. That prompt is assembled fresh each turn, under scope, and
+discarded. So a lead's notes — even redacted — never sit in the assistant tables;
+`ai_jobs` records the cost, these tables record the conversation, and neither
+holds the prompt. This is exactly the "audit the response without storing
+unnecessary sensitive prompt data" line, made concrete.
+
+### Two isolation boundaries
+
+- **Organization** — RLS `ENABLE` + `FORCE` on both tables, like everything else.
+- **User** — every repository query also filters by `user_id`. An assistant
+  thread is private to its creator; not even a manager reads it. This is
+  *stricter* than the CRM's own scope rules, deliberately, because a chat
+  transcript is more revealing than the records it discusses.
+
+### Entity-aware context
+
+A conversation can be anchored to a record ("help me with this lead"). The anchor
+is validated **under the user's scope at creation** — you cannot anchor to a
+record you cannot see — and the entity's context is **rebuilt under scope at
+every turn** through the same `get_*` service a request handler uses
+(`context_builders.py`). Access revoked between turns simply drops the context;
+the conversation carries on without leaking that the record still exists. Adding
+an entity is one registry entry.
+
+### The turn
+
+1. The user's message is persisted and committed *first* — whatever happens to
+   the reply, what they said is theirs to keep.
+2. The prompt is composed: fenced, redacted entity context + the user's message
+   as the latest turn, with the last dozen turns as history (a cap, not the whole
+   transcript — an unbounded history is an unbounded bill).
+3. It goes through `AIService.complete`: enablement, `ai.use`, the cost ceiling
+   before dispatch, the ledger, the egress audit.
+4. The reply is persisted, linked to its ledger row. A failure or budget refusal
+   still commits the attempt (a `failed`/`refused` `ai_jobs` row), so nothing is
+   silently lost.
+
+### Streaming- and tool-ready
+
+Both are built as seams, not yet switched on:
+
+- **Streaming** — `CompletionChunk` and a separate `StreamingProvider` Protocol.
+  A provider advertises streaming by satisfying it; the assistant would check
+  `isinstance` and fall back to a whole reply otherwise. The `MessageRead` the
+  API returns is the same shape a stream would resolve to, so turning streaming
+  on later changes the transport, not the contract.
+- **Tools** — `ToolSpec`/`ToolCall` (pure, in `base.py`) and `Tool`/`ToolRegistry`
+  (executable, scoped, in `tools.py`). `CompletionRequest.tools` defaults empty,
+  so nothing changes for a provider until a tool is registered. Every tool is
+  **read-only and scoped** by contract — the model asks, the orchestration layer
+  decides, under the caller's authorization, and no tool ever writes. The
+  registry is empty in 6.2; the Anthropic adapter already maps tools both ways,
+  so adding one is a `register` call and no API change.
+
+### Provider-agnostic future
+
+Nothing in the assistant imports a provider. Adding OpenAI, Gemini, Ollama,
+OpenRouter or a self-hosted model is one adapter plus one `build_provider` arm
+(§3) — the assistant, the API and the conversation model are untouched.
 
 Related: [SECURITY.md](./SECURITY.md) §5 for the risk model this implements,
 [JOBS.md](./JOBS.md) for the worker, [PERMISSIONS.md](./PERMISSIONS.md) for

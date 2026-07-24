@@ -1,10 +1,10 @@
 """AI infrastructure endpoints.
 
-6.1 exposes only what the frontend needs to decide whether to *offer* AI, and
-what an administrator needs to see it is not overspending. The endpoints that
-actually run completions arrive with the features that use them (6.2+); shipping
-a dispatch endpoint before a feature that needs one would be a surface with no
-caller and a security review with no purpose.
+Availability and cost only: whether the layer is on for this caller, and what it
+is spending. The conversational surface lives in `ai_assistant.py`, and the
+completion-running endpoints arrive with each feature — an endpoint that
+dispatches to a model is a security review of its own, so each is added with the
+feature that needs it rather than speculatively.
 """
 
 from __future__ import annotations

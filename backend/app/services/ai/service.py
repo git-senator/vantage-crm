@@ -97,6 +97,11 @@ class AIService:
         self.repo = AiJobRepository(session)
         self.audit = AuditService(session)
         self._provider = provider
+        #: The ledger row the most recent `complete` produced. Exposed so a
+        #: caller can link its own record (a stored assistant turn) to the cost
+        #: row without the ledger having to be queried back out — added for the
+        #: assistant, harmless to every other caller.
+        self.last_job: AiJob | None = None
 
     @property
     def provider(self) -> CompletionProvider:
@@ -301,6 +306,10 @@ class AIService:
             error=error[:2000] if error else None,
         )
         self.session.add(job)
+        await self.session.flush()
+        # Exposed so a caller (the assistant) can link its stored turn to this
+        # cost row. Flushed above so the id exists to link to.
+        self.last_job = job
         return job
 
     async def _audit_completion(

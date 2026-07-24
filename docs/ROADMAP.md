@@ -732,8 +732,28 @@ Phase 0 layering bought.*
   `AIService.complete`, so the ceiling, ledger and audit hold off the request
   path too.
 
-The remaining sub-phases (assistant, lead/deal/property intelligence, growth
-engine) fill these frameworks.
+**6.2 assistant — delivered.** See [AI.md §11](./AI.md).
+
+- **A per-user CRM assistant**, composed entirely over the 6.1 infrastructure —
+  it never talks to a model, only to `AIService.complete`, so every 6.1
+  guarantee holds without being re-established.
+- **Two isolation boundaries**: RLS for the organization, and a `user_id` filter
+  in every query for the user. An assistant thread is private to its creator —
+  stricter than the CRM's scope rules, because a transcript is more revealing
+  than the records it discusses.
+- **Entity-aware context, scope-first**: a conversation can be anchored to a
+  record, validated under scope at creation and rebuilt under scope at every
+  turn through the same `get_*` service a request handler uses. Invisible record
+  in, no context out.
+- **The composed prompt is never stored** — only the visible turns are. A lead's
+  notes, redacted or not, never land in the conversation tables.
+- **Streaming- and tool-ready seams**, both additive and off: a
+  `StreamingProvider` Protocol and `CompletionChunk`, and a scoped read-only
+  `Tool`/`ToolRegistry` with `CompletionRequest.tools` defaulting empty. Turning
+  either on later is a transport or a `register` change, not a contract change.
+
+The remaining sub-phases (lead/deal/property intelligence, growth engine) fill
+the same frameworks.
 
 **Exit criteria**
 - **RAG leakage test:** a user provably cannot retrieve, via the assistant, any

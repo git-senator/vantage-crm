@@ -22,6 +22,7 @@ from app.services.ai.base import (
     CompletionRequest,
     CompletionResult,
     TokenUsage,
+    ToolCall,
 )
 
 logger = get_logger(__name__)
@@ -70,6 +71,18 @@ class AnthropicCompletionProvider:
                 for key, value in request.metadata.items()
                 if key == "user_id"
             }
+        if request.tools:
+            # Provider-neutral ToolSpec → the Messages API tool shape. Only sent
+            # when a tool is actually registered, so an ordinary completion is
+            # byte-for-byte what it was before tools existed.
+            payload["tools"] = [
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "input_schema": tool.parameters or {"type": "object", "properties": {}},
+                }
+                for tool in request.tools
+            ]
 
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
@@ -117,11 +130,22 @@ class AnthropicCompletionProvider:
             # `content` is a list of blocks; a text completion has text blocks.
             # Joined rather than assuming one, so a multi-block answer is not
             # silently truncated to its first block.
+            blocks = body.get("content", [])
             text = "".join(
-                block.get("text", "")
-                for block in body.get("content", [])
-                if block.get("type") == "text"
+                block.get("text", "") for block in blocks if block.get("type") == "text"
             )
+            # `tool_use` blocks are the model asking to call a tool. Parsed into
+            # provider-neutral ToolCalls; the orchestration layer decides whether
+            # to run them (read-only, under scope) — the model does not act.
+            tool_calls = [
+                ToolCall(
+                    id=str(block.get("id", "")),
+                    name=str(block.get("name", "")),
+                    arguments=block.get("input") or {},
+                )
+                for block in blocks
+                if block.get("type") == "tool_use"
+            ]
             usage = body.get("usage", {})
             return CompletionResult(
                 text=text,
@@ -132,6 +156,7 @@ class AnthropicCompletionProvider:
                 ),
                 stop_reason=str(body.get("stop_reason", "end_turn")),
                 provider=self.name,
+                tool_calls=tool_calls,
             )
         except (KeyError, TypeError, ValueError) as exc:
             # A response we cannot parse is not retryable — the same malformed

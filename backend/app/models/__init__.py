@@ -8,6 +8,7 @@ its table.
 
 from app.models.activity import Activity
 from app.models.ai import AiJob
+from app.models.ai_conversation import AiConversation, AiMessage
 from app.models.analytics import Goal, MetricSnapshot
 from app.models.attachment import Attachment
 from app.models.audit import AuditLog
@@ -45,7 +46,9 @@ from app.models.user import User
 
 __all__ = [
     "Activity",
+    "AiConversation",
     "AiJob",
+    "AiMessage",
     "Attachment",
     "AuditLog",
     "CalendarEvent",

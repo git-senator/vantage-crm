@@ -19,6 +19,7 @@ design.
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Literal, Protocol, runtime_checkable
 
@@ -31,6 +32,40 @@ ChatRole = Literal["user", "assistant"]
 class ChatMessage:
     role: ChatRole
     content: str
+
+
+@dataclass(frozen=True, slots=True)
+class ToolSpec:
+    """A tool a model may ask to call, described provider-neutrally.
+
+    Function-calling defined as data, not code, so the *definition* lives here in
+    the pure base — provider adapters translate it to their own tool format, and
+    the executable behaviour lives in `app/services/ai/tools.py`. Splitting the
+    two is what lets a tool be declared to a model without this module importing
+    anything that can touch the database.
+
+    `parameters` is a JSON Schema object. Every provider that supports tools
+    speaks JSON Schema for arguments, so it is the portable choice.
+    """
+
+    name: str
+    description: str
+    parameters: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class ToolCall:
+    """A model's request to call a tool. Carried back on the result.
+
+    A request, never an action: the model *asks*, and whether the tool runs — and
+    it only ever runs read-only, under the caller's scope — is decided by the
+    orchestration layer, never by the model. Model output authorising an action
+    is the exact thing SECURITY.md §5 forbids.
+    """
+
+    id: str
+    name: str
+    arguments: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +91,11 @@ class CompletionRequest:
     #: Provider-neutral labels for cost attribution and debugging. Never PII —
     #: these can land in provider-side telemetry.
     metadata: dict[str, str] = field(default_factory=dict)
+    #: Tools the model may request. Empty by default, so every existing caller is
+    #: unchanged — the field is the seam that lets function-calling be added
+    #: without an API change, not a feature that is on yet. A provider that does
+    #: not support tools ignores this and answers in text.
+    tools: list[ToolSpec] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.system.strip():
@@ -91,10 +131,35 @@ class CompletionResult:
     #: looks complete is the same failure class as a truncated report.
     stop_reason: str
     provider: str
+    #: Tools the model asked to call, if any. Empty on an ordinary text answer.
+    #: Present so the orchestration layer can decide what to do with a request —
+    #: the model does not get to act on its own.
+    tool_calls: list[ToolCall] = field(default_factory=list)
 
     @property
     def truncated(self) -> bool:
         return self.stop_reason == "max_tokens"
+
+    @property
+    def wants_tools(self) -> bool:
+        return bool(self.tool_calls)
+
+
+@dataclass(frozen=True, slots=True)
+class CompletionChunk:
+    """One piece of a streamed response.
+
+    The streaming counterpart of `CompletionResult`. A chunk carries a slice of
+    text as it is generated; the final chunk sets `done` and carries the usage,
+    so a streamed call is accounted for exactly like a whole one — the ledger and
+    the cost ceiling must not have a hole that opens the moment streaming is
+    switched on.
+    """
+
+    text: str
+    done: bool = False
+    usage: TokenUsage | None = None
+    stop_reason: str | None = None
 
 
 class AIError(Exception):
@@ -138,13 +203,37 @@ class CompletionProvider(Protocol):
         ...
 
 
+@runtime_checkable
+class StreamingProvider(Protocol):
+    """A provider that can also stream a response token by token.
+
+    Kept as a **separate** Protocol rather than a method on `CompletionProvider`
+    so that streaming is an optional capability, not a requirement every adapter
+    must implement to exist. The orchestration layer checks
+    `isinstance(provider, StreamingProvider)` and falls back to `complete` when a
+    provider cannot stream — which is why the API can be streaming-ready today
+    with no adapter actually streaming yet, and gain it later with no contract
+    change.
+    """
+
+    name: str
+
+    def stream(self, request: CompletionRequest) -> AsyncIterator[CompletionChunk]:
+        """Yield chunks as they arrive. The final chunk carries usage."""
+        ...
+
+
 __all__ = [
     "AIError",
     "BudgetExceededError",
     "ChatMessage",
     "ChatRole",
+    "CompletionChunk",
     "CompletionProvider",
     "CompletionRequest",
     "CompletionResult",
+    "StreamingProvider",
     "TokenUsage",
+    "ToolCall",
+    "ToolSpec",
 ]
