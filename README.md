@@ -31,7 +31,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phase plan.
 | [ANALYTICS.md](docs/ANALYTICS.md) | Metric registry, scoped aggregates, snapshots, dashboards, forecasting |
 | [REPORTING.md](docs/REPORTING.md) | Dataset registry, the query builder, CSV/XLSX/PDF export, scheduling |
 | [HARDENING.md](docs/HARDENING.md) | Secrets at rest, malware scanning, email threading, readiness gates |
-| [AI.md](docs/AI.md) | AI provider abstraction, prompt safety, redaction, cost ceilings, the ledger, the assistant |
+| [AI.md](docs/AI.md) | AI provider abstraction, prompt safety, cost ceilings, the assistant, lead intelligence |
 
 ## Stack
 
@@ -171,4 +171,4 @@ BYPASSRLS, and owns nothing else. See docs/AUTHENTICATION.md §5.
 | 3 | Documents, S3, background jobs, notifications, email, calendar, WhatsApp, MFA | **Complete** |
 | 4 | Automation engine — workflows, triggers, actions, conditions, the builder | **Complete** |
 | 5 | Analytics, reporting, admin, production hardening | **Complete** |
-| 6 | AI growth engine — infrastructure, assistant, lead/deal/property intelligence | **In progress** — 6.1 infrastructure + 6.2 assistant complete |
+| 6 | AI growth engine — infrastructure, assistant, lead/deal/property intelligence | **In progress** — 6.1 infrastructure, 6.2 assistant, 6.3 lead intelligence complete |

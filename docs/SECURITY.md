@@ -239,7 +239,7 @@ The failure modes here are unlike the rest of the system and must be designed fo
 |---|---|
 | **RAG bypasses RBAC** — the flagship AI risk. Vector search over all org data returns records the user may not read. | Retrieval filters by `organization_id` **and** the user's scope predicate **before** the similarity search, never after. The same scope resolver as §1.3 — one implementation, not two. |
 | **Prompt injection via lead data.** A lead's "notes" field is attacker-controlled text that reaches a model prompt. | All CRM-sourced text is untrusted input. Strict system/user separation, delimited and escaped. Model output never authorises an action. |
-| **Autonomous action.** | No AI-initiated writes. Generated content lands in `ai_generated_content` as `draft`; a human transition to `approved` is required before anything sends. |
+| **Autonomous action.** | No AI-initiated writes to CRM data. The AI produces scores, summaries and recommendations only, into its own tables (`lead_scores`, `ai_conversations`) — never onto the record it describes. A lead's own `score` field is the agent's; the AI's read lives beside the lead, not on it. Generated content destined to *send* lands as a draft for human approval. **Implemented from 6.3** (docs/AI.md §12). |
 | **Data egress to model providers.** | PII minimisation and redaction before egress. Per-org opt-in. Zero-retention provider agreements. Regional routing where required. |
 | **Cost exhaustion.** | Per-org hard cost ceilings, enforced before dispatch — a refused call sends and spends nothing. Every call's cost recorded in `ai_jobs`. **Implemented in 6.1** (docs/AI.md §7). |
 | **Output injection.** | Model output is untrusted: escaped on render, never `dangerouslySetInnerHTML`, never executed. |

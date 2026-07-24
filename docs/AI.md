@@ -14,6 +14,7 @@ that governs all of them.
 - [9. Configuration](#9-configuration)
 - [10. API](#10-api)
 - [11. The assistant (6.2)](#11-the-assistant-62)
+- [12. Lead intelligence (6.3)](#12-lead-intelligence-63)
 
 ---
 
@@ -33,10 +34,11 @@ is how §5 is implemented.
 
 Phase 6.1 shipped the **infrastructure** — the provider abstraction, the prompt
 framework, context builders, redaction, cost accounting and background execution
-(§3–§10). Phase 6.2 adds the **assistant** (§11), the first feature to use them.
-Lead and deal intelligence (6.3–6.4) and the growth engine (6.6) fill the same
-frameworks; none of them re-establishes the security model, because it lives in
-the infrastructure they all go through.
+(§3–§10). Phase 6.2 added the **assistant** (§11); Phase 6.3 adds **lead intelligence**
+(§12), the first feature to *reason about* a record. Deal and property
+intelligence (6.4–6.5) and the growth engine (6.6) fill the same frameworks; none
+re-establishes the security model, because it lives in the infrastructure they
+all go through.
 
 ---
 
@@ -311,6 +313,86 @@ Both are built as seams, not yet switched on:
 Nothing in the assistant imports a provider. Adding OpenAI, Gemini, Ollama,
 OpenRouter or a self-hosted model is one adapter plus one `build_provider` arm
 (§3) — the assistant, the API and the conversation model are untouched.
+
+---
+
+## 12. Lead intelligence (6.3)
+
+Scoring, qualification, temperature, prioritisation, risk and missing-info
+detection, and a grounded narrative — the first place the AI reasons *about* a
+record rather than chatting over it. Its defining decision is the one the brief
+asked for: **the scoring is deterministic, and the model only writes the
+language.**
+
+### Two layers
+
+**A deterministic rule engine** (`app/ai/lead_scoring.py`, pure) is the whole
+scoring surface. A lead's score is the sum of a fixed set of **signals** — each a
+pure function of a small `LeadFeatures` set, each returning points *and the
+reason it contributed*. From that sum the engine derives temperature,
+qualification, priority, buying-intent, risks, missing-info and recommended
+actions. There is no model, no randomness, no network: the same lead always
+scores the same, and the number is always readable back as its reasons. That is
+explainability by construction, not a report bolted on afterward.
+
+**An AI narrative** (through `AIService`, on demand) turns that breakdown into
+prose — a summary and phrased next steps. The model is handed the score and its
+signals as trusted analysis, and the lead's own fields as fenced, redacted
+context, and told to *explain* the number, never to produce one. Numbers are
+rules; words are the model.
+
+### Explainability model
+
+Every score ships its full breakdown: `signals` (each with points and a reason),
+`risks`, `missing_info`, and `recommendations` (each with the reason it was
+suggested). The API returns them not as debug extras but as the score itself —
+`score == clamp(Σ signals.points)` — so a client, a test, or an agent can always
+answer "why this number". `top_reasons` surfaces the biggest movers, honouring
+the product's existing "three signals that drove it" promise.
+
+### Security decisions
+
+- **The AI never writes to the lead.** The score lives in its own `lead_scores`
+  table (RLS `FORCE`, one row per lead); the lead's own `score` field is the
+  agent's and is never touched. This is SECURITY.md §5's "no autonomous action"
+  at the level of one feature.
+- **Two permission tiers.** The deterministic intelligence needs only
+  `leads.view` — it is computed from CRM data with no egress and works with the
+  AI layer switched off. The generative narrative needs `ai.use` and runs
+  through the guarded `AIService`, so the cost ceiling, ledger and egress audit
+  apply.
+- **Scope, by reuse.** Scoring fetches the lead through `LeadService.get_lead`,
+  which 404s a lead the caller cannot see; prioritisation ranks stored scores
+  joined to leads under the same `leads.view` scope the list uses. A stored
+  score is never a way to see a lead the caller could not.
+
+### Scalability
+
+Scores are persisted so prioritisation ranks from an indexed table rather than
+recomputing a book of leads on every request. Freshness comes from the queue:
+computed on read (deterministic, so a read-write is a safe cache), and refreshed
+by a nightly `rescore_leads` sweep — which, because it is pure rules, costs
+nothing and cannot fail on a provider outage. This is the "rescore on activity
+via queue, not on read" the roadmap called for, generalised.
+
+### Future ML integration
+
+The engine sits behind a `LeadScorer` protocol: `score(features) → LeadScore`. An
+ML model is another implementation of the same protocol, producing the same
+explainable result, swapped in by replacing one module-level `DEFAULT_SCORER`.
+The service, the API, the schemas and the `lead_scores` table are all
+model-agnostic — the `scorer` field on every row and response says which engine
+ran, so a rules-to-model rollout is legible in the data. Because the protocol
+returns an *explanation*, not a bare float, "explainable" survives the switch to
+a model that would otherwise be a black box.
+
+### API
+
+| Method | Path | Permission | Returns |
+| --- | --- | --- | --- |
+| GET | `/ai/leads/prioritized` | `leads.view` | ranked shortlist with top reasons |
+| GET | `/ai/leads/{id}/score` | `leads.view` | the full explainable score |
+| GET | `/ai/leads/{id}/insights` | `leads.view` + `ai.use` | score + grounded narrative |
 
 Related: [SECURITY.md](./SECURITY.md) §5 for the risk model this implements,
 [JOBS.md](./JOBS.md) for the worker, [PERMISSIONS.md](./PERMISSIONS.md) for

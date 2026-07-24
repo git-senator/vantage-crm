@@ -752,8 +752,28 @@ Phase 0 layering bought.*
   `Tool`/`ToolRegistry` with `CompletionRequest.tools` defaulting empty. Turning
   either on later is a transport or a `register` change, not a contract change.
 
-The remaining sub-phases (lead/deal/property intelligence, growth engine) fill
-the same frameworks.
+**6.3 lead intelligence — delivered.** See [AI.md §12](./AI.md).
+
+- **Scoring is deterministic; the model only writes language.** A lead's score is
+  the sum of a fixed set of signals, each carrying its reason — no model, no
+  randomness, reproducible. Temperature, qualification, priority, buying-intent,
+  risks, missing-info and recommendations all derive from it. The AI narrative
+  explains the number; it never produces one.
+- **Explainable by construction.** `score == clamp(Σ signals.points)`, and the
+  API returns the signals, so "why this number" always has an answer.
+- **The AI never writes to the lead.** The score lives in its own `lead_scores`
+  table; the lead's `score` field is the agent's. SECURITY.md §5's no-autonomous-
+  action rule at the level of one feature.
+- **Two permission tiers.** Deterministic intelligence needs only `leads.view`
+  (no egress, works with AI off); the narrative needs `ai.use` through the
+  guarded `AIService`.
+- **Future-ML-ready.** The engine is behind a `LeadScorer` protocol returning an
+  *explanation*, not a float — an ML scorer is one implementation swapped at one
+  line, with the API, schemas and table untouched and the `scorer` field marking
+  which engine ran.
+
+The remaining sub-phases (deal/property intelligence, growth engine) fill the
+same frameworks.
 
 **Exit criteria**
 - **RAG leakage test:** a user provably cannot retrieve, via the assistant, any

@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getLead } from "@/lib/api/leads";
 import { ApiError } from "@/lib/api/server";
+import { LeadIntelligence } from "@/components/leads/lead-intelligence";
 import { RecordActivity } from "@/components/shared/record-activity";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 import { formatPrice } from "@/lib/format";
@@ -146,6 +147,8 @@ export default async function LeadDetailPage({
         </div>
 
         <div className="space-y-6">
+          <LeadIntelligence leadId={lead.id} />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Contact</CardTitle>

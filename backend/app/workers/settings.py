@@ -40,6 +40,10 @@ from app.workers.jobs.documents import (
     sweep_abandoned_uploads,
     sweep_scan_backlog,
 )
+from app.workers.jobs.lead_intelligence import (
+    rescore_leads,
+    rescore_organization_leads,
+)
 from app.workers.jobs.messaging import deliver_message
 from app.workers.jobs.notifications import deliver_notification_email, send_email
 from app.workers.jobs.reports import (
@@ -96,6 +100,8 @@ class WorkerSettings:
         sweep_scheduled_reports,
         sweep_expired_exports,
         run_completion,
+        rescore_leads,
+        rescore_organization_leads,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -145,6 +151,18 @@ class WorkerSettings:
             cast(WorkerCoroutine, snapshot_metrics),
             hour={0},
             minute={7},
+            second=0,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Nightly, after the snapshot. Lead scores are deterministic and cheap
+        # (no model call), so a full rescore of every tenant's open leads is a
+        # rule-engine pass, not a cost — it keeps the prioritised list fresh for
+        # a workspace that has not opened a lead to trigger a rescore on read.
+        cron(
+            cast(WorkerCoroutine, rescore_leads),
+            hour={0},
+            minute={22},
             second=0,
             run_at_startup=False,
             max_tries=2,

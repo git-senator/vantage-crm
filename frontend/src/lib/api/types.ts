@@ -1398,3 +1398,61 @@ export interface AiMessage {
 export interface AiConversationDetail extends AiConversation {
   messages: AiMessage[];
 }
+
+// --- Lead intelligence (Phase 6.3) ---
+
+export interface ScoredSignal {
+  key: string;
+  label: string;
+  points: number;
+  reason: string;
+}
+
+export interface LeadRiskFlag {
+  key: string;
+  label: string;
+  detail: string;
+}
+
+export interface LeadMissingField {
+  key: string;
+  label: string;
+}
+
+export interface LeadRecommendation {
+  action: string;
+  reason: string;
+  priority: "high" | "medium" | "low";
+}
+
+export interface LeadScoreDetail {
+  score: number;
+  temperature: "hot" | "warm" | "cold";
+  qualification: "qualified" | "nurture" | "unqualified";
+  priority: "high" | "medium" | "low";
+  buying_intent: "strong" | "moderate" | "weak" | "none";
+  signals: ScoredSignal[];
+  risks: LeadRiskFlag[];
+  missing_info: LeadMissingField[];
+  recommendations: LeadRecommendation[];
+  /** Which engine produced this — rules-v1 today, an ML version later. */
+  scorer: string;
+}
+
+export interface LeadInsightResponse {
+  score: LeadScoreDetail;
+  /** The model's prose over the deterministic score. It never produced the
+   * number; it explains it. */
+  narrative: string;
+}
+
+export interface PrioritisedLead {
+  lead_id: string;
+  full_name: string;
+  stage: string;
+  score: number;
+  temperature: string;
+  priority: string;
+  buying_intent: string;
+  top_reasons: string[];
+}
