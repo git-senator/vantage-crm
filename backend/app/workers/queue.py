@@ -56,6 +56,8 @@ class JobName:
     RUN_AI_COMPLETION: Final = "run_completion"
     RESCORE_LEADS: Final = "rescore_leads"
     RESCORE_ORGANIZATION_LEADS: Final = "rescore_organization_leads"
+    RESCORE_DEALS: Final = "rescore_deals"
+    RESCORE_ORGANIZATION_DEALS: Final = "rescore_organization_deals"
 
 
 def redis_settings(settings: Settings | None = None) -> RedisSettings:

@@ -13,6 +13,7 @@ from app.api.v1 import (
     admin,
     ai,
     ai_assistant,
+    ai_deals,
     ai_leads,
     analytics,
     attachments,
@@ -85,6 +86,7 @@ api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
 api_router.include_router(ai.router, prefix="/ai", tags=["ai"])
 api_router.include_router(ai_assistant.router, prefix="/ai", tags=["ai-assistant"])
 api_router.include_router(ai_leads.router, prefix="/ai", tags=["ai-leads"])
+api_router.include_router(ai_deals.router, prefix="/ai", tags=["ai-deals"])
 
 
 # Phase 3.1 replaced the attachment placeholders with real object storage;

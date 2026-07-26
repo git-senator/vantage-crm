@@ -25,6 +25,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
+# The generic explanation primitives, shared with deal health (6.4) and any
+# later engine. Re-exported below so `from app.ai.lead_scoring import
+# ScoredSignal` keeps working — these were defined here first.
+from app.ai.explain import (
+    MissingField,
+    Recommendation,
+    RiskFlag,
+    ScoredSignal,
+)
+
 #: Score bounds. A lead is scored 0-100 so the number reads like a percentage of
 #: "how promising", which is what an agent expects a lead score to mean.
 MIN_SCORE = 0
@@ -62,37 +72,6 @@ class LeadFeatures:
     #: zero — "never contacted" and "contacted today" are opposite facts.
     days_since_last_contact: int | None
     days_since_created: int
-
-
-@dataclass(frozen=True, slots=True)
-class ScoredSignal:
-    """One signal's contribution, with the reason it contributed."""
-
-    key: str
-    label: str
-    points: int
-    reason: str
-
-
-@dataclass(frozen=True, slots=True)
-class RiskFlag:
-    key: str
-    label: str
-    detail: str
-
-
-@dataclass(frozen=True, slots=True)
-class MissingField:
-    key: str
-    label: str
-
-
-@dataclass(frozen=True, slots=True)
-class Recommendation:
-    action: str
-    reason: str
-    #: high / medium / low — how much the next action wants attention now.
-    priority: str
 
 
 @dataclass(frozen=True, slots=True)

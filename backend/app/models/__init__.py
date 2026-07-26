@@ -23,6 +23,7 @@ from app.models.calendar import CalendarEvent, EventAttendee
 from app.models.client import Client
 from app.models.conversation import Conversation, Message
 from app.models.deal import Deal, DealStageHistory
+from app.models.deal_score import DealScore
 from app.models.job import JobFailure
 from app.models.lead import Lead
 from app.models.lead_score import LeadScore
@@ -56,6 +57,7 @@ __all__ = [
     "Client",
     "Conversation",
     "Deal",
+    "DealScore",
     "DealStageHistory",
     "EventAttendee",
     "Goal",

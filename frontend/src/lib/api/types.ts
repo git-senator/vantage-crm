@@ -1456,3 +1456,38 @@ export interface PrioritisedLead {
   buying_intent: string;
   top_reasons: string[];
 }
+
+// --- Deal intelligence (Phase 6.4) ---
+
+export interface DealHealthDetail {
+  health: number;
+  status: "healthy" | "at_risk" | "critical" | "won" | "lost";
+  win_probability: number;
+  /** The deal's weighted forecast contribution (value × win probability), or
+   * null with no value. A money string. */
+  forecast_value: string | null;
+  is_stalled: boolean;
+  signals: ScoredSignal[];
+  /** The ± adjustments that produced the win probability, each with its reason. */
+  probability_factors: ScoredSignal[];
+  risks: LeadRiskFlag[];
+  missing_info: LeadMissingField[];
+  recommendations: LeadRecommendation[];
+  scorer: string;
+}
+
+export interface DealInsightResponse {
+  health: DealHealthDetail;
+  narrative: string;
+}
+
+export interface AtRiskDeal {
+  deal_id: string;
+  title: string;
+  stage: string;
+  health: number;
+  status: string;
+  win_probability: number;
+  is_stalled: boolean;
+  top_reasons: string[];
+}

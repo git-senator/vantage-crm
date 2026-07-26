@@ -11,6 +11,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { DealIntelligence } from "@/components/deals/deal-intelligence";
 import { getDeal, getDealHistory, getPipeline } from "@/lib/api/deals";
 import { ApiError } from "@/lib/api/server";
 import { RecordActivity } from "@/components/shared/record-activity";
@@ -216,6 +217,8 @@ export default async function DealDetailPage({
         </div>
 
         <div className="space-y-6">
+          <DealIntelligence dealId={deal.id} />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Status</CardTitle>

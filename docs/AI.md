@@ -15,6 +15,7 @@ that governs all of them.
 - [10. API](#10-api)
 - [11. The assistant (6.2)](#11-the-assistant-62)
 - [12. Lead intelligence (6.3)](#12-lead-intelligence-63)
+- [13. Deal intelligence (6.4)](#13-deal-intelligence-64)
 
 ---
 
@@ -34,9 +35,9 @@ is how §5 is implemented.
 
 Phase 6.1 shipped the **infrastructure** — the provider abstraction, the prompt
 framework, context builders, redaction, cost accounting and background execution
-(§3–§10). Phase 6.2 added the **assistant** (§11); Phase 6.3 adds **lead intelligence**
-(§12), the first feature to *reason about* a record. Deal and property
-intelligence (6.4–6.5) and the growth engine (6.6) fill the same frameworks; none
+(§3–§10). Phase 6.2 added the **assistant** (§11); 6.3 **lead intelligence** (§12) and 6.4
+**deal intelligence** (§13), the features that reason about a record. Property
+intelligence (6.5) and the growth engine (6.6) fill the same frameworks; none
 re-establishes the security model, because it lives in the infrastructure they
 all go through.
 
@@ -394,6 +395,75 @@ a model that would otherwise be a black box.
 | GET | `/ai/leads/{id}/score` | `leads.view` | the full explainable score |
 | GET | `/ai/leads/{id}/insights` | `leads.view` + `ai.use` | score + grounded narrative |
 
+---
+
+## 13. Deal intelligence (6.4)
+
+The same two-layer pattern as lead intelligence, applied to deals — health,
+win probability, stalled and risk detection, next best action, forecast
+contribution, and a grounded narrative — with one integration the brief named
+explicitly: **pipeline statistics come from the Analytics Engine, not a second
+copy of the logic.**
+
+### Two explainable numbers
+
+The deterministic engine (`app/ai/deal_scoring.py`, pure) produces both:
+
+- **health** (0-100): the sum of a signal registry — stage progression,
+  momentum, time-in-stage, close date, value, priority — each with its reason.
+- **win probability** (0-100): the deal's *own stage probability, adjusted* by
+  stated ± factors (stalled −15, overdue −15, gone quiet −10, closing soon +5).
+  Adjusting a baseline the pipeline already assigned, rather than producing a
+  number from nowhere, is what makes the probability defensible: every point of
+  difference from the stage default has a cause on the record. `forecast_value`
+  is the deal's weighted contribution, `value × win probability`.
+
+### The Analytics Engine reuse
+
+Stalled detection and the time-in-stage signal do not invent a threshold. They
+compare a deal's days-in-current-stage against the pipeline's **mean-time-in-
+stage from `AnalyticsRepository.stage_velocity`** — the same statistic the
+analytics dashboards render. A deal is stalled when it sits past twice its
+stage's own norm; "fast stage, quick to stall; slow stage, patient" falls out of
+reusing the analytics number rather than hard-coding one. The service reads the
+whole per-stage velocity map in one call, so scoring a book of deals reuses one
+analytics read, not one per deal.
+
+### Same security posture as 6.3
+
+- **The AI never writes to the deal.** Health lives in `deal_scores` (RLS
+  `FORCE`, one row per deal); the deal's own `probability` is the agent's and is
+  never overwritten — asserted by a test.
+- **Two permission tiers.** Deterministic health and the at-risk ranking need
+  only `deals.view`; the narrative needs `ai.use` through the guarded
+  `AIService`.
+- **Scope by reuse.** Scoring goes through `DealService.get_deal`; the at-risk
+  ranking joins stored scores to deals under the same `deals.view` scope.
+
+### Shared explainability
+
+The four explanation primitives (`ScoredSignal`, `RiskFlag`, `MissingField`,
+`Recommendation`) were lifted into `app/ai/explain.py` and are shared by lead and
+deal scoring — re-exported from `lead_scoring` so 6.3 is untouched. The
+explainability *model* is now one shape across features, not re-invented per one.
+
+### Future ML integration
+
+A `DealScorer` protocol, exactly like `LeadScorer`: `score(features) → DealHealth`.
+An ML model is one implementation swapped at `DEFAULT_SCORER`, with the API,
+schemas and `deal_scores` table untouched and the `scorer` field marking which
+engine ran. The protocol returns an explanation, not a bare probability, so
+explainability survives the switch.
+
+### API
+
+| Method | Path | Permission | Returns |
+| --- | --- | --- | --- |
+| GET | `/ai/deals/at-risk` | `deals.view` | lowest-health open deals, worst first |
+| GET | `/ai/deals/{id}/health` | `deals.view` | health + win probability, explained |
+| GET | `/ai/deals/{id}/insights` | `deals.view` + `ai.use` | health + grounded narrative |
+
 Related: [SECURITY.md](./SECURITY.md) §5 for the risk model this implements,
+[ANALYTICS.md](./ANALYTICS.md) for the stage velocity deal intelligence reuses,
 [JOBS.md](./JOBS.md) for the worker, [PERMISSIONS.md](./PERMISSIONS.md) for
 `ai.use` / `ai.configure`.

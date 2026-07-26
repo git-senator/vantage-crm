@@ -35,6 +35,10 @@ from app.workers.jobs.automation import (
     sweep_workflow_runs,
 )
 from app.workers.jobs.calendar import sweep_calendar_reminders
+from app.workers.jobs.deal_intelligence import (
+    rescore_deals,
+    rescore_organization_deals,
+)
 from app.workers.jobs.documents import (
     scan_attachment,
     sweep_abandoned_uploads,
@@ -102,6 +106,8 @@ class WorkerSettings:
         run_completion,
         rescore_leads,
         rescore_organization_leads,
+        rescore_deals,
+        rescore_organization_deals,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -163,6 +169,17 @@ class WorkerSettings:
             cast(WorkerCoroutine, rescore_leads),
             hour={0},
             minute={22},
+            second=0,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Nightly, just after the lead rescore. Deal health is deterministic and
+        # reads the analytics stage velocity once per tenant, so a full pass is a
+        # rule-engine sweep, not a cost.
+        cron(
+            cast(WorkerCoroutine, rescore_deals),
+            hour={0},
+            minute={27},
             second=0,
             run_at_startup=False,
             max_tries=2,

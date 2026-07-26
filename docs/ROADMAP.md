@@ -772,8 +772,26 @@ Phase 0 layering bought.*
   line, with the API, schemas and table untouched and the `scorer` field marking
   which engine ran.
 
-The remaining sub-phases (deal/property intelligence, growth engine) fill the
-same frameworks.
+**6.4 deal intelligence — delivered.** See [AI.md §13](./AI.md).
+
+- **Two explainable numbers.** Health (the sum of a signal registry) and win
+  probability (the deal's stage baseline adjusted by stated ± factors). The
+  probability is defensible because every point of difference from the stage
+  default has a cause on the record — not a number from nowhere.
+- **Reuses the Analytics Engine.** Stalled detection and the time-in-stage
+  signal compare a deal against the pipeline's own mean-time-in-stage from
+  `AnalyticsRepository.stage_velocity` — the same statistic the dashboards show,
+  read once per tenant, never recomputed here.
+- **The AI never writes to the deal.** Health lives in `deal_scores`; the deal's
+  own `probability` is untouched.
+- **Shared explainability.** The four explanation primitives were lifted into
+  `app/ai/explain.py`, shared by lead and deal scoring, re-exported so 6.3 is
+  untouched — one explainability model, not one per feature.
+- **Future-ML-ready.** A `DealScorer` protocol, like `LeadScorer`; an ML model
+  swaps in at one line with the API, schemas and table untouched.
+
+The remaining sub-phases (property intelligence, growth engine) fill the same
+frameworks.
 
 **Exit criteria**
 - **RAG leakage test:** a user provably cannot retrieve, via the assistant, any
