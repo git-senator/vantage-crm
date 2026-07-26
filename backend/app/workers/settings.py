@@ -50,6 +50,10 @@ from app.workers.jobs.lead_intelligence import (
 )
 from app.workers.jobs.messaging import deliver_message
 from app.workers.jobs.notifications import deliver_notification_email, send_email
+from app.workers.jobs.property_intelligence import (
+    rescore_organization_properties,
+    rescore_properties,
+)
 from app.workers.jobs.reports import (
     run_report_export,
     sweep_expired_exports,
@@ -108,6 +112,8 @@ class WorkerSettings:
         rescore_organization_leads,
         rescore_deals,
         rescore_organization_deals,
+        rescore_properties,
+        rescore_organization_properties,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -180,6 +186,17 @@ class WorkerSettings:
             cast(WorkerCoroutine, rescore_deals),
             hour={0},
             minute={27},
+            second=0,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Nightly, just after the deal rescore. Listing quality is deterministic
+        # and reads the analytics market stats once per tenant, so a full pass is
+        # a rule-engine sweep, not a cost.
+        cron(
+            cast(WorkerCoroutine, rescore_properties),
+            hour={0},
+            minute={32},
             second=0,
             run_at_startup=False,
             max_tries=2,

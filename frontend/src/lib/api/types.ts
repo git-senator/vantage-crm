@@ -1491,3 +1491,48 @@ export interface AtRiskDeal {
   is_stalled: boolean;
   top_reasons: string[];
 }
+
+// --- Property intelligence (Phase 6.5) ---
+
+export interface PricingInsight {
+  stance: "above" | "below" | "in_line" | "unknown";
+  /** Signed distance from the comparable median, percent; null when unknown. */
+  delta_pct: number | null;
+  benchmark: string | null;
+  sample_size: number;
+  reason: string;
+}
+
+export interface PropertyQualityDetail {
+  quality: number;
+  grade: "excellent" | "good" | "fair" | "poor";
+  /** The fraction of the listing checklist that is filled, 0-100. */
+  completeness: number;
+  pricing: PricingInsight;
+  signals: ScoredSignal[];
+  strengths: string[];
+  weaknesses: string[];
+  missing_info: LeadMissingField[];
+  recommendations: LeadRecommendation[];
+  scorer: string;
+}
+
+export type PropertyContentKind = "summary" | "description" | "seo";
+
+export interface PropertyContentResponse {
+  kind: PropertyContentKind;
+  /** The model's copy over the deterministic quality read. */
+  content: string;
+  quality: PropertyQualityDetail;
+}
+
+export interface NeedsAttentionListing {
+  property_id: string;
+  title: string;
+  city: string;
+  status: string;
+  quality: number;
+  grade: string;
+  completeness: number;
+  top_reasons: string[];
+}

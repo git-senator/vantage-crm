@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { ArrowLeft, Bath, Bed, MapPin, Pencil, Ruler, User } from "lucide-react";
 
 import { DeletePropertyButton } from "@/components/properties/delete-property-button";
+import { PropertyIntelligence } from "@/components/properties/property-intelligence";
 import { PropertyThumb } from "@/components/properties/property-thumb";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -154,6 +155,8 @@ export default async function PropertyDetailPage({
         </div>
 
         <div className="space-y-6">
+          <PropertyIntelligence propertyId={property.id} />
+
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">At a glance</CardTitle>

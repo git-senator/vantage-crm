@@ -16,6 +16,7 @@ that governs all of them.
 - [11. The assistant (6.2)](#11-the-assistant-62)
 - [12. Lead intelligence (6.3)](#12-lead-intelligence-63)
 - [13. Deal intelligence (6.4)](#13-deal-intelligence-64)
+- [14. Property intelligence (6.5)](#14-property-intelligence-65)
 
 ---
 
@@ -35,11 +36,11 @@ is how §5 is implemented.
 
 Phase 6.1 shipped the **infrastructure** — the provider abstraction, the prompt
 framework, context builders, redaction, cost accounting and background execution
-(§3–§10). Phase 6.2 added the **assistant** (§11); 6.3 **lead intelligence** (§12) and 6.4
-**deal intelligence** (§13), the features that reason about a record. Property
-intelligence (6.5) and the growth engine (6.6) fill the same frameworks; none
-re-establishes the security model, because it lives in the infrastructure they
-all go through.
+(§3–§10). Phase 6.2 added the **assistant** (§11); 6.3 **lead intelligence** (§12), 6.4
+**deal intelligence** (§13) and 6.5 **property intelligence** (§14), the features
+that reason about a record. The growth engine (6.6) fills the same frameworks;
+none re-establishes the security model, because it lives in the infrastructure
+they all go through.
 
 ---
 
@@ -467,3 +468,82 @@ Related: [SECURITY.md](./SECURITY.md) §5 for the risk model this implements,
 [ANALYTICS.md](./ANALYTICS.md) for the stage velocity deal intelligence reuses,
 [JOBS.md](./JOBS.md) for the worker, [PERMISSIONS.md](./PERMISSIONS.md) for
 `ai.use` / `ai.configure`.
+
+## 14. Property intelligence (6.5)
+
+The same two-layer pattern again, applied to listings — a quality score, a
+completeness reading, a pricing insight, strengths and weaknesses, missing-info
+and marketing recommendations, plus generated listing copy — adapted to the one
+thing properties do differently: **listings are shared inventory** (`properties.
+view` is org-wide; the scope anchor is the listing agent, not an owner).
+
+### Two deterministic numbers, and a market-relative third
+
+The deterministic engine (`app/ai/property_scoring.py`, pure) produces:
+
+- **quality** (0-100): the clamped sum of a signal registry — description depth,
+  features, core specifications, price presence, year built, mappable location,
+  MLS syndication-readiness — each with its reason.
+- **completeness** (0-100%): a flatter, separate reading, the fraction of a fixed
+  listing checklist that is filled. Quality weights; completeness counts. A
+  listing can be complete but thin, or rich but missing a fact, and the two
+  numbers say different things.
+- **pricing insight**: a stance (`above` / `below` / `in_line` / `unknown`)
+  against the market's comparable median, with the benchmark and sample named in
+  the reason — "priced 18% above the $264/sqft median across 24 comparable
+  listings", never a bare assertion.
+
+**Strengths and weaknesses read straight off the signals** — a signal that helped
+is a strength, one that hurt or contributed nothing is a weakness, plus the
+pricing stance. No second opinion: the same facts as the score, split by sign.
+
+### The Analytics Engine reuse
+
+The pricing insight and the staleness read do not recompute market statistics.
+They come from the **Analytics Engine**: `AnalyticsRepository.price_benchmarks`
+(median price-per-square-foot per property type, computed in one database pass
+with `percentile_cont`) and the existing `average_days_on_market`. Both enter the
+engine as *features*, read **once per tenant** — the property analog of the deal
+engine's velocity map — so scoring a whole book of listings reuses two analytics
+reads, not two per listing. A fair price benchmark is the whole market's, so the
+comps are org-wide, which is also exactly the visibility a shared-inventory
+listing already has.
+
+### Same security posture as 6.3 / 6.4
+
+- **The AI never writes to the listing.** Quality lives in `property_scores` (RLS
+  `FORCE`, one row per property); the listing's own fields are the agent's and are
+  never overwritten — asserted by a test.
+- **Two permission tiers.** Deterministic quality and the needs-attention ranking
+  need only `properties.view`; the generated content needs `ai.use` through the
+  guarded `AIService`.
+- **Scope by reuse.** Scoring goes through `PropertyService.get_property` (which
+  applies the shared-inventory scope); the needs-attention ranking joins stored
+  scores to properties under the same `properties.view` scope.
+- **Grounded, un-inventable copy.** The three content prompts (summary,
+  description, SEO) are handed the listing's fenced, redacted context plus the
+  CRM's own strengths, and told first and foremost not to invent facts — a
+  fabricated "renovated kitchen" is a misrepresentation and fair-housing risk, not
+  a nicety. Each kind is a separate, individually-priced `AIService` call.
+
+### Future ML integration
+
+A `PropertyScorer` protocol, exactly like `LeadScorer` and `DealScorer`:
+`score(features) → PropertyQuality`. An ML model — say a learned price or
+photo-quality model — is one implementation swapped at `DEFAULT_SCORER`, with the
+API, schemas and `property_scores` table untouched and the `scorer` field marking
+which engine ran. The market statistics enter as features, so a richer comp model
+is a change in the Analytics Engine, not in the public API.
+
+### API
+
+| Method | Path | Permission | Returns |
+| --- | --- | --- | --- |
+| GET | `/ai/properties/needs-attention` | `properties.view` | lowest-quality active listings, worst first |
+| GET | `/ai/properties/{id}/quality` | `properties.view` | quality, completeness, pricing, explained |
+| GET | `/ai/properties/{id}/content?kind=` | `properties.view` + `ai.use` | generated summary / description / SEO + quality |
+
+Related: [SECURITY.md](./SECURITY.md) §5 for the risk model this implements,
+[ANALYTICS.md](./ANALYTICS.md) for the price benchmarks and days-on-market this
+reuses, [JOBS.md](./JOBS.md) for the worker, [PERMISSIONS.md](./PERMISSIONS.md)
+for `ai.use` and the shared-inventory `properties.*` scopes.

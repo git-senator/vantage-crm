@@ -449,6 +449,47 @@ class AnalyticsRepository:
             for row in (await self.session.execute(query)).all()
         ]
 
+    async def price_benchmarks(
+        self, organization_id: UUID
+    ) -> dict[str, tuple[Decimal, int]]:
+        """`{property_type: (median_price_per_sqft, sample_size)}`.
+
+        The market comp the property-quality engine judges an asking price
+        against, computed once per tenant the way `stage_velocity` computes the
+        pipeline norm once per tenant — the engine reads it, it does not
+        recompute it. The median is `percentile_cont` over `price / square_feet`,
+        evaluated in the database over an index rather than pulled into Python.
+
+        Org-wide, not scope-filtered: a fair price benchmark is the whole
+        market's, and listings are visible org-wide anyway, so no scope is
+        crossed. Only listings with a positive price *and* square footage count —
+        a price-per-square-foot needs both, and a zero would divide.
+
+        Not restricted to active listings: a recently sold or pending comparable
+        is exactly what an asking price should be measured against.
+        """
+        ppsf = Property.price / func.nullif(Property.square_feet, 0)
+        query = (
+            select(
+                Property.property_type,
+                func.percentile_cont(0.5).within_group(ppsf.asc()),
+                func.count(),
+            )
+            .where(Property.organization_id == organization_id)
+            .where(Property.deleted_at.is_(None))
+            .where(Property.price.is_not(None))
+            .where(Property.price > 0)
+            .where(Property.square_feet.is_not(None))
+            .where(Property.square_feet > 0)
+            .group_by(Property.property_type)
+        )
+        result = await self.session.execute(query)
+        return {
+            str(row[0]): (Decimal(str(round(float(row[1]), 2))), int(row[2] or 0))
+            for row in result.all()
+            if row[1] is not None
+        }
+
     async def loss_reasons(
         self, organization_id: UUID, owner_ids: list[UUID] | None,
         start: datetime, end: datetime, limit: int = 10,

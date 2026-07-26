@@ -58,6 +58,8 @@ class JobName:
     RESCORE_ORGANIZATION_LEADS: Final = "rescore_organization_leads"
     RESCORE_DEALS: Final = "rescore_deals"
     RESCORE_ORGANIZATION_DEALS: Final = "rescore_organization_deals"
+    RESCORE_PROPERTIES: Final = "rescore_properties"
+    RESCORE_ORGANIZATION_PROPERTIES: Final = "rescore_organization_properties"
 
 
 def redis_settings(settings: Settings | None = None) -> RedisSettings:

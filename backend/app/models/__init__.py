@@ -33,6 +33,7 @@ from app.models.notification import Notification, NotificationPreference
 from app.models.organization import Organization
 from app.models.pipeline import Pipeline, PipelineStage
 from app.models.property import Property
+from app.models.property_score import PropertyScore
 from app.models.rbac import (
     Permission,
     Role,
@@ -75,6 +76,7 @@ __all__ = [
     "Pipeline",
     "PipelineStage",
     "Property",
+    "PropertyScore",
     "RefreshToken",
     "ReportDefinition",
     "ReportRun",

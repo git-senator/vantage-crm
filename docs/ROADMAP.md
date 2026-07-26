@@ -790,8 +790,23 @@ Phase 0 layering bought.*
 - **Future-ML-ready.** A `DealScorer` protocol, like `LeadScorer`; an ML model
   swaps in at one line with the API, schemas and table untouched.
 
-The remaining sub-phases (property intelligence, growth engine) fill the same
-frameworks.
+**6.5 property intelligence — delivered.** See [AI.md §14](./AI.md).
+
+- **Two deterministic numbers plus a market-relative third.** Listing quality
+  (the sum of a signal registry), completeness (the fraction of the listing
+  checklist filled — quality weights, completeness counts), and a pricing insight
+  measured against the market's comparable median. Strengths and weaknesses read
+  straight off the signals, split by sign.
+- **Reuses the Analytics Engine.** The pricing insight and staleness read come
+  from `AnalyticsRepository.price_benchmarks` (median price-per-sqft per type, one
+  DB pass) and `average_days_on_market` — read once per tenant, never recomputed.
+- **The AI never writes to the listing.** Quality lives in `property_scores`; the
+  listing's own fields are the agent's. Generated copy (summary, description, SEO)
+  is grounded and told not to invent facts.
+- **Future-ML-ready.** A `PropertyScorer` protocol, like the others; an ML price
+  or quality model swaps in at one line with the API, schemas and table untouched.
+
+The remaining sub-phase (growth engine) fills the same frameworks.
 
 **Exit criteria**
 - **RAG leakage test:** a user provably cannot retrieve, via the assistant, any
