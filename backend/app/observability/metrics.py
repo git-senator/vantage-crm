@@ -189,6 +189,11 @@ REGISTRY.counter(
     "integration_syncs_total",
     "Integration sync runs by provider, outcome and tenant.",
 )
+# GDPR / compliance data requests (Phase 8.0).
+REGISTRY.counter(
+    "data_requests_total",
+    "GDPR data requests by kind, outcome and tenant.",
+)
 
 
 _TENANT_UNKNOWN = "unknown"
@@ -296,4 +301,13 @@ def record_integration_sync(
     REGISTRY.inc(
         "integration_syncs_total",
         {"provider": provider, "outcome": outcome, "tenant": _tenant(organization_id)},
+    )
+
+
+def record_data_request(
+    *, kind: str, outcome: str, organization_id: object | None = None
+) -> None:
+    REGISTRY.inc(
+        "data_requests_total",
+        {"kind": kind, "outcome": outcome, "tenant": _tenant(organization_id)},
     )

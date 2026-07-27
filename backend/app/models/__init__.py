@@ -26,6 +26,14 @@ from app.models.client import Client
 from app.models.conversation import Conversation, Message
 from app.models.deal import Deal, DealStageHistory
 from app.models.deal_score import DealScore
+from app.models.enterprise import (
+    CompliancePolicy,
+    DataRequest,
+    FeatureFlag,
+    OrganizationBranding,
+    SecurityPolicy,
+    SsoConnection,
+)
 from app.models.growth_score import GrowthScore
 from app.models.integration import (
     IntegrationConnection,
@@ -66,11 +74,14 @@ __all__ = [
     "AuditLog",
     "CalendarEvent",
     "Client",
+    "CompliancePolicy",
     "Conversation",
+    "DataRequest",
     "Deal",
     "DealScore",
     "DealStageHistory",
     "EventAttendee",
+    "FeatureFlag",
     "Goal",
     "GrowthScore",
     "IntegrationConnection",
@@ -87,6 +98,7 @@ __all__ = [
     "Notification",
     "NotificationPreference",
     "Organization",
+    "OrganizationBranding",
     "Permission",
     "Pipeline",
     "PipelineStage",
@@ -98,6 +110,8 @@ __all__ = [
     "ReportRun",
     "Role",
     "RolePermission",
+    "SecurityPolicy",
+    "SsoConnection",
     "Subscription",
     "Task",
     "Team",

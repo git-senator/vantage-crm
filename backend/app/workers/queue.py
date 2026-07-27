@@ -55,6 +55,8 @@ class JobName:
     RUN_INTEGRATION_SYNC: Final = "run_integration_sync"
     DISPATCH_INTEGRATION_EVENT: Final = "dispatch_integration_event"
     SWEEP_INTEGRATION_SYNCS: Final = "sweep_integration_syncs"
+    PROCESS_DATA_REQUEST: Final = "process_data_request"
+    SWEEP_DATA_RETENTION: Final = "sweep_data_retention"
     SNAPSHOT_METRICS: Final = "snapshot_metrics"
     BACKFILL_METRICS: Final = "backfill_metrics"
     RUN_REPORT_EXPORT: Final = "run_report_export"

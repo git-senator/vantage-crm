@@ -45,6 +45,10 @@ from app.workers.jobs.documents import (
     sweep_abandoned_uploads,
     sweep_scan_backlog,
 )
+from app.workers.jobs.enterprise import (
+    process_data_request,
+    sweep_data_retention,
+)
 from app.workers.jobs.growth_intelligence import (
     recompute_growth,
     recompute_organization_growth,
@@ -138,6 +142,8 @@ class WorkerSettings:
         run_integration_sync,
         dispatch_integration_event,
         sweep_integration_syncs,
+        process_data_request,
+        sweep_data_retention,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -288,6 +294,17 @@ class WorkerSettings:
         cron(
             cast(WorkerCoroutine, sweep_integration_syncs),
             minute={3, 13, 23, 33, 43, 53},
+            second=0,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Once a day, well clear of the other sweeps. Retention is measured in
+        # days, so a daily pass bounds how long a record outlives its window to
+        # under one — and it doubles as the net for a lost GDPR-request enqueue.
+        cron(
+            cast(WorkerCoroutine, sweep_data_retention),
+            hour={4},
+            minute={20},
             second=0,
             run_at_startup=False,
             max_tries=2,

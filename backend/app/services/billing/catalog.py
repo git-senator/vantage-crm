@@ -25,6 +25,9 @@ FEATURE_API_ACCESS = "api_access"
 FEATURE_ADVANCED_REPORTS = "advanced_reports"
 FEATURE_INTEGRATIONS = "integrations"
 FEATURE_SSO = "sso"
+#: The enterprise governance layer (Phase 8.0): SSO/SCIM, security policies,
+#: white-label branding, and compliance tooling.
+FEATURE_ENTERPRISE = "enterprise"
 
 #: Quota keys. A missing key means unlimited.
 QUOTA_SEATS = "seats"
@@ -89,6 +92,7 @@ PLAN_DEFS: list[dict[str, Any]] = [
             FEATURE_ADVANCED_REPORTS: True,
             FEATURE_INTEGRATIONS: True,
             FEATURE_SSO: True,
+            FEATURE_ENTERPRISE: True,
         },
         "quotas": {},  # unlimited
         "is_public": False,

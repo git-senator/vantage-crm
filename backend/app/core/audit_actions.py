@@ -84,6 +84,25 @@ class AuditAction:
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
 
+    # --- enterprise governance (Phase 8.0) ---
+    #: Changing the security policy (password rules, MFA enforcement, session
+    #: limits, the IP allowlist) alters who can get in and how; revoking every
+    #: session and reconfiguring SSO are both account-takeover-adjacent, so each
+    #: is alert-worthy. Compliance acts — placing a legal hold, running a GDPR
+    #: export or erasure — are recorded because they are exactly the acts a
+    #: regulator later asks to see evidence of.
+    SECURITY_POLICY_UPDATED: Final = "enterprise.security_policy.updated"
+    SESSIONS_REVOKED: Final = "enterprise.sessions.revoked"
+    BRANDING_UPDATED: Final = "enterprise.branding.updated"
+    SSO_UPDATED: Final = "enterprise.sso.updated"
+    FEATURE_FLAG_UPDATED: Final = "enterprise.feature_flag.updated"
+    COMPLIANCE_POLICY_UPDATED: Final = "enterprise.compliance_policy.updated"
+    LEGAL_HOLD_CHANGED: Final = "enterprise.legal_hold.changed"
+    DATA_REQUEST_CREATED: Final = "enterprise.data_request.created"
+    DATA_REQUEST_COMPLETED: Final = "enterprise.data_request.completed"
+    SCIM_USER_PROVISIONED: Final = "enterprise.scim.user_provisioned"
+    SCIM_USER_DEACTIVATED: Final = "enterprise.scim.user_deactivated"
+
     # --- data (Phase 2 onward) ---
     RECORD_CREATED: Final = "record.created"
     RECORD_UPDATED: Final = "record.updated"
@@ -164,6 +183,12 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         # across a trust boundary — an egress change worth a same-day look.
         AuditAction.INTEGRATION_CONNECTED,
         AuditAction.INTEGRATION_DISCONNECTED,
+        # Enterprise controls that change who can get in, or that erase data.
+        AuditAction.SECURITY_POLICY_UPDATED,
+        AuditAction.SESSIONS_REVOKED,
+        AuditAction.SSO_UPDATED,
+        AuditAction.LEGAL_HOLD_CHANGED,
+        AuditAction.DATA_REQUEST_COMPLETED,
         # A newly live workflow can touch every record in the workspace.
         AuditAction.WORKFLOW_PUBLISHED,
         AuditAction.RECORD_EXPORTED,
