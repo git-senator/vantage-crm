@@ -44,6 +44,10 @@ from app.workers.jobs.documents import (
     sweep_abandoned_uploads,
     sweep_scan_backlog,
 )
+from app.workers.jobs.growth_intelligence import (
+    recompute_growth,
+    recompute_organization_growth,
+)
 from app.workers.jobs.lead_intelligence import (
     rescore_leads,
     rescore_organization_leads,
@@ -114,6 +118,8 @@ class WorkerSettings:
         rescore_organization_deals,
         rescore_properties,
         rescore_organization_properties,
+        recompute_growth,
+        recompute_organization_growth,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -197,6 +203,17 @@ class WorkerSettings:
             cast(WorkerCoroutine, rescore_properties),
             hour={0},
             minute={32},
+            second=0,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Nightly, after the per-record rescores, so the growth read is computed
+        # over freshly-scored data. Deterministic and cheap — it runs the rule
+        # engine over the Analytics Engine's aggregates, one pass per tenant.
+        cron(
+            cast(WorkerCoroutine, recompute_growth),
+            hour={0},
+            minute={37},
             second=0,
             run_at_startup=False,
             max_tries=2,

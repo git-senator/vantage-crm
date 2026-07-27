@@ -17,6 +17,7 @@ that governs all of them.
 - [12. Lead intelligence (6.3)](#12-lead-intelligence-63)
 - [13. Deal intelligence (6.4)](#13-deal-intelligence-64)
 - [14. Property intelligence (6.5)](#14-property-intelligence-65)
+- [15. Growth intelligence (6.6)](#15-growth-intelligence-66)
 
 ---
 
@@ -37,10 +38,10 @@ is how §5 is implemented.
 Phase 6.1 shipped the **infrastructure** — the provider abstraction, the prompt
 framework, context builders, redaction, cost accounting and background execution
 (§3–§10). Phase 6.2 added the **assistant** (§11); 6.3 **lead intelligence** (§12), 6.4
-**deal intelligence** (§13) and 6.5 **property intelligence** (§14), the features
-that reason about a record. The growth engine (6.6) fills the same frameworks;
-none re-establishes the security model, because it lives in the infrastructure
-they all go through.
+**deal intelligence** (§13), 6.5 **property intelligence** (§14) and 6.6 **growth
+intelligence** (§15) — the features that reason about a record, and finally about
+the whole business. None re-establishes the security model, because it lives in
+the infrastructure they all go through.
 
 ---
 
@@ -547,3 +548,69 @@ Related: [SECURITY.md](./SECURITY.md) §5 for the risk model this implements,
 [ANALYTICS.md](./ANALYTICS.md) for the price benchmarks and days-on-market this
 reuses, [JOBS.md](./JOBS.md) for the worker, [PERMISSIONS.md](./PERMISSIONS.md)
 for `ai.use` and the shared-inventory `properties.*` scopes.
+
+## 15. Growth intelligence (6.6)
+
+The last member of the family, and the only one that scores the *business*
+rather than a record. Where lead, deal and property intelligence each reason
+about one row, growth intelligence reasons over the whole funnel at once — a
+single business-health score for a workspace, with revenue signals, pipeline
+insights, risks and recommendations.
+
+### One explainable score, from aggregates
+
+The deterministic engine (`app/ai/growth_scoring.py`, pure) produces a **growth
+score** (0-100) that is the clamped sum of a signal registry spanning lead
+conversion, win rate, revenue trend, pipeline coverage, sales cycle, activity,
+deal flow and task hygiene — each signal carrying its reason. Alongside it,
+**revenue signals** and **pipeline insights** are explainable statements (the
+org-level analog of a property's strengths and weaknesses), and the shared
+`RiskFlag` / `Recommendation` primitives carry the rest.
+
+### Total Analytics Engine reuse
+
+This is the module where the "do not duplicate analytics calculations" rule is
+absolute: the engine computes **no metric of its own**. `GrowthIntelligence
+Service` fills the features from `AnalyticsService.kpis` — the same
+scope-resolved, previous-period-compared metrics the dashboards render — plus the
+pipeline breakdown (`pipeline_by_stage` and `stage_velocity`). Every number is
+read; none is recomputed. Because the features come from `AnalyticsService`,
+scope is inherited for free: each metric is already resolved under its own entity
+grant, so a manager with a team scope is scored on their team and an agent on
+their own, exactly as the dashboards behave.
+
+### Security posture
+
+- **The AI never writes CRM data.** The score lives in `growth_scores` (RLS
+  `FORCE`), **one canonical org-wide row per tenant**. That row is written only
+  for an organization-wide computation — the nightly job, or a caller who holds
+  ALL scope on every entity. A scoped, partial view is returned live and never
+  overwrites the canonical row.
+- **Two permission tiers.** The deterministic read needs `reports.view` (the same
+  grant the analytics endpoints use); the briefing needs `ai.use` through the
+  guarded `AIService`.
+- **No fenced context, because there is none.** A growth briefing works from
+  derived aggregates only — never a raw customer record — so the whole prompt is
+  trusted, CRM-authored analysis, and nothing crosses the untrusted boundary.
+
+### Future ML integration
+
+A `GrowthScorer` protocol, exactly like the others: `score(features) →
+GrowthHealth`. A learned business-health model swaps in at `DEFAULT_SCORER`, with
+the API, schemas and `growth_scores` table untouched. The features are analytics
+aggregates, so a richer signal set is a change in the Analytics Engine feeding
+the same protocol.
+
+### API
+
+| Method | Path | Permission | Returns |
+| --- | --- | --- | --- |
+| GET | `/ai/growth` | `reports.view` | growth score, revenue signals, pipeline insights, explained |
+| GET | `/ai/growth/briefing` | `reports.view` + `ai.use` | growth read + grounded AI briefing |
+
+Both accept the analytics period parameters (`period`, `start`, `end`), so growth
+can be read for any window without a second convention.
+
+Related: [ANALYTICS.md](./ANALYTICS.md) for the KPIs and pipeline breakdown this
+is built on, [SECURITY.md](./SECURITY.md) §5, [JOBS.md](./JOBS.md) for the
+nightly `recompute_growth` worker.

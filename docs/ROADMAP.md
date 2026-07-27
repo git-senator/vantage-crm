@@ -806,7 +806,24 @@ Phase 0 layering bought.*
 - **Future-ML-ready.** A `PropertyScorer` protocol, like the others; an ML price
   or quality model swaps in at one line with the API, schemas and table untouched.
 
-The remaining sub-phase (growth engine) fills the same frameworks.
+**6.6 growth intelligence — delivered.** See [AI.md §15](./AI.md).
+
+- **One explainable business-health score.** The clamped sum of a signal registry
+  over the whole funnel — conversion, win rate, revenue trend, pipeline coverage,
+  sales cycle, activity, deal flow, task hygiene — with revenue signals, pipeline
+  insights, risks and recommendations, each carrying its reason.
+- **Total Analytics Engine reuse.** The engine computes no metric of its own; the
+  service fills its features from `AnalyticsService.kpis` and the pipeline
+  breakdown, so scope is inherited and no calculation is duplicated.
+- **The AI never writes CRM data.** The score lives in `growth_scores`, one
+  canonical org-wide row per tenant, written only for an organization-wide
+  computation; a scoped caller gets a live read that never overwrites it.
+- **Future-ML-ready.** A `GrowthScorer` protocol, like the others; a learned
+  business-health model swaps in at one line with the API, schemas and table
+  untouched.
+
+Phase 6 is complete: infrastructure (6.1), assistant (6.2), and lead, deal,
+property and growth intelligence (6.3–6.6).
 
 **Exit criteria**
 - **RAG leakage test:** a user provably cannot retrieve, via the assistant, any

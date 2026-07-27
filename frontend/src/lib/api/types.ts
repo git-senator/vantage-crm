@@ -1536,3 +1536,26 @@ export interface NeedsAttentionListing {
   completeness: number;
   top_reasons: string[];
 }
+
+// --- Growth intelligence (Phase 6.6) ---
+
+export interface GrowthHealthDetail {
+  score: number;
+  band: "thriving" | "steady" | "at_risk" | "struggling";
+  period_label: string;
+  period_start: string;
+  period_end: string;
+  signals: ScoredSignal[];
+  /** Explainable statements about revenue and the pipeline. */
+  revenue_signals: string[];
+  pipeline_insights: string[];
+  risks: LeadRiskFlag[];
+  recommendations: LeadRecommendation[];
+  scorer: string;
+}
+
+export interface GrowthBriefingResponse {
+  growth: GrowthHealthDetail;
+  /** The model's prose over the deterministic growth read. */
+  narrative: string;
+}

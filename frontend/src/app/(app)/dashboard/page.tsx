@@ -6,7 +6,6 @@ import {
   CircleDollarSign,
   Clock,
   Plus,
-  Sparkles,
   Target,
   TrendingUp,
 } from "lucide-react";
@@ -15,6 +14,7 @@ import {
   RevenueChart,
   type RevenuePoint,
 } from "@/components/dashboard/revenue-chart";
+import { GrowthIntelligence } from "@/components/dashboard/growth-intelligence";
 import { EmptyState } from "@/components/shared/empty-state";
 import { OwnerAvatar } from "@/components/shared/owner-avatar";
 import { PageHeader } from "@/components/shared/page-header";
@@ -91,30 +91,6 @@ function relativeTime(iso: string): string {
   if (days < 7) return `${days}d ago`;
   return new Date(iso).toLocaleDateString();
 }
-
-const aiInsights = [
-  {
-    tone: "urgent" as const,
-    title: "Harper Lindqvist is going cold",
-    body: "Score dropped 8 points after four days without contact. She toured twice in one week — worth a call today.",
-  },
-  {
-    tone: "opportunity" as const,
-    title: "Three Folsom comps just closed above ask",
-    body: "The 2201 Folsom listing may be underpriced by roughly 6%. Consider revisiting before it goes live Thursday.",
-  },
-  {
-    tone: "risk" as const,
-    title: "88 Townsend contingency expires in 6 days",
-    body: "The disclosure packet is still blocked on HOA documents. Sofia flagged this three hours ago.",
-  },
-];
-
-const toneStyles = {
-  urgent: "border-l-destructive",
-  opportunity: "border-l-success",
-  risk: "border-l-warning",
-};
 
 export default async function DashboardPage() {
   const session = await requireSession();
@@ -205,37 +181,8 @@ export default async function DashboardPage() {
 
       <StatGrid stats={stats} />
 
-      {/* ------------------------------------------------ AI insight strip */}
-      <Card className="gap-0 overflow-hidden py-0">
-        <CardHeader className="border-b py-4">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="size-4 text-primary" />
-            What needs your attention
-          </CardTitle>
-          <CardDescription>
-            Generated from pipeline activity over the last 7 days.
-          </CardDescription>
-          <CardAction>
-            <Button variant="ghost" size="sm" render={<Link href="/ai-assistant" />}>
-              Ask a follow-up
-              <ArrowRight className="size-4" />
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="grid gap-px bg-border p-0 md:grid-cols-3">
-          {aiInsights.map((insight) => (
-            <div
-              key={insight.title}
-              className={`border-l-2 bg-card p-5 ${toneStyles[insight.tone]}`}
-            >
-              <p className="text-sm font-medium">{insight.title}</p>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                {insight.body}
-              </p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      {/* ---------------------------------- growth intelligence (6.6) */}
+      <GrowthIntelligence />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* --------------------------------------------------- revenue */}
