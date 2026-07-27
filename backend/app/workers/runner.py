@@ -25,6 +25,7 @@ struggling.
 from __future__ import annotations
 
 import random
+import time
 from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import Any, ParamSpec, TypeVar
@@ -85,53 +86,81 @@ def job(
     def decorator(function: Callable[..., Awaitable[R]]) -> Callable[..., Awaitable[R]]:
         @wraps(function)
         async def wrapper(ctx: dict[str, Any], *args: Any, **kwargs: Any) -> R:
+            from app.observability import metrics
+            from app.observability.correlation import correlation_scope
+            from app.observability.telemetry import span
+
             name = function.__name__
             key = job_key(*args)
             attempt = int(ctx.get("job_try", 1) or 1)
             limit = max_tries or get_settings().WORKER_MAX_TRIES
+            organization = _organization_from(args, organization_arg)
 
-            try:
-                result = await function(ctx, *args, **kwargs)
-            except Exception as exc:
-                if attempt < limit:
-                    delay = backoff_seconds(attempt)
-                    logger.warning(
-                        "job_retrying",
+            # A job's own correlation id — stable across retries via the ARQ job
+            # id — so every line it logs is traceable exactly as a request's is,
+            # and the tenant is bound the moment the job starts.
+            correlation_id = str(ctx.get("job_id") or "") or None
+            started = time.perf_counter()
+
+            with correlation_scope(correlation_id, organization_id=organization), span(
+                f"job:{name}", **{"job.name": name, "job.attempt": attempt}
+            ):
+                try:
+                    result = await function(ctx, *args, **kwargs)
+                except Exception as exc:
+                    elapsed = time.perf_counter() - started
+                    if attempt < limit:
+                        metrics.record_job(
+                            name=name, outcome="retried",
+                            duration_seconds=elapsed, organization_id=organization,
+                        )
+                        delay = backoff_seconds(attempt)
+                        logger.warning(
+                            "job_retrying",
+                            extra={
+                                "job_name": name,
+                                "job_key": key,
+                                "attempt": attempt,
+                                "retry_in_seconds": round(delay, 2),
+                                "error_class": exc.__class__.__name__,
+                            },
+                        )
+                        # ARQ re-queues on this and nothing else. Chaining `from
+                        # exc` keeps the original traceback in the worker log.
+                        raise Retry(defer=delay) from exc
+
+                    metrics.record_job(
+                        name=name, outcome="failed",
+                        duration_seconds=elapsed, organization_id=organization,
+                    )
+                    logger.error(
+                        "job_dead_lettered",
                         extra={
                             "job_name": name,
                             "job_key": key,
-                            "attempt": attempt,
-                            "retry_in_seconds": round(delay, 2),
+                            "attempts": attempt,
                             "error_class": exc.__class__.__name__,
                         },
                     )
-                    # ARQ re-queues on this and nothing else. Chaining `from
-                    # exc` keeps the original traceback in the worker log.
-                    raise Retry(defer=delay) from exc
+                    await record_failure(
+                        job_name=name,
+                        key=key,
+                        organization_id=organization,
+                        error=exc,
+                        attempts=attempt,
+                        job_args={"args": [str(arg) for arg in args]},
+                    )
+                    raise
 
-                logger.error(
-                    "job_dead_lettered",
-                    extra={
-                        "job_name": name,
-                        "job_key": key,
-                        "attempts": attempt,
-                        "error_class": exc.__class__.__name__,
-                    },
+                metrics.record_job(
+                    name=name, outcome="succeeded",
+                    duration_seconds=time.perf_counter() - started,
+                    organization_id=organization,
                 )
-                await record_failure(
-                    job_name=name,
-                    key=key,
-                    organization_id=_organization_from(args, organization_arg),
-                    error=exc,
-                    attempts=attempt,
-                    job_args={"args": [str(arg) for arg in args]},
-                )
-                raise
-
-            # Success closes any row this job/key had open. A no-op when there
-            # was none, which is the common case.
-            await clear_failure(job_name=name, key=key)
-            return result
+                # Success closes any row this job/key had open. A no-op when
+                # there was none, which is the common case.
+                await clear_failure(job_name=name, key=key)
+                return result
 
         return wrapper
 

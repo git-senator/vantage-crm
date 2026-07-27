@@ -228,6 +228,11 @@ async def get_machine_principal(
         org_id_var.set(str(auth.organization_id))
         if auth.user_id is not None:
             user_id_var.set(str(auth.user_id))
+        # API usage attributed to the key's tenant (Phase 7.4). Recorded once
+        # per authenticated request, here where the org is resolved.
+        from app.observability import metrics
+
+        metrics.record_api_key_request(organization_id=auth.organization_id)
         yield MachinePrincipal(session=session, auth=auth)
 
 

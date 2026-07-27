@@ -25,6 +25,9 @@ TIMESTAMP_HEADER = "X-Vantage-Timestamp"
 EVENT_HEADER = "X-Vantage-Event"
 #: Unique per delivery — a receiver keys its own dedupe on this.
 DELIVERY_HEADER = "X-Vantage-Delivery"
+#: The delivery job's correlation id, so a receiver's logs can be tied back to
+#: ours across the boundary (Phase 7.4).
+CORRELATION_HEADER = "X-Vantage-Request-Id"
 
 
 def sign(secret: str, timestamp: str, body: bytes) -> str:
@@ -35,10 +38,16 @@ def sign(secret: str, timestamp: str, body: bytes) -> str:
 
 
 def build_headers(
-    *, secret: str, timestamp: str, body: bytes, event_type: str, delivery_id: str
+    *,
+    secret: str,
+    timestamp: str,
+    body: bytes,
+    event_type: str,
+    delivery_id: str,
+    correlation_id: str | None = None,
 ) -> dict[str, str]:
     """The full header set for a delivery POST."""
-    return {
+    headers = {
         "Content-Type": "application/json",
         SIGNATURE_HEADER: sign(secret, timestamp, body),
         TIMESTAMP_HEADER: timestamp,
@@ -46,3 +55,6 @@ def build_headers(
         DELIVERY_HEADER: delivery_id,
         "User-Agent": "Vantage-Webhooks/1.0",
     }
+    if correlation_id:
+        headers[CORRELATION_HEADER] = correlation_id
+    return headers

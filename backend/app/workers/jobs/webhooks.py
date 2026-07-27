@@ -26,8 +26,9 @@ from uuid import UUID
 from sqlalchemy import select
 
 from app.core.config import get_settings
-from app.core.logging import get_logger
+from app.core.logging import get_logger, request_id_var
 from app.models.automation import WorkflowEvent
+from app.observability import metrics
 from app.repositories.webhook import WebhookDeliveryRepository
 from app.services.webhook import WebhookDeliveryService
 from app.webhooks.delivery import post, serialize
@@ -115,6 +116,7 @@ async def deliver_webhook(
                 retry=False,
                 next_attempt_at=None,
             )
+            metrics.record_webhook(outcome="inactive", organization_id=organization)
             return "endpoint_inactive"
 
         attempt = delivery.attempts + 1
@@ -125,6 +127,9 @@ async def deliver_webhook(
             body=body,
             event_type=delivery.event_type,
             delivery_id=str(delivery.id),
+            # The @job wrapper bound this; passing it lets the receiver correlate
+            # its logs with ours across the boundary.
+            correlation_id=request_id_var.get(),
         )
         url = endpoint.url
 
@@ -154,6 +159,7 @@ async def deliver_webhook(
             await service.mark_succeeded(
                 delivery, endpoint, attempt=attempt, result=result
             )
+            metrics.record_webhook(outcome="succeeded", organization_id=organization)
             return "succeeded"
         await service.mark_failed(
             delivery,
@@ -165,6 +171,7 @@ async def deliver_webhook(
         )
 
     if retry:
+        metrics.record_webhook(outcome="retry", organization_id=organization)
         await enqueue(
             JobName.DELIVER_WEBHOOK,
             delivery_id,
@@ -173,6 +180,7 @@ async def deliver_webhook(
         )
         return f"retry:{attempt}"
 
+    metrics.record_webhook(outcome="exhausted", organization_id=organization)
     logger.warning(
         "webhook_delivery_exhausted",
         extra={"delivery_id": delivery_id, "attempts": attempt},

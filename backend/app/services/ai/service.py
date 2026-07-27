@@ -307,6 +307,23 @@ class AIService:
         )
         self.session.add(job)
         await self.session.flush()
+
+        # Mirror the ledger row into the metrics registry (Phase 7.4). The row
+        # remains the durable, summable record of spend; this is the live signal
+        # a dashboard scrapes, per tenant and per feature.
+        from app.observability import metrics
+
+        metrics.record_ai(
+            feature=job.feature,
+            provider=job.provider,
+            model=job.model,
+            status=job.status,
+            organization_id=job.organization_id,
+            cost_usd=float(cost),
+            prompt_tokens=usage_prompt,
+            completion_tokens=usage_completion,
+        )
+
         # Exposed so a caller (the assistant) can link its stored turn to this
         # cost row. Flushed above so the id exists to link to.
         self.last_job = job

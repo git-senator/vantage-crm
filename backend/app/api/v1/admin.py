@@ -6,9 +6,9 @@ Every endpoint requires `settings.manage` and is read-only. There is no
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
-from app.api.v1.dependencies import Authorization, CurrentUser, TenantSessionDep
+from app.api.v1.dependencies import Authorization, CurrentUser, TenantSessionDep, require
 from app.schemas.admin import (
     AdminOverview,
     AuditAnalytics,
@@ -19,7 +19,9 @@ from app.schemas.admin import (
     StorageUsage,
     SystemHealth,
 )
+from app.schemas.observability import TenantUsage
 from app.services.admin import DEFAULT_WINDOW_HOURS, AdminService
+from app.services.observability import UsageService
 
 router = APIRouter()
 
@@ -116,3 +118,19 @@ async def audit_analytics(
     return AuditAnalytics.model_validate(
         await AdminService(session, auth).audit_analytics(hours=hours)
     )
+
+
+@router.get(
+    "/usage",
+    response_model=TenantUsage,
+    dependencies=[Depends(require("settings.manage"))],
+)
+async def tenant_usage(
+    session: TenantSessionDep, auth: Authorization, _user: CurrentUser
+) -> TenantUsage:
+    """This tenant's month-to-date usage, read from the durable record.
+
+    AI spend from the ledger, API-key counts, and webhook delivery totals — the
+    per-tenant view the live `/metrics` scrape cannot answer across a restart.
+    """
+    return TenantUsage.model_validate(await UsageService(session, auth).tenant_usage())

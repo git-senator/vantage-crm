@@ -130,6 +130,16 @@ class WebhookDeliveryRepository(BaseRepository[WebhookDelivery]):
         rows = list((await self.session.execute(query)).scalars().all())
         return rows[:limit], len(rows) > limit
 
+    async def count_by_status(self, organization_id: UUID) -> dict[str, int]:
+        """Delivery totals per status, for the tenant usage view."""
+        query = (
+            select(WebhookDelivery.status, func.count())
+            .where(WebhookDelivery.organization_id == organization_id)
+            .group_by(WebhookDelivery.status)
+        )
+        rows = (await self.session.execute(query)).all()
+        return {row[0]: row[1] for row in rows}
+
     async def list_retryable(
         self, organization_id: UUID, *, now: datetime, limit: int = 100
     ) -> Sequence[WebhookDelivery]:

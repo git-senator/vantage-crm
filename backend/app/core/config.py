@@ -349,6 +349,26 @@ class Settings(BaseSettings):
     #: that stops one runaway request, distinct from the tenant-month ceiling.
     AI_MAX_OUTPUT_TOKENS: int = 1024
 
+    # ------------------------------------------------ observability
+    # Phase 7.4. Metrics collection is in-process and always on — it is a few
+    # counters, and the `/metrics` scrape is what makes the RED signals usable.
+    # Tracing is opt-in and degrades to a no-op when the OpenTelemetry packages
+    # are absent, so a deployment that has not wired a collector pays nothing.
+    METRICS_ENABLED: bool = True
+    #: Optional bearer token guarding `/metrics`. Unset leaves the endpoint open,
+    #: which is the norm for a Prometheus scrape on an internal network; set it
+    #: when the scrape path is exposed.
+    METRICS_TOKEN: SecretStr = SecretStr("")
+
+    #: Turn on OpenTelemetry tracing. Requires the `opentelemetry-*` packages;
+    #: when they are missing the tracer is a no-op regardless of this flag, so
+    #: enabling it without installing them is harmless rather than fatal.
+    OTEL_ENABLED: bool = False
+    OTEL_SERVICE_NAME: str = "vantage-crm-api"
+    #: OTLP endpoint the span exporter ships to (e.g. http://collector:4318).
+    #: Unset falls back to the OpenTelemetry SDK's own default resolution.
+    OTEL_EXPORTER_OTLP_ENDPOINT: str | None = None
+
     # ------------------------------------------------------------- cors
     # Empty in production: the browser only ever talks to Next.js, which proxies
     # to this API over the internal network. See docs/ARCHITECTURE.md §2.
@@ -362,6 +382,7 @@ class Settings(BaseSettings):
         "S3_PUBLIC_ENDPOINT_URL",
         "S3_SERVER_SIDE_ENCRYPTION",
         "AWS_SES_CONFIGURATION_SET",
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
         mode="before",
     )
     @classmethod

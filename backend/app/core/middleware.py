@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 import uuid
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 import jwt
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -189,6 +190,102 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if is_mutation:
             return f"user:{subject}", rate_limit.AUTHENTICATED_MUTATION
         return f"user:{subject}", rate_limit.AUTHENTICATED_GLOBAL
+
+
+#: Excluded from RED metrics: the scrape and the probes would otherwise inflate
+#: the request rate with traffic that is not user work.
+_METRICS_EXEMPT = frozenset({"/health", "/health/ready", "/health/live", "/metrics"})
+
+
+class MetricsMiddleware:
+    """RED metrics as a *pure ASGI* middleware, not a `BaseHTTPMiddleware`.
+
+    The distinction matters: `BaseHTTPMiddleware` runs the app in an inner task
+    and does not reliably surface the router's `scope["route"]` back to the
+    outer handler, so the route *template* — the label that keeps per-id URLs
+    from exploding cardinality — is lost. A pure ASGI middleware shares the one
+    `scope` dict with the router, so the matched route is there after the app
+    returns. It wraps `send` to capture the response status and times the whole
+    exchange.
+    """
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if scope["type"] != "http" or scope.get("path") in _METRICS_EXEMPT:
+            await self.app(scope, receive, send)
+            return
+
+        from app.observability import metrics
+
+        status_holder = {"code": 500}
+
+        async def _send(message: Any) -> None:
+            if message["type"] == "http.response.start":
+                status_holder["code"] = message["status"]
+            await send(message)
+
+        started = time.perf_counter()
+        try:
+            await self.app(scope, receive, _send)
+        finally:
+            elapsed = time.perf_counter() - started
+            metrics.record_http(
+                method=scope.get("method", "GET"),
+                route=_route_template(scope),
+                status_code=status_holder["code"],
+                duration_seconds=elapsed,
+                organization_id=_org_from_scope(scope),
+            )
+
+
+def _route_template(scope: Any) -> str:
+    """The matched route as a template, so a per-id URL is one series.
+
+    The router stores only each route's *local* path, so the full template is
+    reconstructed from the request path with the matched path params folded back
+    to their names (`/api/v1/deals/{id}` from `/api/v1/deals/abc-123`). An
+    unmatched request (a 404 with no route) is bucketed as `unmatched` rather
+    than minting a series per stray URL.
+    """
+    if scope.get("route") is None:
+        return "unmatched"
+    path = scope.get("path", "")
+    for name, value in (scope.get("path_params") or {}).items():
+        path = path.replace(str(value), "{" + name + "}")
+    return path or "unmatched"
+
+
+def _org_from_scope(scope: Any) -> str | None:
+    """The unverified `org` claim, read from the ASGI scope's request.
+
+    Same not-for-authorization read as the rate limiter: a forged claim only
+    mislabels a metric, and every real check happens in the dependency chain.
+    """
+    return _org_from_access_token(Request(scope))
+
+
+def _org_from_access_token(request: Request) -> str | None:
+    """Read the `org` claim WITHOUT verifying the token — a metric label only.
+
+    Same rationale as `_subject_from_access_token`: an attacker forging the claim
+    mislabels a metric and gains nothing, and every real authorization check
+    happens in the dependency chain.
+    """
+    token = request.cookies.get("vg_access")
+    if not token:
+        header = request.headers.get("authorization", "")
+        if header.lower().startswith("bearer "):
+            token = header[7:].strip()
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        org = payload.get("org")
+        return str(org) if org else None
+    except Exception:
+        return None
 
 
 def _api_key_credential(request: Request) -> str | None:

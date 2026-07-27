@@ -23,6 +23,7 @@ from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging, get_logger
 from app.core.middleware import (
     CorrelationIdMiddleware,
+    MetricsMiddleware,
     RateLimitMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -88,6 +89,11 @@ def create_app() -> FastAPI:
 
     app.add_middleware(CorrelationIdMiddleware)
 
+    # Pure-ASGI, added last so it is outermost: it times the whole exchange and
+    # reads the router's matched route off the shared scope for the RED metrics
+    # (Phase 7.4). A BaseHTTPMiddleware could not see that route reliably.
+    app.add_middleware(MetricsMiddleware)
+
     register_exception_handlers(app)
 
     app.include_router(health_router)
@@ -100,6 +106,12 @@ def create_app() -> FastAPI:
     from app.api.public.app import create_public_app
 
     app.mount("/api/public/v1", create_public_app())
+
+    # OpenTelemetry tracing (Phase 7.4). A no-op unless OTEL_ENABLED and the
+    # packages are installed, so this never affects a default deployment.
+    from app.observability.telemetry import configure_telemetry
+
+    configure_telemetry(app, settings)
 
     return app
 
