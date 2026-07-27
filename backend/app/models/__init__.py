@@ -10,6 +10,7 @@ from app.models.activity import Activity
 from app.models.ai import AiJob
 from app.models.ai_conversation import AiConversation, AiMessage
 from app.models.analytics import Goal, MetricSnapshot
+from app.models.api_key import ApiKey
 from app.models.attachment import Attachment
 from app.models.audit import AuditLog
 from app.models.automation import (
@@ -53,6 +54,7 @@ __all__ = [
     "AiConversation",
     "AiJob",
     "AiMessage",
+    "ApiKey",
     "Attachment",
     "AuditLog",
     "CalendarEvent",

@@ -106,6 +106,65 @@ $$;
 """
 
 
+# API-key authentication (Phase 7.1) is the same bootstrap problem once more: a
+# machine presents an opaque key with no tenant context, and RLS denies any read
+# of `api_keys` until a tenant is bound. Returns only the org id; the key row
+# itself is then read under RLS. Defined here (not only in the migration) so the
+# test schema, built from metadata, has the function too.
+API_KEY_LOOKUP_FUNCTION = """
+CREATE OR REPLACE FUNCTION lookup_api_key_organization(p_token_hash text)
+RETURNS uuid
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+STABLE
+AS $$
+    SELECT ak.organization_id
+    FROM api_keys ak
+    WHERE ak.token_hash = p_token_hash
+    LIMIT 1
+$$;
+"""
+
+
+def api_key_function_statements() -> list[str]:
+    """Create the API-key lookup function and lock down its grant.
+
+    Separate from `bootstrap_function_statements` because that set runs in the
+    baseline RLS migration, before `api_keys` exists — creating a function that
+    references the table there would fail. This runs in the api_keys migration
+    (and in the test schema builder) where the table is already present.
+    """
+    return [
+        API_KEY_LOOKUP_FUNCTION,
+        "REVOKE ALL ON FUNCTION lookup_api_key_organization(text) FROM PUBLIC",
+    ]
+
+
+def api_key_ownership_statements() -> list[str]:
+    """Hand the lookup function to the BYPASSRLS role and grant it read access.
+
+    Guarded by role existence for the same reason as `ownership_transfer_
+    statement`: CI and local test databases have no role separation, and their
+    connecting superuser already bypasses RLS. Migration-path only.
+    """
+    return [
+        f"""
+    DO $$
+    BEGIN
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{AUTH_OWNER_ROLE}') THEN
+            ALTER FUNCTION lookup_api_key_organization(text) OWNER TO {AUTH_OWNER_ROLE};
+            GRANT SELECT ON api_keys TO {AUTH_OWNER_ROLE};
+        END IF;
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{APP_ROLE}') THEN
+            GRANT EXECUTE ON FUNCTION lookup_api_key_organization(text) TO {APP_ROLE};
+        END IF;
+    END
+    $$;
+    """
+    ]
+
+
 def tenant_policy_statements(table: str, key: str = "organization_id") -> list[str]:
     """Enable, FORCE, and apply the isolation policy for one table.
 

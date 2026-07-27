@@ -13,6 +13,7 @@ raised. This is risk R8, rated Critical. See docs/DATABASE.md §2.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass
 from typing import Annotated
 from uuid import UUID
 
@@ -22,7 +23,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings, get_settings
 from app.core.exceptions import AuthenticationError
 from app.core.logging import org_id_var, user_id_var
-from app.core.security import AccessTokenClaims, TokenDecodeError, decode_access_token
+from app.core.security import (
+    API_KEY_PREFIX,
+    AccessTokenClaims,
+    TokenDecodeError,
+    decode_access_token,
+)
 from app.db.session import get_session_factory, set_tenant_context
 from app.models.user import User
 from app.repositories.user import UserRepository
@@ -168,6 +174,66 @@ def require(*permissions: str) -> Callable[..., Awaitable[AuthorizationContext]]
     return _dependency
 
 
+# ---------------------------------------------------------- machine auth
+
+
+def get_api_key(
+    x_api_key: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+) -> str:
+    """Read an API key from `X-API-Key`, or a Bearer header carrying a `vk_` key.
+
+    The Bearer path lets a machine reuse the standard `Authorization` header; it
+    is only treated as an API key when the value has the key prefix, so a JWT
+    Bearer token is never mistaken for one.
+    """
+    if x_api_key:
+        return x_api_key.strip()
+    if authorization and authorization.lower().startswith("bearer "):
+        candidate = authorization[7:].strip()
+        if candidate.startswith(API_KEY_PREFIX):
+            return candidate
+    raise AuthenticationError("Not authenticated.")
+
+
+@dataclass(slots=True)
+class MachinePrincipal:
+    """A request authenticated by an API key: its tenant-bound session and the
+    machine `AuthorizationContext` (with `api_key_id` set)."""
+
+    session: AsyncSession
+    auth: AuthorizationContext
+
+
+async def get_machine_principal(
+    request: Request, settings: SettingsDep
+) -> AsyncIterator[MachinePrincipal]:
+    """Authenticate an API key and yield a tenant-bound session + machine context.
+
+    The counterpart of the user chain (`token → user → tenant session → auth`).
+    The key resolves its own tenant, `ApiKeyService.authenticate` binds it on the
+    session with `set_config(..., is_local => true)` inside the transaction — so
+    the handler runs under RLS for the key's org, pool-safe, exactly as a user
+    request does.
+    """
+    from app.services.api_key import ApiKeyService
+
+    raw_key = get_api_key(
+        x_api_key=request.headers.get("x-api-key"),
+        authorization=request.headers.get("authorization"),
+    )
+    factory = get_session_factory()
+    async with factory() as session, session.begin():
+        auth = await ApiKeyService(session, settings).authenticate(raw_key)
+        org_id_var.set(str(auth.organization_id))
+        if auth.user_id is not None:
+            user_id_var.set(str(auth.user_id))
+        yield MachinePrincipal(session=session, auth=auth)
+
+
+MachineAuth = Annotated[MachinePrincipal, Depends(get_machine_principal)]
+
+
 # --------------------------------------------------------------- context
 
 
@@ -235,12 +301,15 @@ __all__ = [
     "ClaimsDep",
     "Cookie",
     "CurrentUser",
+    "MachineAuth",
+    "MachinePrincipal",
     "OrganizationId",
     "RefreshTokenDep",
     "RequestContextDep",
     "SettingsDep",
     "TenantSessionDep",
     "get_db",
+    "get_machine_principal",
     "require",
     "verify_csrf",
 ]

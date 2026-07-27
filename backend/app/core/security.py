@@ -214,6 +214,55 @@ def generate_csrf_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+# --------------------------------------------------------------- api keys
+
+#: Every issued key carries this prefix so a leaked secret is recognisable in
+#: logs and scanners (the "vk" = Vantage key convention, like GitHub's `ghp_`).
+API_KEY_PREFIX = "vk_"
+
+#: The public identifier shown in listings: the prefix plus the first eight
+#: characters of the secret. Enough to recognise a key without revealing it.
+_API_KEY_PREFIX_DISPLAY_LEN = len(API_KEY_PREFIX) + 8
+
+
+@dataclass(frozen=True, slots=True)
+class GeneratedApiKey:
+    """A freshly minted API key: raw value shown once, hash + display for storage."""
+
+    raw: str
+    token_hash: str
+    #: Public, indexable identifier (e.g. `vk_Ab12Cd34`). Safe to store and show.
+    prefix: str
+    #: Last four characters, for disambiguating keys in a list.
+    last_four: str
+
+
+def create_api_key() -> GeneratedApiKey:
+    """Generate an opaque 256-bit API key and its storage hash.
+
+    Same construction as a refresh token — a high-entropy CSPRNG secret, stored
+    only as a SHA-256 hash — for the same reason: 256 bits has no guessable
+    structure to slow down, and the key is verified on the hot path of every
+    machine request. See `hash_api_key`.
+    """
+    raw = f"{API_KEY_PREFIX}{secrets.token_urlsafe(32)}"
+    return GeneratedApiKey(
+        raw=raw,
+        token_hash=hash_api_key(raw),
+        prefix=raw[:_API_KEY_PREFIX_DISPLAY_LEN],
+        last_four=raw[-4:],
+    )
+
+
+def hash_api_key(raw: str) -> str:
+    """SHA-256 of the raw key. Lookups query by this, never by the raw value.
+
+    A database disclosure yields no usable keys, and the raw secret exists only
+    in transit and in the one-time creation response.
+    """
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def constant_time_compare(left: str, right: str) -> bool:
     """Timing-safe string comparison for CSRF and similar secret comparisons."""
     return secrets.compare_digest(left, right)

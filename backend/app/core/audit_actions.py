@@ -39,6 +39,15 @@ class AuditAction:
     ROLE_REVOKED: Final = "role.revoked"
     PERMISSION_DENIED: Final = "authz.denied"
 
+    # --- API keys (Phase 7.1) ---
+    #: Minting a machine credential that carries a subset of someone's authority
+    #: is privilege-granting, so creation and rotation are both alert-worthy.
+    #: Rotation invalidates the previous secret, so it is also how a suspected
+    #: leak is remediated — worth being able to find.
+    API_KEY_CREATED: Final = "api_key.created"
+    API_KEY_ROTATED: Final = "api_key.rotated"
+    API_KEY_REVOKED: Final = "api_key.revoked"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
@@ -107,6 +116,9 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         AuditAction.ROLE_ASSIGNED,
         AuditAction.ROLE_REVOKED,
         AuditAction.ACCOUNT_LOCKED,
+        # A machine credential carrying a slice of someone's authority.
+        AuditAction.API_KEY_CREATED,
+        AuditAction.API_KEY_ROTATED,
         AuditAction.MFA_DISABLED,
         AuditAction.MFA_RECOVERY_USED,
         # A newly live workflow can touch every record in the workspace.

@@ -115,6 +115,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_TTL_SECONDS: int = 15 * 60
     REFRESH_TOKEN_TTL_SECONDS: int = 30 * 24 * 60 * 60
 
+    # The longest life an API key may be issued for (Phase 7.1). A key is a
+    # long-lived credential, so an upper bound forces periodic rotation rather
+    # than letting a leaked key stay valid forever.
+    API_KEY_MAX_TTL_DAYS: int = 365
+
     COOKIE_DOMAIN: str | None = None
     COOKIE_SECURE: bool = True
     ACCESS_COOKIE_NAME: str = "vg_access"

@@ -57,6 +57,16 @@ class AuthorizationContext:
     role_keys: tuple[str, ...]
     #: permission key -> widest granted scope
     grants: dict[str, Scope]
+    #: Set when the request was authenticated by an API key (Phase 7.1) rather
+    #: than a user session. The `user_id` above is still the key's creator — the
+    #: audit actor and scope anchor — but this marks the principal as a machine,
+    #: so audit and rate limiting can attribute the call to the key. `None` for
+    #: an interactive user session or a background job.
+    api_key_id: UUID | None = None
+
+    @property
+    def is_machine(self) -> bool:
+        return self.api_key_id is not None
 
     def can(self, permission: str) -> bool:
         return permission in self.grants

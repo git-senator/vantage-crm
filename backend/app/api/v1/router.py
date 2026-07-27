@@ -18,6 +18,7 @@ from app.api.v1 import (
     ai_leads,
     ai_properties,
     analytics,
+    api_keys,
     attachments,
     audit,
     auth,
@@ -48,6 +49,7 @@ api_router.include_router(
     organizations.router, prefix="/organizations", tags=["organizations"]
 )
 api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
+api_router.include_router(api_keys.router, prefix="/api-keys", tags=["api-keys"])
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(leads.router, prefix="/leads", tags=["leads"])

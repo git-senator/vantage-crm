@@ -26,6 +26,7 @@ from app.core.permissions import PERMISSIONS, SYSTEM_ROLES
 from app.core.security import hash_password
 from app.db.base import Base
 from app.db.sql_objects import (
+    api_key_function_statements,
     bootstrap_function_statements,
     drop_tenant_policy_statements,
     ownership_transfer_statement,
@@ -146,6 +147,11 @@ async def db(engine) -> AsyncIterator[AsyncSession]:  # type: ignore[no-untyped-
             for statement in bootstrap_function_statements():
                 await conn.execute(text(statement))
             await conn.execute(text(ownership_transfer_statement()))
+
+            # The api_keys lookup function references the api_keys table, so it
+            # is created after create_all (not in the baseline bootstrap set).
+            for statement in api_key_function_statements():
+                await conn.execute(text(statement))
 
             _SCHEMA_READY = True
         else:
