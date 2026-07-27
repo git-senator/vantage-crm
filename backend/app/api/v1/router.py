@@ -30,6 +30,7 @@ from app.api.v1 import (
     dashboard,
     deals,
     developer,
+    integrations,
     jobs,
     leads,
     notes,
@@ -53,6 +54,9 @@ api_router.include_router(
 api_router.include_router(roles.router, prefix="/roles", tags=["roles"])
 api_router.include_router(api_keys.router, prefix="/api-keys", tags=["api-keys"])
 api_router.include_router(developer.router, prefix="/developer", tags=["developer"])
+api_router.include_router(
+    integrations.router, prefix="/integrations", tags=["integrations"]
+)
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])

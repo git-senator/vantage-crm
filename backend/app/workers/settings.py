@@ -49,6 +49,11 @@ from app.workers.jobs.growth_intelligence import (
     recompute_growth,
     recompute_organization_growth,
 )
+from app.workers.jobs.integrations import (
+    dispatch_integration_event,
+    run_integration_sync,
+    sweep_integration_syncs,
+)
 from app.workers.jobs.lead_intelligence import (
     rescore_leads,
     rescore_organization_leads,
@@ -130,6 +135,9 @@ class WorkerSettings:
         deliver_webhook,
         sweep_webhook_deliveries,
         sweep_subscription_grace,
+        run_integration_sync,
+        dispatch_integration_event,
+        sweep_integration_syncs,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -270,6 +278,16 @@ class WorkerSettings:
         cron(
             cast(WorkerCoroutine, sweep_subscription_grace),
             minute={17},
+            second=0,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Every ten minutes, off the other sweeps' minutes. A connection past its
+        # sync interval is picked up here; the interval itself (default hourly)
+        # is the product cadence, this is just how often we check for it.
+        cron(
+            cast(WorkerCoroutine, sweep_integration_syncs),
+            minute={3, 13, 23, 33, 43, 53},
             second=0,
             run_at_startup=False,
             max_tries=2,

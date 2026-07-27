@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.automation.events import emit, snapshot
 from app.core.logging import get_logger
+from app.integrations.framework.types import INTEGRATION_EVENT_TYPES
 from app.webhooks.events import WEBHOOK_EVENT_TYPES
 from app.workers.queue import JobName, enqueue
 
@@ -138,6 +139,17 @@ async def record_event(
             str(event.id),
             str(organization_id),
             job_id=f"whevent:{event.id}",
+        )
+
+    # And the same outbox row feeds outbound integrations (Phase 7.7). Only the
+    # events an integration can react to are dispatched; the dispatch job is a
+    # no-op when no connection is subscribed, and the sync sweep is the net.
+    if event_type in INTEGRATION_EVENT_TYPES:
+        await enqueue(
+            JobName.DISPATCH_INTEGRATION_EVENT,
+            str(event.id),
+            str(organization_id),
+            job_id=f"intevent:{event.id}",
         )
 
 

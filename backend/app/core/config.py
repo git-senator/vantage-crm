@@ -373,6 +373,28 @@ class Settings(BaseSettings):
     #: Where the Stripe billing portal returns the user afterwards.
     STRIPE_PORTAL_RETURN_URL: str | None = None
 
+    # ---------------------------------------------------- integrations
+    # Phase 7.7. The integration platform is provider-agnostic; credentials are
+    # per external service. A provider with no credentials is listed in the
+    # catalogue but refuses to install — an honest "unavailable", not a silent
+    # absence. `manual`/`mock` providers exist for local and tests only.
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: SecretStr = SecretStr("")
+    #: Where Google returns the user after consent. Set per deployment; the
+    #: install flow also accepts an explicit redirect so a caller can override it.
+    GOOGLE_OAUTH_REDIRECT_URI: str | None = None
+
+    #: How often the periodic sweep re-syncs an active connection.
+    INTEGRATION_SYNC_INTERVAL_MINUTES: int = 60
+    #: Consecutive failed syncs before a connection is auto-disabled (status →
+    #: error) rather than retried forever. Its owner re-enables it after fixing
+    #: the cause.
+    INTEGRATION_DISABLE_AFTER_FAILURES: int = 10
+    #: Registers the deterministic, no-network mock provider. For local and
+    #: tests; production refuses it — a mock integration in production is a
+    #: connection that pretends to sync.
+    INTEGRATIONS_ENABLE_MOCK: bool = False
+
     # ------------------------------------------------ observability
     # Phase 7.4. Metrics collection is in-process and always on — it is a few
     # counters, and the `/metrics` scrape is what makes the RED signals usable.
@@ -408,6 +430,7 @@ class Settings(BaseSettings):
         "AWS_SES_CONFIGURATION_SET",
         "OTEL_EXPORTER_OTLP_ENDPOINT",
         "STRIPE_PORTAL_RETURN_URL",
+        "GOOGLE_OAUTH_REDIRECT_URI",
         mode="before",
     )
     @classmethod
@@ -490,6 +513,12 @@ class Settings(BaseSettings):
                 "environment reads the key. Use aws_kms"
             )
 
+        if self.INTEGRATIONS_ENABLE_MOCK:
+            problems.append(
+                "INTEGRATIONS_ENABLE_MOCK is on in production — the mock "
+                "provider pretends to sync and must never back a real "
+                "connection. Turn it off"
+            )
         if self.MALWARE_SCAN_ENABLED and self.MALWARE_SCANNER == "eicar":
             problems.append(
                 "MALWARE_SCAN_ENABLED is on with the 'eicar' scanner, which "

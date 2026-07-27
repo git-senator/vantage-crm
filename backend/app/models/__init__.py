@@ -27,6 +27,11 @@ from app.models.conversation import Conversation, Message
 from app.models.deal import Deal, DealStageHistory
 from app.models.deal_score import DealScore
 from app.models.growth_score import GrowthScore
+from app.models.integration import (
+    IntegrationConnection,
+    IntegrationSubscription,
+    IntegrationSyncRun,
+)
 from app.models.job import JobFailure
 from app.models.lead import Lead
 from app.models.lead_score import LeadScore
@@ -68,6 +73,9 @@ __all__ = [
     "EventAttendee",
     "Goal",
     "GrowthScore",
+    "IntegrationConnection",
+    "IntegrationSubscription",
+    "IntegrationSyncRun",
     "Invoice",
     "JobFailure",
     "Lead",

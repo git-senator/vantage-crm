@@ -23,6 +23,7 @@ from app.models.billing import Plan
 FEATURE_WEBHOOKS = "webhooks"
 FEATURE_API_ACCESS = "api_access"
 FEATURE_ADVANCED_REPORTS = "advanced_reports"
+FEATURE_INTEGRATIONS = "integrations"
 FEATURE_SSO = "sso"
 
 #: Quota keys. A missing key means unlimited.
@@ -63,6 +64,7 @@ PLAN_DEFS: list[dict[str, Any]] = [
             FEATURE_WEBHOOKS: True,
             FEATURE_API_ACCESS: True,
             FEATURE_ADVANCED_REPORTS: True,
+            FEATURE_INTEGRATIONS: True,
         },
         "quotas": {
             QUOTA_SEATS: 25,
@@ -85,6 +87,7 @@ PLAN_DEFS: list[dict[str, Any]] = [
             FEATURE_WEBHOOKS: True,
             FEATURE_API_ACCESS: True,
             FEATURE_ADVANCED_REPORTS: True,
+            FEATURE_INTEGRATIONS: True,
             FEATURE_SSO: True,
         },
         "quotas": {},  # unlimited

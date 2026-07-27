@@ -68,6 +68,18 @@ class AuditAction:
     SUBSCRIPTION_CANCELED: Final = "billing.subscription.canceled"
     INVOICE_RECORDED: Final = "billing.invoice.recorded"
 
+    # --- integrations (Phase 7.7) ---
+    #: Connecting a tenant's workspace to an external service, and disconnecting
+    #: it, both move data across a trust boundary, so each is an auditable act.
+    #: A token refresh is recorded because it is the moment a credential is
+    #: re-minted; an auto-disable is recorded because it is a security-relevant
+    #: state change nobody explicitly asked for.
+    INTEGRATION_CONNECTED: Final = "integration.connected"
+    INTEGRATION_DISCONNECTED: Final = "integration.disconnected"
+    INTEGRATION_UPDATED: Final = "integration.updated"
+    INTEGRATION_TOKEN_REFRESHED: Final = "integration.token_refreshed"
+    INTEGRATION_DISABLED: Final = "integration.disabled"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
@@ -148,6 +160,10 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         AuditAction.SUBSCRIPTION_CANCELED,
         AuditAction.MFA_DISABLED,
         AuditAction.MFA_RECOVERY_USED,
+        # Connecting or disconnecting an external service moves a tenant's data
+        # across a trust boundary — an egress change worth a same-day look.
+        AuditAction.INTEGRATION_CONNECTED,
+        AuditAction.INTEGRATION_DISCONNECTED,
         # A newly live workflow can touch every record in the workspace.
         AuditAction.WORKFLOW_PUBLISHED,
         AuditAction.RECORD_EXPORTED,

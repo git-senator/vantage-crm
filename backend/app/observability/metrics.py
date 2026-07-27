@@ -184,6 +184,11 @@ REGISTRY.counter("ai_cost_usd_total", "AI spend in USD by feature and tenant.")
 REGISTRY.counter("webhook_deliveries_total", "Webhook delivery attempts by outcome and tenant.")
 # API usage attributed to API keys.
 REGISTRY.counter("api_key_requests_total", "Requests authenticated by an API key, by tenant.")
+# Integration syncs (Phase 7.7).
+REGISTRY.counter(
+    "integration_syncs_total",
+    "Integration sync runs by provider, outcome and tenant.",
+)
 
 
 _TENANT_UNKNOWN = "unknown"
@@ -283,3 +288,12 @@ def record_webhook(
 
 def record_api_key_request(*, organization_id: object | None = None) -> None:
     REGISTRY.inc("api_key_requests_total", {"tenant": _tenant(organization_id)})
+
+
+def record_integration_sync(
+    *, provider: str, outcome: str, organization_id: object | None = None
+) -> None:
+    REGISTRY.inc(
+        "integration_syncs_total",
+        {"provider": provider, "outcome": outcome, "tenant": _tenant(organization_id)},
+    )
