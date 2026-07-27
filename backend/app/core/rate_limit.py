@@ -105,6 +105,12 @@ PASSWORD_CHANGE = RateLimit("password_change", limit=5, window_seconds=3600)
 AUTHENTICATED_GLOBAL = RateLimit("authenticated", limit=1000, window_seconds=60)
 AUTHENTICATED_MUTATION = RateLimit("mutation", limit=100, window_seconds=60)
 
+#: Public API (Phase 7.2), bucketed per API key rather than per IP: a machine
+#: integration is expected to be busier than a browser, and one key hammering
+#: the API must not throttle another key that happens to share an egress IP.
+PUBLIC_API_GLOBAL = RateLimit("public_api", limit=600, window_seconds=60)
+PUBLIC_API_MUTATION = RateLimit("public_api_mutation", limit=120, window_seconds=60)
+
 #: Unauthenticated traffic that is not login (health, static-ish endpoints).
 ANONYMOUS_GLOBAL = RateLimit("anonymous", limit=60, window_seconds=60)
 

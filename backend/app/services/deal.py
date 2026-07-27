@@ -105,7 +105,12 @@ class DealService:
     # --------------------------------------------------------------- read
 
     async def list_deals(
-        self, *, filters: DealFilters, limit: int, cursor: Cursor | None
+        self,
+        *,
+        filters: DealFilters,
+        limit: int,
+        cursor: Cursor | None,
+        ascending: bool = False,
     ) -> tuple[list[Deal], bool]:
         owner_ids = await self._owner_ids("deals.view")
         return await self.deals.list_page(
@@ -114,6 +119,7 @@ class DealService:
             filters=filters,
             limit=limit,
             cursor=cursor,
+            ascending=ascending,
         )
 
     async def get_deal(self, deal_id: UUID) -> Deal:

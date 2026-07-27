@@ -157,6 +157,24 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     @staticmethod
     def _bucket(request: Request) -> tuple[str, rate_limit.RateLimit]:
         """Pick the counter and the identity to count against."""
+        is_mutation = request.method in ("POST", "PUT", "PATCH", "DELETE")
+
+        # A machine credential is bucketed per key, not per IP: the public API
+        # (Phase 7.2) is authenticated by an API key, and treating it as
+        # anonymous would both throttle it far too tightly and lump unrelated
+        # keys behind one egress IP into a single counter. The key is not
+        # validated here — like the JWT subject below, it only selects a
+        # bucket, and a forged one still lands in *some* bucket while every
+        # real authorization check happens later.
+        credential = _api_key_credential(request)
+        if credential is not None:
+            counter = (
+                rate_limit.PUBLIC_API_MUTATION
+                if is_mutation
+                else rate_limit.PUBLIC_API_GLOBAL
+            )
+            return f"apikey:{credential}", counter
+
         subject = _subject_from_access_token(request)
 
         if subject is None:
@@ -168,9 +186,31 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             )
             return f"ip:{ip}", rate_limit.ANONYMOUS_GLOBAL
 
-        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        if is_mutation:
             return f"user:{subject}", rate_limit.AUTHENTICATED_MUTATION
         return f"user:{subject}", rate_limit.AUTHENTICATED_GLOBAL
+
+
+def _api_key_credential(request: Request) -> str | None:
+    """Return a stable, non-reversible id for the request's API key, if any.
+
+    Reads `X-API-Key` or a `vk_`-prefixed Bearer token — the same two carriers
+    the machine-auth dependency accepts. The hash, never the raw key, becomes
+    the rate-limit identifier, so the counter key and any log line built from it
+    cannot leak the credential.
+    """
+    from app.core.security import API_KEY_PREFIX, hash_api_key
+
+    raw = request.headers.get("x-api-key")
+    if not raw:
+        header = request.headers.get("authorization", "")
+        if header.lower().startswith("bearer "):
+            candidate = header[7:].strip()
+            if candidate.startswith(API_KEY_PREFIX):
+                raw = candidate
+    if not raw:
+        return None
+    return hash_api_key(raw.strip())
 
 
 def _subject_from_access_token(request: Request) -> str | None:

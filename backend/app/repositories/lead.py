@@ -90,8 +90,9 @@ class LeadRepository(BaseRepository[Lead]):
         filters: LeadFilters,
         limit: int,
         cursor: Cursor | None = None,
+        ascending: bool = False,
     ) -> tuple[list[Lead], bool]:
-        """One page, newest first. Returns `(rows, has_more)`.
+        """One page, ordered by creation, newest first unless `ascending`.
 
         Fetches limit+1 to detect a further page without a second COUNT query.
         """
@@ -105,13 +106,17 @@ class LeadRepository(BaseRepository[Lead]):
             # Row-value comparison, which PostgreSQL can satisfy directly from
             # the (created_at, id) index. Writing it as
             # `created_at < X OR (created_at = X AND id < Y)` is equivalent but
-            # the planner handles it far less well.
-            query = query.where(
-                func.row(Lead.created_at, Lead.id)
-                < func.row(cursor.created_at, cursor.id)
-            )
+            # the planner handles it far less well. The direction flips with
+            # the sort so the cursor keeps walking away from the first page.
+            position = func.row(Lead.created_at, Lead.id)
+            anchor = func.row(cursor.created_at, cursor.id)
+            query = query.where(position > anchor if ascending else position < anchor)
 
-        query = query.order_by(Lead.created_at.desc(), Lead.id.desc()).limit(limit + 1)
+        if ascending:
+            query = query.order_by(Lead.created_at.asc(), Lead.id.asc())
+        else:
+            query = query.order_by(Lead.created_at.desc(), Lead.id.desc())
+        query = query.limit(limit + 1)
 
         rows = list((await self.session.execute(query)).unique().scalars().all())
         has_more = len(rows) > limit

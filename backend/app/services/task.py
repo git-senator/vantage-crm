@@ -79,7 +79,12 @@ class TaskService:
     # --------------------------------------------------------------- read
 
     async def list_tasks(
-        self, *, filters: TaskFilters, limit: int, cursor: Cursor | None
+        self,
+        *,
+        filters: TaskFilters,
+        limit: int,
+        cursor: Cursor | None,
+        ascending: bool = False,
     ) -> tuple[list[Task], bool]:
         assignee_ids = await self._assignee_ids("tasks.view")
         if filters.entity_id is not None and filters.entity_type is not None:
@@ -92,6 +97,7 @@ class TaskService:
             filters=filters,
             limit=limit,
             cursor=cursor,
+            ascending=ascending,
         )
 
     async def queue(self, *, filters: TaskFilters, limit: int = 25) -> list[Task]:

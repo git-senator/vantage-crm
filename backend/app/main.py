@@ -93,6 +93,14 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
+    # The public, machine-facing API (Phase 7.2). A mounted sub-application so
+    # it carries its own OpenAPI document and idempotency middleware; the
+    # parent's correlation, rate-limit and security-header middleware still
+    # wrap it. Authenticated by API keys only — no cookie, no CSRF.
+    from app.api.public.app import create_public_app
+
+    app.mount("/api/public/v1", create_public_app())
+
     return app
 
 

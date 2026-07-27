@@ -121,19 +121,23 @@ class DealRepository(BaseRepository[Deal]):
         filters: DealFilters,
         limit: int,
         cursor: Cursor | None = None,
+        ascending: bool = False,
     ) -> tuple[list[Deal], bool]:
-        """One page, newest first. Returns `(rows, has_more)`."""
+        """One page, ordered by creation, newest first unless `ascending`."""
         limit = max(1, min(limit, MAX_PAGE_SIZE))
 
         query = self._apply_filters(self._visible(organization_id, owner_ids), filters)
 
         if cursor is not None:
-            query = query.where(
-                func.row(Deal.created_at, Deal.id)
-                < func.row(cursor.created_at, cursor.id)
-            )
+            position = func.row(Deal.created_at, Deal.id)
+            anchor = func.row(cursor.created_at, cursor.id)
+            query = query.where(position > anchor if ascending else position < anchor)
 
-        query = query.order_by(Deal.created_at.desc(), Deal.id.desc()).limit(limit + 1)
+        if ascending:
+            query = query.order_by(Deal.created_at.asc(), Deal.id.asc())
+        else:
+            query = query.order_by(Deal.created_at.desc(), Deal.id.desc())
+        query = query.limit(limit + 1)
 
         rows = list((await self.session.execute(query)).unique().scalars().all())
         has_more = len(rows) > limit

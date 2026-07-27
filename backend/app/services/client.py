@@ -90,6 +90,7 @@ class ClientService:
         filters: ClientFilters,
         limit: int,
         cursor: Cursor | None,
+        ascending: bool = False,
     ) -> tuple[list[Client], bool]:
         owner_ids = await self._owner_ids("contacts.view")
         return await self.clients.list_page(
@@ -98,6 +99,7 @@ class ClientService:
             filters=filters,
             limit=limit,
             cursor=cursor,
+            ascending=ascending,
         )
 
     async def get_client(self, client_id: UUID) -> Client:

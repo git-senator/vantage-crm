@@ -91,6 +91,7 @@ class TaskRepository(BaseRepository[Task]):
         filters: TaskFilters,
         limit: int,
         cursor: Cursor | None = None,
+        ascending: bool = False,
     ) -> tuple[list[Task], bool]:
         limit = max(1, min(limit, MAX_PAGE_SIZE))
         query = self._apply_filters(
@@ -98,12 +99,15 @@ class TaskRepository(BaseRepository[Task]):
         )
 
         if cursor is not None:
-            query = query.where(
-                func.row(Task.created_at, Task.id)
-                < func.row(cursor.created_at, cursor.id)
-            )
+            position = func.row(Task.created_at, Task.id)
+            anchor = func.row(cursor.created_at, cursor.id)
+            query = query.where(position > anchor if ascending else position < anchor)
 
-        query = query.order_by(Task.created_at.desc(), Task.id.desc()).limit(limit + 1)
+        if ascending:
+            query = query.order_by(Task.created_at.asc(), Task.id.asc())
+        else:
+            query = query.order_by(Task.created_at.desc(), Task.id.desc())
+        query = query.limit(limit + 1)
 
         rows = list((await self.session.execute(query)).unique().scalars().all())
         return rows[:limit], len(rows) > limit

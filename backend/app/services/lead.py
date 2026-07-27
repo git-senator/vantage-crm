@@ -83,6 +83,7 @@ class LeadService:
         filters: LeadFilters,
         limit: int,
         cursor: Cursor | None,
+        ascending: bool = False,
     ) -> tuple[list[Lead], bool]:
         owner_ids = await self._owner_ids("leads.view")
         return await self.leads.list_page(
@@ -91,6 +92,7 @@ class LeadService:
             filters=filters,
             limit=limit,
             cursor=cursor,
+            ascending=ascending,
         )
 
     async def get_lead(self, lead_id: UUID) -> Lead:

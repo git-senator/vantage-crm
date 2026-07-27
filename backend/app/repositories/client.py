@@ -90,8 +90,9 @@ class ClientRepository(BaseRepository[Client]):
         filters: ClientFilters,
         limit: int,
         cursor: Cursor | None = None,
+        ascending: bool = False,
     ) -> tuple[list[Client], bool]:
-        """One page, newest first. Returns `(rows, has_more)`.
+        """One page, ordered by creation, newest first unless `ascending`.
 
         Fetches limit+1 to detect a further page without a second COUNT query.
         """
@@ -102,14 +103,15 @@ class ClientRepository(BaseRepository[Client]):
         if cursor is not None:
             # Row-value comparison, which PostgreSQL can satisfy directly from
             # the (created_at, id) index.
-            query = query.where(
-                func.row(Client.created_at, Client.id)
-                < func.row(cursor.created_at, cursor.id)
-            )
+            position = func.row(Client.created_at, Client.id)
+            anchor = func.row(cursor.created_at, cursor.id)
+            query = query.where(position > anchor if ascending else position < anchor)
 
-        query = query.order_by(Client.created_at.desc(), Client.id.desc()).limit(
-            limit + 1
-        )
+        if ascending:
+            query = query.order_by(Client.created_at.asc(), Client.id.asc())
+        else:
+            query = query.order_by(Client.created_at.desc(), Client.id.desc())
+        query = query.limit(limit + 1)
 
         rows = list((await self.session.execute(query)).unique().scalars().all())
         has_more = len(rows) > limit

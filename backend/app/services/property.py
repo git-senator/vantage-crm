@@ -89,6 +89,7 @@ class PropertyService:
         filters: PropertyFilters,
         limit: int,
         cursor: Cursor | None,
+        ascending: bool = False,
     ) -> tuple[list[Property], bool]:
         agent_ids = await self._agent_ids("properties.view")
         return await self.properties.list_page(
@@ -97,6 +98,7 @@ class PropertyService:
             filters=filters,
             limit=limit,
             cursor=cursor,
+            ascending=ascending,
         )
 
     async def get_property(self, property_id: UUID) -> Property:
