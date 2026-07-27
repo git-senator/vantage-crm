@@ -34,6 +34,7 @@ from app.workers.jobs.automation import (
     sweep_workflow_events,
     sweep_workflow_runs,
 )
+from app.workers.jobs.billing import sweep_subscription_grace
 from app.workers.jobs.calendar import sweep_calendar_reminders
 from app.workers.jobs.deal_intelligence import (
     rescore_deals,
@@ -128,6 +129,7 @@ class WorkerSettings:
         dispatch_webhook_event,
         deliver_webhook,
         sweep_webhook_deliveries,
+        sweep_subscription_grace,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -260,6 +262,15 @@ class WorkerSettings:
             cast(WorkerCoroutine, sweep_webhook_deliveries),
             minute=set(range(60)),
             second=50,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Hourly. A grace period is measured in days, so checking each hour
+        # bounds how long a lapsed subscription keeps its plan to well under one.
+        cron(
+            cast(WorkerCoroutine, sweep_subscription_grace),
+            minute={17},
+            second=0,
             run_at_startup=False,
             max_tries=2,
         ),

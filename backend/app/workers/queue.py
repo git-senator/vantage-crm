@@ -51,6 +51,7 @@ class JobName:
     DISPATCH_WEBHOOK_EVENT: Final = "dispatch_webhook_event"
     DELIVER_WEBHOOK: Final = "deliver_webhook"
     SWEEP_WEBHOOK_DELIVERIES: Final = "sweep_webhook_deliveries"
+    SWEEP_SUBSCRIPTION_GRACE: Final = "sweep_subscription_grace"
     SNAPSHOT_METRICS: Final = "snapshot_metrics"
     BACKFILL_METRICS: Final = "backfill_metrics"
     RUN_REPORT_EXPORT: Final = "run_report_export"

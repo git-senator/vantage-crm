@@ -58,6 +58,16 @@ class AuditAction:
     WEBHOOK_SECRET_ROTATED: Final = "webhook.secret_rotated"
     WEBHOOK_DELETED: Final = "webhook.deleted"
 
+    # --- billing (Phase 7.5) ---
+    #: Subscribing, changing plan, changing seats, and cancelling all change what
+    #: a tenant pays and what it is entitled to, so each is an auditable act.
+    #: Invoices are recorded (from the provider or written directly) rather than
+    #: "created" by a user — the action name says so.
+    SUBSCRIPTION_CREATED: Final = "billing.subscription.created"
+    SUBSCRIPTION_UPDATED: Final = "billing.subscription.updated"
+    SUBSCRIPTION_CANCELED: Final = "billing.subscription.canceled"
+    INVOICE_RECORDED: Final = "billing.invoice.recorded"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
@@ -133,6 +143,9 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         # one, or a re-pointed one, is an egress change worth a same-day look.
         AuditAction.WEBHOOK_CREATED,
         AuditAction.WEBHOOK_SECRET_ROTATED,
+        # A cancellation ends a paying relationship — worth a same-day look, in
+        # case it was not the customer's intent.
+        AuditAction.SUBSCRIPTION_CANCELED,
         AuditAction.MFA_DISABLED,
         AuditAction.MFA_RECOVERY_USED,
         # A newly live workflow can touch every record in the workspace.

@@ -20,6 +20,7 @@ from app.models.automation import (
     WorkflowRunStep,
     WorkflowVersion,
 )
+from app.models.billing import Invoice, Plan, Subscription
 from app.models.calendar import CalendarEvent, EventAttendee
 from app.models.client import Client
 from app.models.conversation import Conversation, Message
@@ -67,6 +68,7 @@ __all__ = [
     "EventAttendee",
     "Goal",
     "GrowthScore",
+    "Invoice",
     "JobFailure",
     "Lead",
     "LeadScore",
@@ -80,6 +82,7 @@ __all__ = [
     "Permission",
     "Pipeline",
     "PipelineStage",
+    "Plan",
     "Property",
     "PropertyScore",
     "RefreshToken",
@@ -87,6 +90,7 @@ __all__ = [
     "ReportRun",
     "Role",
     "RolePermission",
+    "Subscription",
     "Task",
     "Team",
     "TeamMember",

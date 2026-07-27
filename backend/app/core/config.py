@@ -349,6 +349,30 @@ class Settings(BaseSettings):
     #: that stops one runaway request, distinct from the tenant-month ceiling.
     AI_MAX_OUTPUT_TOKENS: int = 1024
 
+    # ---------------------------------------------------- billing
+    # Phase 7.5. The provider is swappable; business logic depends on
+    # BillingProvider, never on Stripe. `manual` is the default and calls no
+    # external service — correct for self-hosted and for tests.
+    BILLING_PROVIDER: Literal["manual", "stripe"] = "manual"
+    #: When off (the default), quota and entitlement checks pass through — a
+    #: tenant without a plan is never blocked, which preserves existing
+    #: behaviour. Turn it on to enforce a subscription's limits.
+    BILLING_ENFORCED: bool = False
+    #: The plan a tenant falls back to with no active subscription, and after a
+    #: grace period lapses. Must match a seeded plan key.
+    BILLING_DEFAULT_PLAN: str = "free"
+    #: Days a `past_due` subscription keeps its entitlements before it downgrades
+    #: to the default plan — the dunning window, so one failed charge does not
+    #: instantly lock a paying customer out.
+    BILLING_GRACE_PERIOD_DAYS: int = 14
+
+    STRIPE_API_KEY: SecretStr = SecretStr("")
+    #: Verifies inbound Stripe webhook signatures. Unset means the webhook is
+    #: refused, the same default-closed stance the inbound-mail webhook takes.
+    STRIPE_WEBHOOK_SECRET: SecretStr = SecretStr("")
+    #: Where the Stripe billing portal returns the user afterwards.
+    STRIPE_PORTAL_RETURN_URL: str | None = None
+
     # ------------------------------------------------ observability
     # Phase 7.4. Metrics collection is in-process and always on — it is a few
     # counters, and the `/metrics` scrape is what makes the RED signals usable.
@@ -383,6 +407,7 @@ class Settings(BaseSettings):
         "S3_SERVER_SIDE_ENCRYPTION",
         "AWS_SES_CONFIGURATION_SET",
         "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "STRIPE_PORTAL_RETURN_URL",
         mode="before",
     )
     @classmethod
@@ -500,6 +525,17 @@ class Settings(BaseSettings):
                     "AI_MONTHLY_COST_CEILING_USD must be a positive ceiling in "
                     "production — a disabled ceiling is unbounded model spend"
                 )
+        # Billing must reach its provider once it is the configured one, or a
+        # tenant would be unable to subscribe with no visible reason.
+        if self.BILLING_PROVIDER == "stripe":
+            if not self.STRIPE_API_KEY.get_secret_value():
+                problems.append("BILLING_PROVIDER is 'stripe' but STRIPE_API_KEY is unset")
+            if not self.STRIPE_WEBHOOK_SECRET.get_secret_value():
+                problems.append(
+                    "BILLING_PROVIDER is 'stripe' but STRIPE_WEBHOOK_SECRET is unset — "
+                    "webhook events would be refused and subscription status would drift"
+                )
+
         if problems:
             raise RuntimeError("Unsafe production configuration:\n  - " + "\n  - ".join(problems))
 

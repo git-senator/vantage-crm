@@ -77,6 +77,7 @@ class ApiKeyService:
     ) -> tuple[ApiKey, str]:
         """Mint a key. Returns the row and the raw secret (shown once)."""
         auth.require(MANAGE_PERMISSION)
+        await self._enforce_billing(auth)
         bounded = self._bound_scopes(auth, scopes)
 
         generated = create_api_key()
@@ -199,6 +200,25 @@ class ApiKeyService:
         )
 
     # ---------------------------------------------------------- helpers
+
+    async def _enforce_billing(self, auth: AuthorizationContext) -> None:
+        """Plan gate on minting a key, when billing enforcement is on.
+
+        A no-op unless `BILLING_ENFORCED` — so a deployment not using billing,
+        and every existing test, is unaffected. When on, the tenant's plan must
+        grant API access and have an API-key quota left. Imported lazily to keep
+        the billing package off the auth import path.
+        """
+        if not self.settings.BILLING_ENFORCED:
+            return
+        from app.services.billing.service import EntitlementService, QuotaService
+
+        await EntitlementService(self.session, auth).require("api_access")
+        keys = await self.repo.list_for_org(auth.organization_id)
+        active = sum(1 for key in keys if key.is_active)
+        await QuotaService(self.session, auth).enforce(
+            "api_keys", active, adding=1, resource="API keys"
+        )
 
     async def _load(self, auth: AuthorizationContext, key_id: UUID) -> ApiKey:
         key = await self.repo.get(key_id, auth.organization_id)

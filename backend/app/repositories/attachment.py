@@ -107,3 +107,16 @@ class AttachmentRepository(BaseRepository[Attachment]):
             .where(Attachment.deleted_at.is_(None))
         )
         return int((await self.session.execute(query)).scalar() or 0)
+
+    async def total_bytes(self, organization_id: UUID) -> int:
+        """Sum of stored file sizes for a tenant — the storage-usage meter.
+
+        Sizes that are still NULL (registered but never uploaded) contribute
+        nothing, which is correct: an unfinished upload occupies no bucket space.
+        """
+        query = (
+            select(func.coalesce(func.sum(Attachment.size_bytes), 0))
+            .where(Attachment.organization_id == organization_id)
+            .where(Attachment.deleted_at.is_(None))
+        )
+        return int((await self.session.execute(query)).scalar() or 0)
