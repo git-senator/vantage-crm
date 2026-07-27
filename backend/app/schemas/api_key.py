@@ -14,6 +14,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 ScopeName = Literal["own", "team", "all"]
+Environment = Literal["live", "sandbox"]
 
 
 class ApiKeyCreate(BaseModel):
@@ -24,6 +25,9 @@ class ApiKeyCreate(BaseModel):
     #: Optional lifetime in days. Omitted is a non-expiring key (subject to the
     #: workspace's maximum).
     expires_in_days: int | None = Field(default=None, ge=1)
+    #: `live` (the default) or `sandbox`. A sandbox key is a test credential —
+    #: it skips the plan gate and API-key quota (Phase 7.6).
+    environment: Environment = "live"
 
 
 class ApiKeyRead(BaseModel):
@@ -32,6 +36,7 @@ class ApiKeyRead(BaseModel):
     #: Public identifier, safe to display (e.g. `vk_Ab12Cd34`).
     prefix: str
     last_four: str
+    environment: str
     scopes: dict[str, str]
     expires_at: datetime | None
     last_used_at: datetime | None
@@ -56,6 +61,7 @@ def to_read(key: object) -> ApiKeyRead:
         name=key.name,
         prefix=key.prefix,
         last_four=key.last_four,
+        environment=key.environment,
         scopes=dict(key.scopes),
         expires_at=key.expires_at,
         last_used_at=key.last_used_at,

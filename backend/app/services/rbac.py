@@ -63,10 +63,18 @@ class AuthorizationContext:
     #: so audit and rate limiting can attribute the call to the key. `None` for
     #: an interactive user session or a background job.
     api_key_id: UUID | None = None
+    #: The key's environment (`live`/`sandbox`, Phase 7.6) when this is a machine
+    #: principal, else `None`. Lets the API surface mark a sandbox call and lets
+    #: callers keep test traffic off live data paths.
+    api_key_environment: str | None = None
 
     @property
     def is_machine(self) -> bool:
         return self.api_key_id is not None
+
+    @property
+    def is_sandbox(self) -> bool:
+        return self.api_key_environment == "sandbox"
 
     def can(self, permission: str) -> bool:
         return permission in self.grants

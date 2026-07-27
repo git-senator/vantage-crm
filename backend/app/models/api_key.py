@@ -26,11 +26,17 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPrimaryKeyMixin
+
+#: The two environments a key belongs to. A `live` key acts on real tenant data;
+#: a `sandbox` key is a developer's test credential (Phase 7.6) — it authenticates
+#: the same way but is exempt from the plan's API-access gate and API-key quota,
+#: so a developer can try the API on any plan without spending a paid slot.
+KEY_ENVIRONMENTS = ("live", "sandbox")
 
 
 class ApiKey(Base, UUIDPrimaryKeyMixin):
@@ -54,6 +60,12 @@ class ApiKey(Base, UUIDPrimaryKeyMixin):
 
     #: A human label so an operator can tell keys apart ("CI deploy", "Zapier").
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    #: `live` or `sandbox` (Phase 7.6). Sandbox keys are test credentials that
+    #: skip the plan gate and quota; they authenticate identically otherwise.
+    environment: Mapped[str] = mapped_column(
+        String(10), nullable=False, server_default="live"
+    )
 
     # SHA-256 of the raw key. The raw value exists only in the creation response.
     token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
@@ -93,6 +105,10 @@ class ApiKey(Base, UUIDPrimaryKeyMixin):
 
     __table_args__ = (
         Index("ix_api_keys_org", "organization_id"),
+        CheckConstraint(
+            "environment IN ('live', 'sandbox')",
+            name="ck_api_keys_environment",
+        ),
     )
 
     @property
@@ -101,6 +117,11 @@ class ApiKey(Base, UUIDPrimaryKeyMixin):
         if self.revoked_at is not None:
             return False
         return self.expires_at is None or self.expires_at > datetime.now(UTC)
+
+    @property
+    def is_sandbox(self) -> bool:
+        """A test credential, not billed and not gated on the plan's API access."""
+        return self.environment == "sandbox"
 
     def __repr__(self) -> str:
         # Never include token_hash.

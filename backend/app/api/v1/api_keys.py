@@ -60,6 +60,7 @@ async def create_api_key(
         name=payload.name,
         scopes=dict(payload.scopes),
         expires_in_days=payload.expires_in_days,
+        environment=payload.environment,
     )
     await session.commit()
     return to_created(key, secret)

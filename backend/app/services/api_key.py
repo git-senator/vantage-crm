@@ -36,7 +36,7 @@ from app.core.logging import get_logger
 from app.core.permissions import PERMISSIONS_BY_KEY, Scope
 from app.core.security import API_KEY_PREFIX, create_api_key, hash_api_key
 from app.db.session import set_tenant_context
-from app.models.api_key import ApiKey
+from app.models.api_key import KEY_ENVIRONMENTS, ApiKey
 from app.models.user import User
 from app.repositories.api_key import ApiKeyRepository
 from app.repositories.user import UserRepository
@@ -74,10 +74,18 @@ class ApiKeyService:
         name: str,
         scopes: dict[str, str],
         expires_in_days: int | None,
+        environment: str = "live",
     ) -> tuple[ApiKey, str]:
-        """Mint a key. Returns the row and the raw secret (shown once)."""
+        """Mint a key. Returns the row and the raw secret (shown once).
+
+        `environment` is `live` or `sandbox` (Phase 7.6). A sandbox key is a
+        developer test credential: it skips the plan gate and the API-key quota,
+        so it can be minted on any plan without spending a paid slot.
+        """
         auth.require(MANAGE_PERMISSION)
-        await self._enforce_billing(auth)
+        environment = self._resolve_environment(environment)
+        if environment == "live":
+            await self._enforce_billing(auth)
         bounded = self._bound_scopes(auth, scopes)
 
         generated = create_api_key()
@@ -85,6 +93,7 @@ class ApiKeyService:
             organization_id=auth.organization_id,
             created_by=actor.id,
             name=name,
+            environment=environment,
             token_hash=generated.token_hash,
             prefix=generated.prefix,
             last_four=generated.last_four,
@@ -189,6 +198,7 @@ class ApiKeyService:
                 "api_key_id": str(key.id),
                 "organization_id": str(organization_id),
                 "creator_id": str(key.created_by),
+                "environment": key.environment,
             },
         )
         return AuthorizationContext(
@@ -197,6 +207,7 @@ class ApiKeyService:
             role_keys=("api_key",),
             grants=effective,
             api_key_id=key.id,
+            api_key_environment=key.environment,
         )
 
     # ---------------------------------------------------------- helpers
@@ -215,10 +226,19 @@ class ApiKeyService:
 
         await EntitlementService(self.session, auth).require("api_access")
         keys = await self.repo.list_for_org(auth.organization_id)
-        active = sum(1 for key in keys if key.is_active)
+        # Sandbox keys are free test credentials — only live keys count.
+        active = sum(1 for key in keys if key.is_active and not key.is_sandbox)
         await QuotaService(self.session, auth).enforce(
             "api_keys", active, adding=1, resource="API keys"
         )
+
+    def _resolve_environment(self, environment: str) -> str:
+        if environment not in KEY_ENVIRONMENTS:
+            raise AppError(
+                f"Unknown environment '{environment}'. "
+                f"Use one of: {', '.join(KEY_ENVIRONMENTS)}."
+            )
+        return environment
 
     async def _load(self, auth: AuthorizationContext, key_id: UUID) -> ApiKey:
         key = await self.repo.get(key_id, auth.organization_id)
@@ -280,6 +300,7 @@ class ApiKeyService:
             metadata={
                 "name": key.name,
                 "prefix": key.prefix,
+                "environment": key.environment,
                 "scopes": dict(key.scopes),
                 "expires_at": key.expires_at,
             },
