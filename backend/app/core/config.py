@@ -120,6 +120,24 @@ class Settings(BaseSettings):
     # than letting a leaked key stay valid forever.
     API_KEY_MAX_TTL_DAYS: int = 365
 
+    # ---------------------------------------------------------- webhooks
+    # Outbound webhooks (Phase 7.3). Delivery rides the ARQ queue and reuses the
+    # `@job` exponential backoff, so these bound the delivery attempt itself.
+    #: Attempts before a delivery is marked exhausted. Six attempts over the
+    #: capped backoff span several minutes — long enough to ride out a brief
+    #: consumer outage, short enough not to hammer a dead endpoint for hours.
+    WEBHOOK_MAX_ATTEMPTS: int = 6
+    #: Per-request timeout for a delivery POST. A slow consumer must not hold a
+    #: worker slot open.
+    WEBHOOK_TIMEOUT_SECONDS: float = 10.0
+    #: Consecutive failed deliveries before an endpoint is auto-disabled. A
+    #: permanently broken URL stops consuming the queue instead of retrying
+    #: forever; the owner re-enables it after fixing the receiver.
+    WEBHOOK_DISABLE_AFTER_FAILURES: int = 20
+    #: How much of a non-2xx response body to keep for the delivery record.
+    #: Enough to diagnose, bounded so a chatty error page cannot bloat the row.
+    WEBHOOK_RESPONSE_SNIPPET_BYTES: int = 2000
+
     COOKIE_DOMAIN: str | None = None
     COOKIE_SECURE: bool = True
     ACCESS_COOKIE_NAME: str = "vg_access"

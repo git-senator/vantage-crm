@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.automation.events import emit, snapshot
 from app.core.logging import get_logger
+from app.webhooks.events import WEBHOOK_EVENT_TYPES
 from app.workers.queue import JobName, enqueue
 
 logger = get_logger(__name__)
@@ -127,6 +128,17 @@ async def record_event(
         str(organization_id),
         job_id=f"wfevent:{event.id}",
     )
+
+    # The same outbox row feeds outbound webhooks (Phase 7.3). Only events a
+    # webhook can subscribe to are dispatched, so the common case adds no queue
+    # traffic; the delivery sweep is the net for a lost enqueue.
+    if event_type in WEBHOOK_EVENT_TYPES:
+        await enqueue(
+            JobName.DISPATCH_WEBHOOK_EVENT,
+            str(event.id),
+            str(organization_id),
+            job_id=f"whevent:{event.id}",
+        )
 
 
 def is_automation_actor(role_keys: tuple[str, ...]) -> bool:

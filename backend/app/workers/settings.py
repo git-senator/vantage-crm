@@ -63,6 +63,11 @@ from app.workers.jobs.reports import (
     sweep_expired_exports,
     sweep_scheduled_reports,
 )
+from app.workers.jobs.webhooks import (
+    deliver_webhook,
+    dispatch_webhook_event,
+    sweep_webhook_deliveries,
+)
 from app.workers.queue import close_queue, redis_settings
 
 logger = get_logger(__name__)
@@ -120,6 +125,9 @@ class WorkerSettings:
         rescore_organization_properties,
         recompute_growth,
         recompute_organization_growth,
+        dispatch_webhook_event,
+        deliver_webhook,
+        sweep_webhook_deliveries,
     ]
 
     cron_jobs: ClassVar[list[Any]] = [
@@ -242,6 +250,16 @@ class WorkerSettings:
             cast(WorkerCoroutine, sweep_calendar_reminders),
             minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
             second=30,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Every minute, off the automation sweeps' seconds. Delivery retries ride
+        # a defer on the fast path; this re-finds any the defer lost, so a due
+        # webhook is at most a minute late rather than stuck pending.
+        cron(
+            cast(WorkerCoroutine, sweep_webhook_deliveries),
+            minute=set(range(60)),
+            second=50,
             run_at_startup=False,
             max_tries=2,
         ),

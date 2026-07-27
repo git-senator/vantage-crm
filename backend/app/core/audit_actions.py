@@ -48,6 +48,16 @@ class AuditAction:
     API_KEY_ROTATED: Final = "api_key.rotated"
     API_KEY_REVOKED: Final = "api_key.revoked"
 
+    # --- webhooks (Phase 7.3) ---
+    #: A webhook endpoint receives a copy of a tenant's events at an external
+    #: URL, so creating or re-pointing one is an egress decision worth recording;
+    #: rotating its secret is how a suspected leak of the signing key is
+    #: remediated.
+    WEBHOOK_CREATED: Final = "webhook.created"
+    WEBHOOK_UPDATED: Final = "webhook.updated"
+    WEBHOOK_SECRET_ROTATED: Final = "webhook.secret_rotated"
+    WEBHOOK_DELETED: Final = "webhook.deleted"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
@@ -119,6 +129,10 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         # A machine credential carrying a slice of someone's authority.
         AuditAction.API_KEY_CREATED,
         AuditAction.API_KEY_ROTATED,
+        # A webhook endpoint sends a tenant's events to an external URL; a new
+        # one, or a re-pointed one, is an egress change worth a same-day look.
+        AuditAction.WEBHOOK_CREATED,
+        AuditAction.WEBHOOK_SECRET_ROTATED,
         AuditAction.MFA_DISABLED,
         AuditAction.MFA_RECOVERY_USED,
         # A newly live workflow can touch every record in the workspace.

@@ -11,6 +11,7 @@ from app.api.public.v1 import (
     leads,
     properties,
     tasks,
+    webhooks,
 )
 
 public_v1_router = APIRouter()
@@ -21,3 +22,4 @@ public_v1_router.include_router(properties.router)
 public_v1_router.include_router(deals.router)
 public_v1_router.include_router(activities.router)
 public_v1_router.include_router(tasks.router)
+public_v1_router.include_router(webhooks.router)

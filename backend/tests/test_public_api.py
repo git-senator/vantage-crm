@@ -187,7 +187,12 @@ class TestIdempotency:
         self, machine_app, db: AsyncSession
     ) -> None:  # type: ignore[no-untyped-def]
         app, _user = machine_app
-        key_header = {"X-API-Key": "vk_test_credential", "Idempotency-Key": "abc-123"}
+        # A per-run-unique key: an idempotency record lives in Redis for 24h, so
+        # a fixed key would replay a previous run's response instead of creating.
+        key_header = {
+            "X-API-Key": "vk_test_credential",
+            "Idempotency-Key": f"replay-{uuid4()}",
+        }
         async with _client(app) as client:
             first = await _create_lead(client, "Once", **key_header)
             assert first.status_code == 201
@@ -207,9 +212,10 @@ class TestIdempotency:
     ) -> None:  # type: ignore[no-untyped-def]
         app, _user = machine_app
         cred = {"X-API-Key": "vk_test_credential"}
+        run = uuid4()
         async with _client(app) as client:
-            await _create_lead(client, "A", **{**cred, "Idempotency-Key": "k1"})
-            await _create_lead(client, "B", **{**cred, "Idempotency-Key": "k2"})
+            await _create_lead(client, "A", **{**cred, "Idempotency-Key": f"k1-{run}"})
+            await _create_lead(client, "B", **{**cred, "Idempotency-Key": f"k2-{run}"})
             listing = (await client.get("/leads")).json()
         assert len(listing["data"]) == 2
 

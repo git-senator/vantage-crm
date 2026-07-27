@@ -48,6 +48,7 @@ from app.models.refresh_token import RefreshToken
 from app.models.report import ReportDefinition, ReportRun
 from app.models.task import Task
 from app.models.user import User
+from app.models.webhook import WebhookDelivery, WebhookEndpoint
 
 __all__ = [
     "Activity",
@@ -91,6 +92,8 @@ __all__ = [
     "TeamMember",
     "User",
     "UserRole",
+    "WebhookDelivery",
+    "WebhookEndpoint",
     "Workflow",
     "WorkflowEvent",
     "WorkflowRun",
