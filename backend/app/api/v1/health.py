@@ -27,7 +27,7 @@ from pydantic import BaseModel
 from app.core.config import get_settings
 from app.core.redis import check_redis
 from app.core.security import constant_time_compare
-from app.db.session import check_database
+from app.db.session import check_database, check_read_database
 from app.observability import metrics
 from app.services.storage import get_object_storage
 
@@ -102,6 +102,10 @@ async def readiness(response: Response) -> ReadinessResponse:
         "redis": await _timed(check_redis),
         "storage": await _timed(get_object_storage().verify_configuration),
     }
+    # The read replica is a readiness dependency only when one is configured, so
+    # a single-node deployment's probe is unchanged (Phase 8.1).
+    if get_settings().has_read_replica:
+        checks["read_database"] = await _timed(check_read_database)
     ready = all(component.ok for component in checks.values())
     if not ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE

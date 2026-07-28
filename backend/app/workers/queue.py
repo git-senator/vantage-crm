@@ -110,6 +110,7 @@ async def enqueue(
     *args: Any,
     defer: timedelta | None = None,
     job_id: str | None = None,
+    queue_name: str | None = None,
     **kwargs: Any,
 ) -> str | None:
     """Queue a job. Returns its id, or `None` if the queue was unreachable.
@@ -118,7 +119,14 @@ async def enqueue(
     first is still queued or running. Pass one whenever re-enqueueing the same
     work is meaningless — scanning an attachment twice, for instance — and
     leave it out when each call is a distinct piece of work.
+
+    `queue_name` routes the job to a priority queue (Phase 8.1). Omitted, it
+    lands on the default queue, so every existing enqueue is unchanged; pass
+    `partitioning.queue_for(priority)` to prioritise or deprioritise.
     """
+    # Only forward a queue name when one was chosen; ARQ defaults it otherwise.
+    if queue_name is not None:
+        kwargs["_queue_name"] = queue_name
     try:
         queue = await get_queue()
         job = await queue.enqueue_job(

@@ -1,0 +1,8 @@
+apiVersion: v2
+name: vantage-crm
+description: Vantage CRM — API and background worker, production-hardened for horizontal scale.
+type: application
+version: 0.1.0
+appVersion: "8.1.0"
+maintainers:
+  - name: Vantage CRM

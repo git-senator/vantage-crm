@@ -1,0 +1,86 @@
+# Vantage CRM Helm values (Phase 8.1).
+# Production-hardened defaults: multiple replicas, autoscaling, disruption
+# budgets, non-root containers, and resource requests/limits sized for scale.
+
+image:
+  repository: ghcr.io/vantage/vantage-crm
+  tag: "8.1.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# ---- API (stateless HTTP) ----
+api:
+  replicaCount: 3
+  # Graceful shutdown: uvicorn drains in-flight requests; the preStop sleep lets
+  # the load balancer stop routing before the process exits.
+  terminationGracePeriodSeconds: 40
+  preStopSleepSeconds: 10
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits: { cpu: "1", memory: "1Gi" }
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+  probes:
+    liveness: { path: /api/v1/health/live, initialDelaySeconds: 10, periodSeconds: 15 }
+    readiness: { path: /api/v1/health/ready, initialDelaySeconds: 5, periodSeconds: 10 }
+
+# ---- Worker (ARQ background jobs) ----
+worker:
+  replicaCount: 2
+  terminationGracePeriodSeconds: 120  # let a running job finish
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits: { cpu: "1", memory: "1Gi" }
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 75
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+  # Shard assignment for sweeps (app.core.partitioning). Each replica owns a
+  # slice of tenants; set SHARDS to the replica count and SHARD_INDEX per pod
+  # via the StatefulSet ordinal in a sharded deployment.
+  shards: 1
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8000
+
+ingress:
+  enabled: false
+  className: nginx
+  host: crm.example.com
+  tls: true
+  annotations: {}
+
+# Non-secret configuration surfaced as env. Secrets (DB password, JWT secret,
+# encryption keys) come from an externally-managed Secret referenced below.
+config:
+  ENVIRONMENT: production
+  LOG_JSON: "true"
+  METRICS_ENABLED: "true"
+  DB_POOL_SIZE: "10"
+  DB_MAX_OVERFLOW: "10"
+  # Read replica endpoint. Leave empty for a single-node database.
+  POSTGRES_REPLICA_HOST: ""
+
+existingSecret: vantage-crm-secrets
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]

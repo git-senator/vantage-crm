@@ -32,6 +32,8 @@ logger = get_logger(__name__)
 
 _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
+_read_engine: AsyncEngine | None = None
+_read_session_factory: async_sessionmaker[AsyncSession] | None = None
 
 # The GUC that RLS policies read. Must match the policies in the migrations.
 TENANT_GUC = "app.current_org"
@@ -62,6 +64,45 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
             autoflush=False,
         )
     return _session_factory
+
+
+def get_read_engine() -> AsyncEngine:
+    """The engine for read-only work (Phase 8.1).
+
+    A distinct pool against the read replica when one is configured, so reporting
+    and analytics traffic does not consume the primary's connection budget. With
+    no replica it *is* the primary engine — a single-node deployment pays nothing
+    and the read path is always valid.
+    """
+    settings = get_settings()
+    if not settings.has_read_replica:
+        return get_engine()
+    global _read_engine
+    if _read_engine is None:
+        _read_engine = create_async_engine(
+            settings.read_database_url,
+            echo=settings.DB_ECHO,
+            pool_size=settings.DB_POOL_SIZE,
+            max_overflow=settings.DB_MAX_OVERFLOW,
+            pool_pre_ping=True,
+            pool_recycle=1800,
+        )
+    return _read_engine
+
+
+def get_read_session_factory() -> async_sessionmaker[AsyncSession]:
+    # No replica: return the primary factory rather than a second one bound to
+    # the same engine, so a rebinding (tests, a reload) is honoured on both paths.
+    if not get_settings().has_read_replica:
+        return get_session_factory()
+    global _read_session_factory
+    if _read_session_factory is None:
+        _read_session_factory = async_sessionmaker(
+            bind=get_read_engine(),
+            expire_on_commit=False,
+            autoflush=False,
+        )
+    return _read_session_factory
 
 
 async def set_tenant_context(
@@ -109,6 +150,32 @@ async def session_scope(
             raise
 
 
+@asynccontextmanager
+async def read_session_scope(
+    organization_id: UUID | None = None,
+) -> AsyncIterator[AsyncSession]:
+    """A tenant-bound, read-only session against the replica (Phase 8.1).
+
+    Same RLS binding as `session_scope` — a read is not an excuse to run
+    unscoped — but routed to the read endpoint. The transaction is opened READ
+    ONLY, so a write is rejected by the database rather than silently landing on
+    a replica that cannot accept it (or, with no replica, on the primary where it
+    would be a correctness surprise). Falls back to the primary when no replica
+    is configured.
+    """
+    factory = get_read_session_factory()
+    async with factory() as session:
+        try:
+            async with session.begin():
+                await session.execute(text("SET TRANSACTION READ ONLY"))
+                if organization_id is not None:
+                    await set_tenant_context(session, organization_id)
+                yield session
+        except Exception:
+            logger.exception("db_read_transaction_rolled_back")
+            raise
+
+
 async def check_database() -> bool:
     """Readiness probe. Returns False rather than raising."""
     try:
@@ -120,9 +187,28 @@ async def check_database() -> bool:
         return False
 
 
+async def check_read_database() -> bool:
+    """Readiness probe for the read replica. True (trivially) when there is no
+    replica — the read path is the primary, already covered by `check_database`."""
+    settings = get_settings()
+    if not settings.has_read_replica:
+        return True
+    try:
+        async with get_read_engine().connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        logger.exception("read_database_healthcheck_failed")
+        return False
+
+
 async def dispose_engine() -> None:
-    global _engine, _session_factory
+    global _engine, _session_factory, _read_engine, _read_session_factory
     if _engine is not None:
         await _engine.dispose()
         _engine = None
         _session_factory = None
+    if _read_engine is not None:
+        await _read_engine.dispose()
+        _read_engine = None
+        _read_session_factory = None

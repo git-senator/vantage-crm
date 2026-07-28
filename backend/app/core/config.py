@@ -68,6 +68,13 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 5
     DB_ECHO: bool = False
 
+    # Read replica (Phase 8.1). A read-only endpoint reporting queries can be
+    # routed to, offloading the primary. Unset means "no replica" — reads fall
+    # back to the primary, so a single-node deployment is unaffected. The replica
+    # uses the same application role and credentials; only the host differs.
+    POSTGRES_REPLICA_HOST: str | None = None
+    POSTGRES_REPLICA_PORT: int = 5432
+
     @computed_field
     @property
     def database_url(self) -> str:
@@ -76,6 +83,25 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{self.POSTGRES_USER}:"
             f"{self.POSTGRES_PASSWORD.get_secret_value()}@"
             f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @computed_field
+    @property
+    def has_read_replica(self) -> bool:
+        return bool(self.POSTGRES_REPLICA_HOST)
+
+    @computed_field
+    @property
+    def read_database_url(self) -> str:
+        """Async DSN for read-only work. The replica when configured, else the
+        primary — so a caller can always ask for the read endpoint and get a
+        correct connection regardless of whether a replica exists."""
+        if not self.POSTGRES_REPLICA_HOST:
+            return self.database_url
+        return (
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:"
+            f"{self.POSTGRES_PASSWORD.get_secret_value()}@"
+            f"{self.POSTGRES_REPLICA_HOST}:{self.POSTGRES_REPLICA_PORT}/{self.POSTGRES_DB}"
         )
 
     @computed_field
@@ -431,6 +457,7 @@ class Settings(BaseSettings):
         "OTEL_EXPORTER_OTLP_ENDPOINT",
         "STRIPE_PORTAL_RETURN_URL",
         "GOOGLE_OAUTH_REDIRECT_URI",
+        "POSTGRES_REPLICA_HOST",
         mode="before",
     )
     @classmethod
@@ -465,6 +492,31 @@ class Settings(BaseSettings):
             raise ValueError(f"LOG_LEVEL must be one of {sorted(allowed)}")
         return upper
 
+    def scaling_warnings(self) -> list[str]:
+        """Scaling/topology misconfigurations (Phase 8.1).
+
+        A pure function of the settings so it is testable on its own and reusable
+        by the production check and an ops preflight. Each entry is a real
+        misconfiguration, not a style preference.
+        """
+        problems: list[str] = []
+        if self.POSTGRES_REPLICA_HOST and (
+            self.POSTGRES_REPLICA_HOST,
+            self.POSTGRES_REPLICA_PORT,
+        ) == (self.POSTGRES_HOST, self.POSTGRES_PORT):
+            problems.append(
+                "POSTGRES_REPLICA_HOST points at the primary — read traffic would "
+                "not be offloaded. Unset it or point it at the replica endpoint"
+            )
+        if self.DB_POOL_SIZE + self.DB_MAX_OVERFLOW < 8:
+            problems.append(
+                "DB_POOL_SIZE + DB_MAX_OVERFLOW is below 8 — too little connection "
+                "headroom for a horizontally scaled deployment under load"
+            )
+        if self.WORKER_MAX_JOBS < 1:
+            problems.append("WORKER_MAX_JOBS must be at least 1")
+        return problems
+
     def assert_production_ready(self) -> None:
         """Refuse to serve production traffic with development defaults.
 
@@ -475,7 +527,7 @@ class Settings(BaseSettings):
         if not self.is_production:
             return
 
-        problems: list[str] = []
+        problems: list[str] = list(self.scaling_warnings())
         if not self.COOKIE_SECURE:
             problems.append("COOKIE_SECURE must be true in production")
         if self.DB_ECHO:

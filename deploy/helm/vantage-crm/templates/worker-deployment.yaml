@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vantage-crm.fullname" . }}-worker
+  labels:
+    {{- include "vantage-crm.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  {{- if not .Values.worker.autoscaling.enabled }}
+  replicas: {{ .Values.worker.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "vantage-crm.labels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      # Long grace period so a running job (a report export, a webhook batch)
+      # completes before the pod is killed rather than being dead-lettered.
+      terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: {{ .Values.securityContext.runAsNonRoot }}
+        runAsUser: {{ .Values.securityContext.runAsUser }}
+      containers:
+        - name: worker
+          image: {{ include "vantage-crm.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["arq", "app.workers.settings.WorkerSettings"]
+          envFrom:
+            {{- include "vantage-crm.envFrom" . | nindent 12 }}
+          env:
+            - name: WORKER_SHARDS
+              value: {{ .Values.worker.shards | quote }}
+          resources: {{- toYaml .Values.worker.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
+            readOnlyRootFilesystem: {{ .Values.securityContext.readOnlyRootFilesystem }}
+            capabilities: {{- toYaml .Values.securityContext.capabilities | nindent 14 }}
