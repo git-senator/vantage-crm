@@ -60,6 +60,7 @@ from app.models.rbac import (
 )
 from app.models.refresh_token import RefreshToken
 from app.models.report import ReportDefinition, ReportRun
+from app.models.security_ops import SecurityAlert, SecurityEvent, TrustedDevice
 from app.models.task import Task
 from app.models.user import User
 from app.models.webhook import WebhookDelivery, WebhookEndpoint
@@ -110,12 +111,15 @@ __all__ = [
     "ReportRun",
     "Role",
     "RolePermission",
+    "SecurityAlert",
+    "SecurityEvent",
     "SecurityPolicy",
     "SsoConnection",
     "Subscription",
     "Task",
     "Team",
     "TeamMember",
+    "TrustedDevice",
     "User",
     "UserRole",
     "WebhookDelivery",

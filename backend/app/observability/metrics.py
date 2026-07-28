@@ -194,6 +194,15 @@ REGISTRY.counter(
     "data_requests_total",
     "GDPR data requests by kind, outcome and tenant.",
 )
+# Security operations (Phase 8.2).
+REGISTRY.counter(
+    "security_events_total",
+    "Security events by type, severity and tenant.",
+)
+REGISTRY.counter(
+    "security_alerts_total",
+    "Security alerts raised by severity and tenant.",
+)
 
 
 _TENANT_UNKNOWN = "unknown"
@@ -310,4 +319,26 @@ def record_data_request(
     REGISTRY.inc(
         "data_requests_total",
         {"kind": kind, "outcome": outcome, "tenant": _tenant(organization_id)},
+    )
+
+
+def record_security_event(
+    *, event_type: str, severity: str, organization_id: object | None = None
+) -> None:
+    REGISTRY.inc(
+        "security_events_total",
+        {
+            "event_type": event_type,
+            "severity": severity,
+            "tenant": _tenant(organization_id),
+        },
+    )
+
+
+def record_security_alert(
+    *, severity: str, organization_id: object | None = None
+) -> None:
+    REGISTRY.inc(
+        "security_alerts_total",
+        {"severity": severity, "tenant": _tenant(organization_id)},
     )

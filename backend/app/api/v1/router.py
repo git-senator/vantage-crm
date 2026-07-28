@@ -41,6 +41,7 @@ from app.api.v1 import (
     properties,
     reports,
     roles,
+    security_ops,
     tasks,
     timeline,
     whatsapp,
@@ -60,6 +61,9 @@ api_router.include_router(
 )
 api_router.include_router(
     enterprise.router, prefix="/enterprise", tags=["enterprise"]
+)
+api_router.include_router(
+    security_ops.router, prefix="/security", tags=["security-ops"]
 )
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])

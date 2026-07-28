@@ -421,6 +421,16 @@ class Settings(BaseSettings):
     #: connection that pretends to sync.
     INTEGRATIONS_ENABLE_MOCK: bool = False
 
+    # ------------------------------------------- security operations
+    # Phase 8.2. Thresholds for the security-ops detection framework. Reused by
+    # the deterministic detectors, so a deployment can tune sensitivity without a
+    # code change.
+    #: Failed sign-ins for one account within the window before the brute-force
+    #: detector raises an alert.
+    SECURITY_BRUTE_FORCE_THRESHOLD: int = 5
+    #: The window, in minutes, over which recent failed sign-ins are counted.
+    SECURITY_FAILED_LOGIN_WINDOW_MINUTES: int = 15
+
     # ------------------------------------------------ observability
     # Phase 7.4. Metrics collection is in-process and always on — it is a few
     # counters, and the `/metrics` scrape is what makes the RED signals usable.

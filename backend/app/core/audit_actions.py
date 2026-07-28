@@ -80,6 +80,17 @@ class AuditAction:
     INTEGRATION_TOKEN_REFRESHED: Final = "integration.token_refreshed"
     INTEGRATION_DISABLED: Final = "integration.disabled"
 
+    # --- security operations (Phase 8.2) ---
+    #: A detection raised or updated an alert; acknowledging and resolving are the
+    #: analyst's response, worth recording so the security timeline is complete.
+    #: Trusting a device is an authorization-adjacent decision by the account
+    #: owner. Alert-raising is high severity — it is the signal an analyst acts on.
+    SECURITY_ALERT_RAISED: Final = "security.alert.raised"
+    SECURITY_ALERT_ACKNOWLEDGED: Final = "security.alert.acknowledged"
+    SECURITY_ALERT_RESOLVED: Final = "security.alert.resolved"
+    SECURITY_DEVICE_TRUSTED: Final = "security.device.trusted"
+    SECURITY_DEVICE_UNTRUSTED: Final = "security.device.untrusted"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
@@ -189,6 +200,8 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         AuditAction.SSO_UPDATED,
         AuditAction.LEGAL_HOLD_CHANGED,
         AuditAction.DATA_REQUEST_COMPLETED,
+        # A raised security alert is the signal an analyst acts on the same day.
+        AuditAction.SECURITY_ALERT_RAISED,
         # A newly live workflow can touch every record in the workspace.
         AuditAction.WORKFLOW_PUBLISHED,
         AuditAction.RECORD_EXPORTED,
