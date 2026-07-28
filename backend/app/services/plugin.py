@@ -152,6 +152,34 @@ class PluginRegistryService:
         await self.session.flush()
         return synced
 
+    async def ensure_global_plugin(
+        self, actor: User, manifest_data: dict[str, Any]
+    ) -> Plugin:
+        """Provision a first-party (global, publisher-less) plugin from a manifest,
+        idempotently, and return it.
+
+        The integration marketplace (Phase 9.2) calls this to stand up the plugin
+        behind a curated listing. It is non-clobbering: if the key already exists
+        — whether a tenant owns it or an earlier sync created it — that row wins
+        and is returned untouched, so a marketplace sync never overwrites a
+        first-party plugin nor steals a tenant's private key. Only a genuinely
+        new key inserts a global row.
+        """
+        manifest = validate_manifest(dict(manifest_data))
+        existing = await self.repo.get_by_key(self.auth.organization_id, manifest.key)
+        if existing is not None:
+            return existing
+        plugin = _plugin_from_manifest(
+            manifest,
+            publisher_organization_id=None,
+            created_by=actor.id,
+            is_first_party=True,
+        )
+        self.session.add(plugin)
+        await self.session.flush()
+        await self.session.refresh(plugin)
+        return plugin
+
     async def _load(self, plugin_id: UUID) -> Plugin:
         plugin = await self.repo.get_visible(plugin_id, self.auth.organization_id)
         if plugin is None:

@@ -49,6 +49,7 @@ from app.models.integration import (
 from app.models.job import JobFailure
 from app.models.lead import Lead
 from app.models.lead_score import LeadScore
+from app.models.marketplace import IntegrationListing
 from app.models.mfa import MfaRecoveryCode
 from app.models.note import Note
 from app.models.notification import Notification, NotificationPreference
@@ -118,6 +119,7 @@ __all__ = [
     "Goal",
     "GrowthScore",
     "IntegrationConnection",
+    "IntegrationListing",
     "IntegrationSubscription",
     "IntegrationSyncRun",
     "Invoice",

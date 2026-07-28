@@ -178,6 +178,14 @@ class AuditAction:
     #: so the marketplace has a trail of what was checked before a publish.
     SDK_PLUGIN_VALIDATED: Final = "sdk.plugin.validated"
 
+    # --- integration marketplace (Phase 9.2) ---
+    #: Syncing the curated templates provisions the listings (and the plugins
+    #: behind them) an operator offers. Installing an integration is a higher-level
+    #: framing of a plugin install — the underlying `plugin.installed` is already
+    #: high severity, so this marketplace-context record is a plain trail entry.
+    MARKETPLACE_TEMPLATES_SYNCED: Final = "marketplace.templates.synced"
+    MARKETPLACE_INTEGRATION_INSTALLED: Final = "marketplace.integration.installed"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
