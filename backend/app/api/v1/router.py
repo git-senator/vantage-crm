@@ -42,6 +42,7 @@ from app.api.v1 import (
     pipelines,
     properties,
     reports,
+    resilience,
     roles,
     security_ops,
     tasks,
@@ -74,6 +75,9 @@ api_router.include_router(
 api_router.include_router(trust.router, prefix="/trust", tags=["trust"])
 api_router.include_router(
     governance.router, prefix="/governance", tags=["governance"]
+)
+api_router.include_router(
+    resilience.router, prefix="/resilience", tags=["resilience"]
 )
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])

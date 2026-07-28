@@ -66,6 +66,13 @@ from app.models.rbac import (
 )
 from app.models.refresh_token import RefreshToken
 from app.models.report import ReportDefinition, ReportRun
+from app.models.resilience import (
+    BusinessService,
+    ContinuityPlan,
+    OperationalIncident,
+    PostIncidentReview,
+    ServiceDependency,
+)
 from app.models.security_ops import SecurityAlert, SecurityEvent, TrustedDevice
 from app.models.task import Task
 from app.models.trust import (
@@ -85,11 +92,13 @@ __all__ = [
     "ApiKey",
     "Attachment",
     "AuditLog",
+    "BusinessService",
     "CalendarEvent",
     "Certification",
     "Client",
     "ComplianceEvidence",
     "CompliancePolicy",
+    "ContinuityPlan",
     "Conversation",
     "DataAsset",
     "DataLineageEdge",
@@ -116,12 +125,14 @@ __all__ = [
     "Note",
     "Notification",
     "NotificationPreference",
+    "OperationalIncident",
     "Organization",
     "OrganizationBranding",
     "Permission",
     "Pipeline",
     "PipelineStage",
     "Plan",
+    "PostIncidentReview",
     "Property",
     "PropertyScore",
     "QuestionnaireItem",
@@ -134,6 +145,7 @@ __all__ = [
     "SecurityAlert",
     "SecurityEvent",
     "SecurityPolicy",
+    "ServiceDependency",
     "SsoConnection",
     "Subscription",
     "Task",

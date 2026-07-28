@@ -442,6 +442,15 @@ class Settings(BaseSettings):
     # is a common semi-annual data-review cadence.
     GOVERNANCE_UNREVIEWED_ASSET_DAYS: int = 180
 
+    # --------------------------------------- operational resilience
+    # Phase 8.6. An active continuity plan not tested within this many days is
+    # flagged overdue on the resilience dashboard and counts against operational
+    # readiness. 180 days is a common semi-annual DR-test cadence.
+    RESILIENCE_PLAN_REVIEW_INTERVAL_DAYS: int = 180
+    #: The window, in days, over which a resolved incident's recovery breach is
+    #: counted "recent" for the readiness rating.
+    RESILIENCE_INCIDENT_LOOKBACK_DAYS: int = 90
+
     # ------------------------------------------- security operations
     # Phase 8.2. Thresholds for the security-ops detection framework. Reused by
     # the deterministic detectors, so a deployment can tune sensitivity without a

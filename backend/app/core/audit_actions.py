@@ -136,6 +136,27 @@ class AuditAction:
     LINEAGE_RECORDED: Final = "governance.lineage.recorded"
     LINEAGE_DELETED: Final = "governance.lineage.deleted"
 
+    # --- operational resilience (Phase 8.6) ---
+    #: The service registry, its dependencies, and the continuity plans are the
+    #: operational record an auditor and a DR reviewer inspect — each change is
+    #: auditable, and recording a plan test is the evidence a plan is live rather
+    #: than shelfware. Declaring an operational incident is a same-day signal;
+    #: resolving it and reviewing it complete the record.
+    SERVICE_REGISTERED: Final = "resilience.service.registered"
+    SERVICE_UPDATED: Final = "resilience.service.updated"
+    SERVICE_DELETED: Final = "resilience.service.deleted"
+    SERVICE_DEPENDENCY_RECORDED: Final = "resilience.dependency.recorded"
+    SERVICE_DEPENDENCY_DELETED: Final = "resilience.dependency.deleted"
+    CONTINUITY_PLAN_RECORDED: Final = "resilience.plan.recorded"
+    CONTINUITY_PLAN_UPDATED: Final = "resilience.plan.updated"
+    CONTINUITY_PLAN_DELETED: Final = "resilience.plan.deleted"
+    CONTINUITY_PLAN_TESTED: Final = "resilience.plan.tested"
+    INCIDENT_DECLARED: Final = "resilience.incident.declared"
+    INCIDENT_UPDATED: Final = "resilience.incident.updated"
+    INCIDENT_RESOLVED: Final = "resilience.incident.resolved"
+    POST_INCIDENT_REVIEW_RECORDED: Final = "resilience.pir.recorded"
+    POST_INCIDENT_REVIEW_COMPLETED: Final = "resilience.pir.completed"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
@@ -250,6 +271,9 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         # Publishing the Trust Center exposes the tenant's security profile
         # beyond the workspace — an egress decision worth a same-day look.
         AuditAction.TRUST_PROFILE_PUBLISHED,
+        # A declared operational incident is the signal an on-call responder and
+        # leadership act on the same day.
+        AuditAction.INCIDENT_DECLARED,
         # A newly live workflow can touch every record in the workspace.
         AuditAction.WORKFLOW_PUBLISHED,
         AuditAction.RECORD_EXPORTED,

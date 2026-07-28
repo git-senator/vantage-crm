@@ -203,6 +203,11 @@ REGISTRY.counter(
     "security_alerts_total",
     "Security alerts raised by severity and tenant.",
 )
+# Operational resilience (Phase 8.6).
+REGISTRY.counter(
+    "operational_incidents_total",
+    "Operational incidents by severity, action and tenant.",
+)
 
 
 _TENANT_UNKNOWN = "unknown"
@@ -341,4 +346,20 @@ def record_security_alert(
     REGISTRY.inc(
         "security_alerts_total",
         {"severity": severity, "tenant": _tenant(organization_id)},
+    )
+
+
+def record_operational_incident(
+    *, severity: str, action: str, organization_id: object | None = None
+) -> None:
+    """Emit an operational-incident signal through the existing registry. This
+    reuses the metrics infrastructure — it declares no new monitoring pipeline.
+    `action` is "declared" or "resolved"."""
+    REGISTRY.inc(
+        "operational_incidents_total",
+        {
+            "severity": severity,
+            "action": action,
+            "tenant": _tenant(organization_id),
+        },
     )
