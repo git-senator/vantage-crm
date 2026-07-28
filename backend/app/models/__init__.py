@@ -63,6 +63,12 @@ from app.models.refresh_token import RefreshToken
 from app.models.report import ReportDefinition, ReportRun
 from app.models.security_ops import SecurityAlert, SecurityEvent, TrustedDevice
 from app.models.task import Task
+from app.models.trust import (
+    Certification,
+    QuestionnaireItem,
+    Risk,
+    TrustProfile,
+)
 from app.models.user import User
 from app.models.webhook import WebhookDelivery, WebhookEndpoint
 
@@ -75,6 +81,7 @@ __all__ = [
     "Attachment",
     "AuditLog",
     "CalendarEvent",
+    "Certification",
     "Client",
     "ComplianceEvidence",
     "CompliancePolicy",
@@ -109,9 +116,11 @@ __all__ = [
     "Plan",
     "Property",
     "PropertyScore",
+    "QuestionnaireItem",
     "RefreshToken",
     "ReportDefinition",
     "ReportRun",
+    "Risk",
     "Role",
     "RolePermission",
     "SecurityAlert",
@@ -122,6 +131,7 @@ __all__ = [
     "Task",
     "Team",
     "TeamMember",
+    "TrustProfile",
     "TrustedDevice",
     "User",
     "UserRole",

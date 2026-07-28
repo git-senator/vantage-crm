@@ -102,6 +102,24 @@ class AuditAction:
     COMPLIANCE_EVIDENCE_COLLECTED: Final = "compliance.evidence.collected"
     RETENTION_EXECUTED: Final = "compliance.retention.executed"
 
+    # --- trust & risk management (Phase 8.4) ---
+    #: A risk-register entry is part of the security record an auditor inspects,
+    #: so recording, re-scoring, and closing one are auditable. A certification's
+    #: lifecycle is likewise evidence. Publishing the Trust Center exposes the
+    #: profile beyond the workspace — an egress decision worth a same-day look, so
+    #: it is high severity.
+    RISK_RECORDED: Final = "trust.risk.recorded"
+    RISK_UPDATED: Final = "trust.risk.updated"
+    RISK_DELETED: Final = "trust.risk.deleted"
+    CERTIFICATION_RECORDED: Final = "trust.certification.recorded"
+    CERTIFICATION_UPDATED: Final = "trust.certification.updated"
+    CERTIFICATION_DELETED: Final = "trust.certification.deleted"
+    TRUST_PROFILE_UPDATED: Final = "trust.profile.updated"
+    TRUST_PROFILE_PUBLISHED: Final = "trust.profile.published"
+    QUESTIONNAIRE_ITEM_RECORDED: Final = "trust.questionnaire.recorded"
+    QUESTIONNAIRE_ITEM_UPDATED: Final = "trust.questionnaire.updated"
+    QUESTIONNAIRE_ITEM_DELETED: Final = "trust.questionnaire.deleted"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
@@ -213,6 +231,9 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         AuditAction.DATA_REQUEST_COMPLETED,
         # A raised security alert is the signal an analyst acts on the same day.
         AuditAction.SECURITY_ALERT_RAISED,
+        # Publishing the Trust Center exposes the tenant's security profile
+        # beyond the workspace — an egress decision worth a same-day look.
+        AuditAction.TRUST_PROFILE_PUBLISHED,
         # A newly live workflow can touch every record in the workspace.
         AuditAction.WORKFLOW_PUBLISHED,
         AuditAction.RECORD_EXPORTED,

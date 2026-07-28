@@ -428,6 +428,13 @@ class Settings(BaseSettings):
     # GDPR default.
     COMPLIANCE_DSAR_SLA_DAYS: int = 30
 
+    # ------------------------------------------------ trust & risk
+    # Phase 8.4. A certified attestation within this many days of its expiry is
+    # flagged "expiring soon" on the trust dashboard — the window to start a
+    # renewal audit before the certification lapses. 60 days is a common lead
+    # time for a SOC 2 renewal engagement.
+    TRUST_CERT_EXPIRY_WARNING_DAYS: int = 60
+
     # ------------------------------------------- security operations
     # Phase 8.2. Thresholds for the security-ops detection framework. Reused by
     # the deterministic detectors, so a deployment can tune sensitivity without a
