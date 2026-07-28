@@ -120,6 +120,22 @@ class AuditAction:
     QUESTIONNAIRE_ITEM_UPDATED: Final = "trust.questionnaire.updated"
     QUESTIONNAIRE_ITEM_DELETED: Final = "trust.questionnaire.deleted"
 
+    # --- data governance (Phase 8.5) ---
+    #: Cataloguing a data asset, and changing its classification, ownership, or
+    #: labels, are the acts a data-protection review inspects — each is auditable.
+    #: Reclassifying an asset downward, in particular, is a decision worth being
+    #: able to find. Quality rules and lineage edges are governance metadata whose
+    #: creation and removal are likewise recorded.
+    DATA_ASSET_REGISTERED: Final = "governance.asset.registered"
+    DATA_ASSET_UPDATED: Final = "governance.asset.updated"
+    DATA_ASSET_DELETED: Final = "governance.asset.deleted"
+    DATA_OWNER_ASSIGNED: Final = "governance.asset.owner_assigned"
+    QUALITY_RULE_RECORDED: Final = "governance.quality_rule.recorded"
+    QUALITY_RULE_UPDATED: Final = "governance.quality_rule.updated"
+    QUALITY_RULE_DELETED: Final = "governance.quality_rule.deleted"
+    LINEAGE_RECORDED: Final = "governance.lineage.recorded"
+    LINEAGE_DELETED: Final = "governance.lineage.deleted"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"

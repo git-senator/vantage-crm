@@ -435,6 +435,13 @@ class Settings(BaseSettings):
     # time for a SOC 2 renewal engagement.
     TRUST_CERT_EXPIRY_WARNING_DAYS: int = 60
 
+    # ------------------------------------------------ data governance
+    # Phase 8.5. An active data asset that has not been reviewed within this many
+    # days is counted "unreviewed" on the governance dashboard — the signal that a
+    # catalog entry's classification and ownership may have gone stale. 180 days
+    # is a common semi-annual data-review cadence.
+    GOVERNANCE_UNREVIEWED_ASSET_DAYS: int = 180
+
     # ------------------------------------------- security operations
     # Phase 8.2. Thresholds for the security-ops detection framework. Reused by
     # the deterministic detectors, so a deployment can tune sensitivity without a

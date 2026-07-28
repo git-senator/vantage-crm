@@ -35,6 +35,11 @@ from app.models.enterprise import (
     SecurityPolicy,
     SsoConnection,
 )
+from app.models.governance import (
+    DataAsset,
+    DataLineageEdge,
+    DataQualityRule,
+)
 from app.models.growth_score import GrowthScore
 from app.models.integration import (
     IntegrationConnection,
@@ -86,7 +91,10 @@ __all__ = [
     "ComplianceEvidence",
     "CompliancePolicy",
     "Conversation",
+    "DataAsset",
+    "DataLineageEdge",
     "DataProcessingActivity",
+    "DataQualityRule",
     "DataRequest",
     "Deal",
     "DealScore",
