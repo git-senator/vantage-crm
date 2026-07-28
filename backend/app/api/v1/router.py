@@ -45,6 +45,7 @@ from app.api.v1 import (
     reports,
     resilience,
     roles,
+    sdk,
     security_ops,
     tasks,
     timeline,
@@ -81,6 +82,7 @@ api_router.include_router(
     resilience.router, prefix="/resilience", tags=["resilience"]
 )
 api_router.include_router(plugins.router, prefix="/plugins", tags=["plugins"])
+api_router.include_router(sdk.router, prefix="/sdk", tags=["sdk"])
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])

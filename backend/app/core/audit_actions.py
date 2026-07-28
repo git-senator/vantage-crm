@@ -173,6 +173,11 @@ class AuditAction:
     PLUGIN_SUBSCRIBED: Final = "plugin.subscribed"
     PLUGIN_UNSUBSCRIBED: Final = "plugin.unsubscribed"
 
+    # --- developer SDK (Phase 9.1) ---
+    #: A developer validated a plugin manifest against the SDK contract. Recorded
+    #: so the marketplace has a trail of what was checked before a publish.
+    SDK_PLUGIN_VALIDATED: Final = "sdk.plugin.validated"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"

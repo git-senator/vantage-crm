@@ -456,6 +456,9 @@ class Settings(BaseSettings):
     # against a runaway or abusive install loop. Generous by default; a tenant
     # that legitimately needs more is a support conversation, not a silent cap.
     PLUGINS_MAX_PER_TENANT: int = 100
+    #: Phase 9.1. When true, the SDK validation endpoint treats warnings as
+    #: failures — a stricter gate for a marketplace that requires clean manifests.
+    SDK_STRICT_VALIDATION: bool = False
 
     # ------------------------------------------- security operations
     # Phase 8.2. Thresholds for the security-ops detection framework. Reused by
