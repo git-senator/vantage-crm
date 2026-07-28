@@ -451,6 +451,12 @@ class Settings(BaseSettings):
     #: counted "recent" for the readiness rating.
     RESILIENCE_INCIDENT_LOOKBACK_DAYS: int = 90
 
+    # --------------------------------------- app marketplace & plugins
+    # Phase 9.0. The ceiling on how many plugins one tenant may install, a guard
+    # against a runaway or abusive install loop. Generous by default; a tenant
+    # that legitimately needs more is a support conversation, not a silent cap.
+    PLUGINS_MAX_PER_TENANT: int = 100
+
     # ------------------------------------------- security operations
     # Phase 8.2. Thresholds for the security-ops detection framework. Reused by
     # the deterministic detectors, so a deployment can tune sensitivity without a

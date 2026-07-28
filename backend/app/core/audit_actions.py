@@ -157,6 +157,22 @@ class AuditAction:
     POST_INCIDENT_REVIEW_RECORDED: Final = "resilience.pir.recorded"
     POST_INCIDENT_REVIEW_COMPLETED: Final = "resilience.pir.completed"
 
+    # --- app marketplace & plugins (Phase 9.0) ---
+    #: Publishing a plugin lists it in the marketplace. Installing one grants a
+    #: third party a slice of the tenant's capabilities — a privilege-granting act
+    #: worth a same-day look, so it is high severity. Enable/disable/uninstall and
+    #: configuration changes complete the lifecycle record.
+    PLUGIN_PUBLISHED: Final = "plugin.published"
+    PLUGIN_UPDATED: Final = "plugin.updated"
+    PLUGIN_DEPRECATED: Final = "plugin.deprecated"
+    PLUGIN_INSTALLED: Final = "plugin.installed"
+    PLUGIN_ENABLED: Final = "plugin.enabled"
+    PLUGIN_DISABLED: Final = "plugin.disabled"
+    PLUGIN_UNINSTALLED: Final = "plugin.uninstalled"
+    PLUGIN_CONFIGURED: Final = "plugin.configured"
+    PLUGIN_SUBSCRIBED: Final = "plugin.subscribed"
+    PLUGIN_UNSUBSCRIBED: Final = "plugin.unsubscribed"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
@@ -274,6 +290,9 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         # A declared operational incident is the signal an on-call responder and
         # leadership act on the same day.
         AuditAction.INCIDENT_DECLARED,
+        # Installing a plugin grants a third party a slice of the tenant's
+        # capabilities — a privilege-granting act worth a same-day look.
+        AuditAction.PLUGIN_INSTALLED,
         # A newly live workflow can touch every record in the workspace.
         AuditAction.WORKFLOW_PUBLISHED,
         AuditAction.RECORD_EXPORTED,

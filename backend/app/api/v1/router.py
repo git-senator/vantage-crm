@@ -40,6 +40,7 @@ from app.api.v1 import (
     notifications,
     organizations,
     pipelines,
+    plugins,
     properties,
     reports,
     resilience,
@@ -79,6 +80,7 @@ api_router.include_router(
 api_router.include_router(
     resilience.router, prefix="/resilience", tags=["resilience"]
 )
+api_router.include_router(plugins.router, prefix="/plugins", tags=["plugins"])
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
 api_router.include_router(jobs.router, prefix="/jobs", tags=["jobs"])

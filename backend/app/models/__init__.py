@@ -54,6 +54,11 @@ from app.models.note import Note
 from app.models.notification import Notification, NotificationPreference
 from app.models.organization import Organization
 from app.models.pipeline import Pipeline, PipelineStage
+from app.models.plugin import (
+    Plugin,
+    PluginEventSubscription,
+    PluginInstallation,
+)
 from app.models.property import Property
 from app.models.property_score import PropertyScore
 from app.models.rbac import (
@@ -132,6 +137,9 @@ __all__ = [
     "Pipeline",
     "PipelineStage",
     "Plan",
+    "Plugin",
+    "PluginEventSubscription",
+    "PluginInstallation",
     "PostIncidentReview",
     "Property",
     "PropertyScore",
