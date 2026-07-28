@@ -91,6 +91,17 @@ class AuditAction:
     SECURITY_DEVICE_TRUSTED: Final = "security.device.trusted"
     SECURITY_DEVICE_UNTRUSTED: Final = "security.device.untrusted"
 
+    # --- compliance operations (Phase 8.3) ---
+    #: Recording a processing activity or collecting evidence is itself part of
+    #: the compliance record a regulator later inspects, so each is auditable.
+    #: Running retention execution deletes data on demand — worth recording who
+    #: triggered it and when.
+    PROCESSING_ACTIVITY_RECORDED: Final = "compliance.processing_activity.recorded"
+    PROCESSING_ACTIVITY_UPDATED: Final = "compliance.processing_activity.updated"
+    PROCESSING_ACTIVITY_DELETED: Final = "compliance.processing_activity.deleted"
+    COMPLIANCE_EVIDENCE_COLLECTED: Final = "compliance.evidence.collected"
+    RETENTION_EXECUTED: Final = "compliance.retention.executed"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"

@@ -23,6 +23,7 @@ from app.models.automation import (
 from app.models.billing import Invoice, Plan, Subscription
 from app.models.calendar import CalendarEvent, EventAttendee
 from app.models.client import Client
+from app.models.compliance_ops import ComplianceEvidence, DataProcessingActivity
 from app.models.conversation import Conversation, Message
 from app.models.deal import Deal, DealStageHistory
 from app.models.deal_score import DealScore
@@ -75,8 +76,10 @@ __all__ = [
     "AuditLog",
     "CalendarEvent",
     "Client",
+    "ComplianceEvidence",
     "CompliancePolicy",
     "Conversation",
+    "DataProcessingActivity",
     "DataRequest",
     "Deal",
     "DealScore",

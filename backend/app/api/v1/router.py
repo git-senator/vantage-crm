@@ -26,6 +26,7 @@ from app.api.v1 import (
     billing,
     calendar,
     clients,
+    compliance_ops,
     conversations,
     dashboard,
     deals,
@@ -64,6 +65,9 @@ api_router.include_router(
 )
 api_router.include_router(
     security_ops.router, prefix="/security", tags=["security-ops"]
+)
+api_router.include_router(
+    compliance_ops.router, prefix="/compliance", tags=["compliance-ops"]
 )
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])

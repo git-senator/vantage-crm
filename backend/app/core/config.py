@@ -421,6 +421,13 @@ class Settings(BaseSettings):
     #: connection that pretends to sync.
     INTEGRATIONS_ENABLE_MOCK: bool = False
 
+    # ----------------------------------------- compliance operations
+    # Phase 8.3. The SLA, in days, within which a GDPR subject request must be
+    # handled; a request older than this and still open is flagged overdue by
+    # the DSAR workflow and fails the `gdpr.dsar_process` control. 30 days is the
+    # GDPR default.
+    COMPLIANCE_DSAR_SLA_DAYS: int = 30
+
     # ------------------------------------------- security operations
     # Phase 8.2. Thresholds for the security-ops detection framework. Reused by
     # the deterministic detectors, so a deployment can tune sensitivity without a
