@@ -27,18 +27,22 @@ from app.api.v1.dependencies import (
 )
 from app.schemas.marketplace import (
     CertificationTierRead,
+    CompatibilityResultRead,
     InstalledIntegrationRead,
     InstallListingRequest,
     IntegrationCategoryRead,
     IntegrationHealthRead,
     IntegrationListingRead,
     MarketplaceOverview,
+    OperationalInstallationRead,
+    UpgradeReadinessRead,
 )
 from app.services.marketplace import (
     IntegrationHealthService,
     IntegrationInstallationService,
     IntegrationRegistryService,
 )
+from app.services.marketplace_operations import MarketplaceOperationsService
 
 router = APIRouter()
 
@@ -79,6 +83,19 @@ async def list_installed(
     return await IntegrationInstallationService(
         session, auth, settings
     ).list_installed()
+
+
+@router.get("/installed/history", response_model=list[OperationalInstallationRead])
+async def installation_history(
+    session: TenantSessionDep,
+    auth: Authorization,
+    _user: CurrentUser,
+    settings: SettingsDep,
+) -> list[OperationalInstallationRead]:
+    """The workspace's full install history, active and removed."""
+    return await MarketplaceOperationsService(
+        session, auth, settings
+    ).installation_history()
 
 
 @router.post("/sync", dependencies=_CSRF)
@@ -134,6 +151,55 @@ async def listing_health(
     return await IntegrationHealthService(session, auth, settings).health(listing_id)
 
 
+@router.get(
+    "/listings/{listing_id}/compatibility", response_model=CompatibilityResultRead
+)
+async def listing_compatibility(
+    listing_id: UUID,
+    session: TenantSessionDep,
+    auth: Authorization,
+    _user: CurrentUser,
+    settings: SettingsDep,
+) -> CompatibilityResultRead:
+    return await MarketplaceOperationsService(
+        session, auth, settings
+    ).check_compatibility(listing_id)
+
+
+@router.get("/listings/{listing_id}/upgrade", response_model=UpgradeReadinessRead)
+async def upgrade_readiness(
+    listing_id: UUID,
+    session: TenantSessionDep,
+    auth: Authorization,
+    _user: CurrentUser,
+    settings: SettingsDep,
+) -> UpgradeReadinessRead:
+    """Whether the installed integration can move to a newer version."""
+    return await MarketplaceOperationsService(
+        session, auth, settings
+    ).upgrade_readiness(listing_id)
+
+
+@router.post(
+    "/listings/{listing_id}/upgrade",
+    response_model=UpgradeReadinessRead,
+    dependencies=_CSRF,
+)
+async def start_upgrade(
+    listing_id: UUID,
+    session: TenantSessionDep,
+    auth: Authorization,
+    user: CurrentUser,
+    settings: SettingsDep,
+) -> UpgradeReadinessRead:
+    """Begin an upgrade (foundation): records that it was started."""
+    result = await MarketplaceOperationsService(session, auth, settings).prepare_upgrade(
+        user, listing_id
+    )
+    await session.commit()
+    return result
+
+
 @router.post(
     "/listings/{listing_id}/install",
     response_model=InstalledIntegrationRead,
@@ -148,7 +214,7 @@ async def install_listing(
     user: CurrentUser,
     settings: SettingsDep,
 ) -> InstalledIntegrationRead:
-    result = await IntegrationInstallationService(session, auth, settings).install(
+    result = await MarketplaceOperationsService(session, auth, settings).install(
         user, listing_id, payload
     )
     await session.commit()
@@ -205,7 +271,7 @@ async def uninstall_listing(
     user: CurrentUser,
     settings: SettingsDep,
 ) -> None:
-    await IntegrationInstallationService(session, auth, settings).uninstall(
+    await MarketplaceOperationsService(session, auth, settings).uninstall(
         user, listing_id
     )
     await session.commit()

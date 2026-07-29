@@ -120,13 +120,98 @@ class MarketplaceOverview(BaseModel):
     down: int
 
 
+# ------------------------------------------------- operations (Phase 9.3)
+
+
+class ListingDraftCreate(BaseModel):
+    #: The plugin manifest the listing provisions, validated server-side.
+    manifest: dict[str, Any]
+    vendor: str = Field(min_length=1, max_length=120)
+    category: str = Field(min_length=1, max_length=30)
+    summary: str = Field(min_length=1, max_length=300)
+    auth_method: str = Field(min_length=1, max_length=16)
+    oauth_scopes: list[str] = Field(default_factory=list)
+    provider_key: str | None = Field(default=None, max_length=60)
+    docs_url: str | None = Field(default=None, max_length=500)
+
+
+class ReviewDecisionRequest(BaseModel):
+    decision: str = Field(pattern="^(approved|rejected)$")
+    evidence: str | None = Field(default=None, max_length=2000)
+
+
+class VersionCreateRequest(BaseModel):
+    version: str = Field(min_length=1, max_length=20)
+    compatibility: dict[str, Any] = Field(default_factory=dict)
+
+
+class IntegrationVersionRead(BaseModel):
+    id: UUID
+    listing_key: str
+    version: str
+    status: str
+    compatibility: dict[str, Any]
+    created_at: datetime
+
+
+class OperationalInstallationRead(BaseModel):
+    id: UUID
+    listing_key: str
+    installed_version: str
+    status: str
+    installed_plugin_id: UUID | None
+    installed_at: datetime
+    uninstalled_at: datetime | None
+
+
+class UpgradeReadinessRead(BaseModel):
+    listing_key: str
+    installed_version: str
+    latest_version: str
+    upgrade_available: bool
+    compatible: bool
+    reason: str
+
+
+class CompatibilityResultRead(BaseModel):
+    listing_key: str
+    version: str
+    compatible: bool
+    reason: str
+
+
+class AdoptionRead(BaseModel):
+    listing_key: str
+    active_installs: int
+    signal: str
+
+
+class MarketplaceAnalyticsRead(BaseModel):
+    total_listings: int
+    listings_by_state: dict[str, int]
+    published: int
+    active_installs: int
+    total_installs: int
+    operational_health: str
+    adoption: list[AdoptionRead]
+
+
 __all__ = [
+    "AdoptionRead",
     "CertificationTierRead",
+    "CompatibilityResultRead",
     "InstallListingRequest",
     "InstalledIntegrationRead",
     "IntegrationCategoryRead",
     "IntegrationDiagnosticCheckRead",
     "IntegrationHealthRead",
     "IntegrationListingRead",
+    "IntegrationVersionRead",
+    "ListingDraftCreate",
+    "MarketplaceAnalyticsRead",
     "MarketplaceOverview",
+    "OperationalInstallationRead",
+    "ReviewDecisionRequest",
+    "UpgradeReadinessRead",
+    "VersionCreateRequest",
 ]

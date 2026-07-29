@@ -37,6 +37,7 @@ from app.api.v1 import (
     jobs,
     leads,
     marketplace,
+    marketplace_admin,
     notes,
     notifications,
     organizations,
@@ -86,6 +87,11 @@ api_router.include_router(plugins.router, prefix="/plugins", tags=["plugins"])
 api_router.include_router(sdk.router, prefix="/sdk", tags=["sdk"])
 api_router.include_router(
     marketplace.router, prefix="/marketplace", tags=["marketplace"]
+)
+api_router.include_router(
+    marketplace_admin.router,
+    prefix="/marketplace/admin",
+    tags=["marketplace-admin"],
 )
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])

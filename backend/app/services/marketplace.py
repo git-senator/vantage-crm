@@ -46,11 +46,14 @@ from app.marketplace.health import (
     summarize_health,
 )
 from app.marketplace.templates import INTEGRATION_TEMPLATES
-from app.models.marketplace import IntegrationListing
+from app.models.marketplace import IntegrationListing, IntegrationVersion
 from app.models.plugin import Plugin, PluginInstallation
 from app.models.user import User
 from app.repositories.integration import IntegrationConnectionRepository
-from app.repositories.marketplace import IntegrationListingRepository
+from app.repositories.marketplace import (
+    IntegrationListingRepository,
+    IntegrationVersionRepository,
+)
 from app.repositories.plugin import PluginInstallationRepository, PluginRepository
 from app.schemas.marketplace import (
     CertificationTierRead,
@@ -63,6 +66,7 @@ from app.schemas.marketplace import (
     MarketplaceOverview,
 )
 from app.schemas.plugin import InstallRequest
+from app.sdk.version import SDK_VERSION
 from app.services.audit import AuditService
 from app.services.rbac import AuthorizationContext
 
@@ -113,6 +117,7 @@ class IntegrationRegistryService:
         self.session = session
         self.auth = auth
         self.repo = IntegrationListingRepository(session)
+        self.versions = IntegrationVersionRepository(session)
         self.plugins = PluginRepository(session)
         self.installs = PluginInstallationRepository(session)
         self.audit = AuditService(session)
@@ -189,6 +194,19 @@ class IntegrationRegistryService:
                 self.session.add(listing)
             synced += 1
         await self.session.flush()
+
+        # Cut a published version for each curated listing (idempotent), so an
+        # install records a concrete version and an upgrade has something to
+        # compare against.
+        for template in INTEGRATION_TEMPLATES:
+            curated = await self.repo.get_by_key(
+                self.auth.organization_id, template.key
+            )
+            if curated is None or curated.publisher_organization_id is not None:
+                continue
+            await self._ensure_version(curated, template.manifest(), actor)
+        await self.session.flush()
+
         await self.audit.record(
             action=AuditAction.MARKETPLACE_TEMPLATES_SYNCED,
             organization_id=self.auth.organization_id,
@@ -249,7 +267,28 @@ class IntegrationRegistryService:
         row.event_types = list(template.events)
         row.required_feature = template.required_feature
         row.docs_url = template.docs_url
-        row.status = "listed"
+        row.status = "published"
+
+    async def _ensure_version(
+        self, listing: IntegrationListing, manifest: dict[str, Any], actor: User
+    ) -> None:
+        version = str(manifest.get("version") or "1.0.0")
+        existing = await self.versions.get_by_version(
+            listing.id, version, self.auth.organization_id
+        )
+        if existing is not None:
+            return
+        self.session.add(
+            IntegrationVersion(
+                publisher_organization_id=listing.publisher_organization_id,
+                created_by=actor.id,
+                listing_id=listing.id,
+                version=version,
+                manifest=manifest,
+                compatibility={"sdk_version": SDK_VERSION},
+                status="published",
+            )
+        )
 
     async def _load(self, listing_id: UUID) -> IntegrationListing:
         listing = await self.repo.get_visible(listing_id, self.auth.organization_id)

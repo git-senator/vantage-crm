@@ -186,6 +186,21 @@ class AuditAction:
     MARKETPLACE_TEMPLATES_SYNCED: Final = "marketplace.templates.synced"
     MARKETPLACE_INTEGRATION_INSTALLED: Final = "marketplace.integration.installed"
 
+    # --- marketplace operations (Phase 9.3) ---
+    #: The publication pipeline for a listing (draft -> review -> approved ->
+    #: published) and the operational integration lifecycle. Publishing a listing
+    #: makes it installable across the workspace; uninstalling removes an
+    #: integration; starting an upgrade begins moving an install to a new version.
+    MARKETPLACE_LISTING_CREATED: Final = "marketplace.listing.created"
+    MARKETPLACE_LISTING_SUBMITTED: Final = "marketplace.listing.submitted"
+    MARKETPLACE_LISTING_APPROVED: Final = "marketplace.listing.approved"
+    MARKETPLACE_LISTING_REJECTED: Final = "marketplace.listing.rejected"
+    MARKETPLACE_LISTING_PUBLISHED: Final = "marketplace.listing.published"
+    MARKETPLACE_INTEGRATION_UNINSTALLED: Final = "marketplace.integration.uninstalled"
+    MARKETPLACE_INTEGRATION_UPGRADE_STARTED: Final = (
+        "marketplace.integration.upgrade_started"
+    )
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"

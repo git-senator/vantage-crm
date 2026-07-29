@@ -91,9 +91,11 @@ class IntegrationListing(Base, UUIDPrimaryKeyMixin):
     is_first_party: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default="false"
     )
-    #: listed | deprecated.
+    #: The publication lifecycle state (Phase 9.3): draft | review | approved |
+    #: published | deprecated | retired. Curated listings are synced straight to
+    #: ``published``; tenant-authored listings travel the full path.
     status: Mapped[str] = mapped_column(
-        String(16), nullable=False, server_default="listed"
+        String(16), nullable=False, server_default="draft"
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -115,3 +117,180 @@ class IntegrationListing(Base, UUIDPrimaryKeyMixin):
 
     def __repr__(self) -> str:
         return f"<IntegrationListing {self.key!r} {self.certification}>"
+
+
+class IntegrationVersion(Base, UUIDPrimaryKeyMixin):
+    """A published version of a listing (Phase 9.3).
+
+    Each version keeps the manifest it was cut from and its compatibility
+    metadata, so an install records exactly which version it took and an upgrade
+    can compare against the latest. It shares the listing's *operational* RLS
+    visibility (NULL publisher = curated/global, else the tenant's own) via the
+    same keying column.
+    """
+
+    __tablename__ = "integration_versions"
+
+    publisher_organization_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    created_by: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    listing_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("integration_listings.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    version: Mapped[str] = mapped_column(String(20), nullable=False)
+    #: The plugin manifest this version was cut from.
+    manifest: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, server_default="{}"
+    )
+    #: Compatibility metadata, e.g. the SDK version this cut targets.
+    compatibility: Mapped[dict[str, Any]] = mapped_column(
+        postgresql.JSONB, nullable=False, server_default="{}"
+    )
+    #: draft | published | deprecated.
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="published"
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("listing_id", "version", name="uq_integration_versions"),
+        Index("ix_integration_versions_publisher", "publisher_organization_id"),
+        Index("ix_integration_versions_listing", "listing_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<IntegrationVersion {self.listing_id} v{self.version} {self.status}>"
+
+
+class IntegrationInstallation(Base, UUIDPrimaryKeyMixin):
+    """A tenant's operational record of an installed integration (Phase 9.3).
+
+    The runtime truth lives on ``plugin_installations``; this row is the
+    marketplace's operational tracking of it — which listing, which version, and
+    the install-history status — so a workspace can answer "what did we install,
+    at what version, and when did we remove it?" without mining the runtime.
+    Tenant-scoped and RLS-FORCEd.
+    """
+
+    __tablename__ = "integration_installations"
+
+    organization_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    installed_by: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    listing_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("integration_listings.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    #: The catalog plugin the listing provisioned. SET NULL keeps history if the
+    #: plugin row is ever removed.
+    installed_plugin_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("plugins.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    installed_version: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    #: pending | active | upgrading | uninstalled | failed.
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="active"
+    )
+
+    installed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    uninstalled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_integration_installations_org_status",
+            "organization_id", "status",
+        ),
+        Index(
+            "ix_integration_installations_org_listing",
+            "organization_id", "listing_id",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<IntegrationInstallation {self.organization_id} "
+            f"{self.listing_id} {self.status}>"
+        )
+
+
+class IntegrationReview(Base, UUIDPrimaryKeyMixin):
+    """A review decision on a tenant-authored listing (Phase 9.3).
+
+    The governance record behind the publication path: who reviewed the listing,
+    what they decided, and the evidence for it. Tenant-scoped to the authoring
+    workspace — a listing is reviewed inside the org that owns it.
+    """
+
+    __tablename__ = "integration_reviews"
+
+    organization_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    listing_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("integration_listings.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    reviewer_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    #: approved | rejected.
+    decision: Mapped[str] = mapped_column(String(16), nullable=False)
+    evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_integration_reviews_org_listing", "organization_id", "listing_id"
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"<IntegrationReview {self.listing_id} {self.decision}>"
