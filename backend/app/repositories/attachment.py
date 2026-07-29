@@ -52,6 +52,44 @@ class AttachmentRepository(BaseRepository[Attachment]):
         )
         return list((await self.session.execute(query)).unique().scalars().all())
 
+    async def list_for_organization(
+        self,
+        organization_id: UUID,
+        *,
+        search: str | None = None,
+        status: str | None = None,
+        entity_type: str | None = None,
+        limit: int = 100,
+    ) -> list[Attachment]:
+        """The workspace document library: every attachment in the org, newest
+        first, with optional filename/status/entity-type filters.
+
+        Unlike ``list_for_entity`` this is not anchored to one record — it backs
+        the Documents page. Still tenant-scoped by RLS + ``_base``; the service
+        gates it on ``documents.view``.
+        """
+        query = self._base(organization_id)
+        if search:
+            query = query.where(Attachment.filename.ilike(f"%{search}%"))
+        if status:
+            query = query.where(Attachment.status == status)
+        if entity_type:
+            query = query.where(Attachment.entity_type == entity_type)
+        query = query.order_by(
+            Attachment.created_at.desc(), Attachment.id.desc()
+        ).limit(min(limit, MAX_PAGE_SIZE))
+        return list((await self.session.execute(query)).unique().scalars().all())
+
+    async def count_by_status(self, organization_id: UUID) -> dict[str, int]:
+        """Attachment counts keyed by lifecycle status, for the library stats."""
+        query = (
+            select(Attachment.status, func.count())
+            .where(Attachment.organization_id == organization_id)
+            .group_by(Attachment.status)
+        )
+        rows = (await self.session.execute(query)).all()
+        return {row[0]: row[1] for row in rows}
+
     async def get(self, entity_id: UUID, organization_id: UUID) -> Attachment | None:
         query = self._base(organization_id).where(Attachment.id == entity_id)
         return (await self.session.execute(query)).unique().scalar_one_or_none()

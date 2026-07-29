@@ -65,6 +65,15 @@ class AttachmentRead(BaseModel):
     updated_at: datetime
 
 
+class DocumentLibraryRead(BaseModel):
+    """The workspace document library: a recent slice plus authoritative
+    per-status counts, so the page shows honest totals over the shown rows."""
+
+    data: list[AttachmentRead]
+    counts: dict[str, int]
+    total: int
+
+
 class PresignedUpload(BaseModel):
     """A short-lived credential to write exactly one object.
 

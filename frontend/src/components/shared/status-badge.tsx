@@ -68,6 +68,13 @@ const statusTones: Record<string, Tone> = {
   "awaiting-signature": "warning",
   signed: "success",
   expired: "danger",
+  // attachments (document library) — API wire format
+  available: "success",
+  pending_upload: "warning",
+  quarantined: "danger",
+  failed: "danger",
+  // task statuses in the API's snake_case (board uses these)
+  in_progress: "info",
 };
 
 export function StatusBadge({

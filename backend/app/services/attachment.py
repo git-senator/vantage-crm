@@ -114,6 +114,33 @@ class AttachmentService:
             limit=limit,
         )
 
+    async def list_documents(
+        self,
+        *,
+        search: str | None = None,
+        status: str | None = None,
+        entity_type: str | None = None,
+        limit: int = 100,
+    ) -> list[Attachment]:
+        """The workspace document library — every attachment in the org.
+
+        Gated on ``documents.view``. Scoped to the tenant by RLS; a per-record
+        readability check is not applied here because this is the operator-level
+        library view (the same permission that guards the admin document tools).
+        """
+        self.auth.require("documents.view")
+        return await self.attachments.list_for_organization(
+            self.auth.organization_id,
+            search=search,
+            status=status,
+            entity_type=entity_type,
+            limit=limit,
+        )
+
+    async def document_status_counts(self) -> dict[str, int]:
+        self.auth.require("documents.view")
+        return await self.attachments.count_by_status(self.auth.organization_id)
+
     async def get_attachment(self, attachment_id: UUID) -> Attachment:
         self.auth.require("documents.view")
         attachment = await self.attachments.get(
@@ -201,6 +228,10 @@ class AttachmentService:
                 "storage_backend": self.storage.name,
             },
         )
+        # created_at / updated_at are server-generated and get expired by the
+        # flush; refresh them now so serialising the row in the response does not
+        # trigger a lazy load in a sync context (MissingGreenlet).
+        await self.session.refresh(attachment)
         return attachment, upload
 
     def _presign_upload_for(self, attachment: Attachment) -> PresignedUpload:
@@ -406,6 +437,9 @@ class AttachmentService:
                 "status": attachment.status,
             },
         )
+        # updated_at is expired by the flush above; refresh so the response's
+        # serialization does not lazy-load it in a sync context.
+        await self.session.refresh(attachment)
         return attachment
 
     async def _checksum(self, key: str) -> str:

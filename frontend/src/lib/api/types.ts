@@ -559,6 +559,20 @@ export interface Attachment {
   updated_at: string;
 }
 
+/** The workspace document library: a recent slice plus authoritative counts. */
+export interface DocumentLibrary {
+  data: Attachment[];
+  counts: Record<string, number>;
+  total: number;
+}
+
+export interface DocumentFilters {
+  search?: string;
+  status?: AttachmentStatus;
+  entity_type?: AttachmentEntityType;
+  limit?: number;
+}
+
 export interface AttachmentInput {
   entity_type: AttachmentEntityType;
   entity_id: string;

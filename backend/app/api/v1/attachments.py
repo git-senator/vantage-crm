@@ -34,9 +34,11 @@ from app.schemas.attachment import (
     AttachmentFinalize,
     AttachmentRead,
     AttachmentRegistered,
+    DocumentLibraryRead,
     PresignedDownload,
     PresignedUpload,
 )
+from app.schemas.common import MAX_PAGE_SIZE
 from app.services.attachment import AttachmentService
 
 router = APIRouter()
@@ -90,6 +92,36 @@ async def list_attachments(
         entity_type=entity_type, entity_id=entity_id
     )
     return [_to_read(row) for row in rows]
+
+
+@router.get("/library", response_model=DocumentLibraryRead)
+async def document_library(
+    session: TenantSessionDep,
+    auth: Annotated[Authorization, Depends(require("documents.view"))],
+    _user: CurrentUser,
+    search: Annotated[str | None, Query(max_length=200)] = None,
+    status_filter: Annotated[str | None, Query(alias="status")] = None,
+    entity_type: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = 100,
+) -> DocumentLibraryRead:
+    """The workspace document library — attachments across every record.
+
+    Declared before ``/{attachment_id}`` so the literal path is not parsed as a
+    UUID. Returns a recent slice plus authoritative per-status counts.
+    """
+    service = AttachmentService(session, auth)
+    rows = await service.list_documents(
+        search=search,
+        status=status_filter,
+        entity_type=entity_type,
+        limit=limit,
+    )
+    counts = await service.document_status_counts()
+    return DocumentLibraryRead(
+        data=[_to_read(row) for row in rows],
+        counts=counts,
+        total=sum(counts.values()),
+    )
 
 
 @router.get("/{attachment_id}", response_model=AttachmentRead)
