@@ -1,19 +1,9 @@
 import type { Metadata } from "next";
-import {
-  Building2,
-  CreditCard,
-  Globe,
-  KeyRound,
-  Plug,
-  ShieldCheck,
-  Sparkles,
-  Trash2,
-  UserCog,
-  Users,
-} from "lucide-react";
+import { Globe, KeyRound, Sparkles, Trash2 } from "lucide-react";
 
 import { LanguageCard } from "@/components/settings/language-card";
 import { MfaCard } from "@/components/settings/mfa-card";
+import { SettingsNav } from "@/components/settings/settings-nav";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -66,16 +56,6 @@ const integrations = [
 export default async function SettingsPage() {
   const [mfa, t] = await Promise.all([getMfaStatus(), getTranslations()]);
 
-  const sections = [
-    { icon: UserCog, label: t("settings.sectionGeneral") },
-    { icon: Building2, label: t("settings.sectionWorkspace") },
-    { icon: Users, label: t("settings.sectionTeam") },
-    { icon: Sparkles, label: t("settings.sectionAi") },
-    { icon: Plug, label: t("settings.sectionIntegrations") },
-    { icon: ShieldCheck, label: t("settings.sectionSecurity") },
-    { icon: CreditCard, label: t("settings.sectionBilling") },
-  ];
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -85,32 +65,16 @@ export default async function SettingsPage() {
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
         {/* ----------------------------------------------------- section nav */}
-        <nav className="lg:sticky lg:top-20 lg:self-start">
-          <ul className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
-            {sections.map((section, index) => (
-              <li key={section.label}>
-                <button
-                  className={cn(
-                    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm whitespace-nowrap transition-colors",
-                    index === 0
-                      ? "bg-accent font-medium text-accent-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  )}
-                >
-                  <section.icon className="size-4 shrink-0" />
-                  {section.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <SettingsNav />
 
         <div className="min-w-0 space-y-6">
           {/* ------------------------------------------ language & region */}
-          <LanguageCard />
+          <div id="language" className="scroll-mt-20">
+            <LanguageCard />
+          </div>
 
           {/* ------------------------------------------------------ general */}
-          <Card>
+          <Card id="general" className="scroll-mt-20">
             <CardHeader>
               <CardTitle>{t("settings.workspaceDetails")}</CardTitle>
               <CardDescription>
@@ -186,7 +150,7 @@ export default async function SettingsPage() {
           </Card>
 
           {/* --------------------------------------------------------- AI */}
-          <Card>
+          <Card id="ai" className="scroll-mt-20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="size-4 text-primary" />
@@ -246,7 +210,7 @@ export default async function SettingsPage() {
           </Card>
 
           {/* ------------------------------------------------------- team */}
-          <Card className="gap-0 overflow-hidden py-0">
+          <Card id="team" className="scroll-mt-20 gap-0 overflow-hidden py-0">
             <CardHeader className="border-b py-4">
               <CardTitle>{t("settings.teamRoles")}</CardTitle>
               <CardDescription>
@@ -300,7 +264,7 @@ export default async function SettingsPage() {
           </Card>
 
           {/* ----------------------------------------------- integrations */}
-          <Card>
+          <Card id="integrations" className="scroll-mt-20">
             <CardHeader>
               <CardTitle>{t("settings.integrations")}</CardTitle>
               <CardDescription>
@@ -339,10 +303,10 @@ export default async function SettingsPage() {
           </Card>
 
           {/* --------------------------------------------------- security */}
-          {/* Live since Phase 3.7. The rows below it are still prototype
-              affordances — password change and session management have
-              backends but no UI yet. */}
-          <MfaCard status={mfa} />
+          {/* MFA is live since Phase 3.7. */}
+          <div id="security" className="scroll-mt-20">
+            <MfaCard status={mfa} />
+          </div>
 
           <Card>
             <CardHeader>

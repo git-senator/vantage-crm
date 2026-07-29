@@ -6,8 +6,6 @@ import { Suspense } from "react";
 
 import { LoginForm } from "@/components/auth/login-form";
 import { BrandLockup, BrandMark } from "@/components/shared/brand";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { getTranslations } from "@/i18n/server";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -64,25 +62,6 @@ export default async function LoginPage() {
             <Suspense fallback={<div className="mt-8 h-[268px]" />}>
               <LoginForm />
             </Suspense>
-
-            <div className="my-6 flex items-center gap-3">
-              <Separator className="flex-1" />
-              <span className="text-xs text-muted-foreground">
-                {t("common.or")}
-              </span>
-              <Separator className="flex-1" />
-            </div>
-
-            <div className="grid gap-2">
-              <Button variant="outline" size="lg" className="w-full">
-                <GoogleGlyph />
-                {t("auth.continueWithGoogle")}
-              </Button>
-              <Button variant="outline" size="lg" className="w-full">
-                <MicrosoftGlyph />
-                {t("auth.continueWithMicrosoft")}
-              </Button>
-            </div>
 
             <p className="mt-8 text-center text-xs text-muted-foreground">
               {t("auth.termsAgreement")}{" "}
@@ -164,39 +143,5 @@ export default async function LoginPage() {
         </div>
       </aside>
     </div>
-  );
-}
-
-function GoogleGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
-      <path
-        fill="#4285F4"
-        d="M23.5 12.3c0-.9-.1-1.5-.2-2.2H12v4h6.6c-.1 1.1-.9 2.8-2.5 3.9l3.8 3c2.3-2.1 3.6-5.2 3.6-8.7Z"
-      />
-      <path
-        fill="#34A853"
-        d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.8-3c-1 .7-2.4 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5l-3.9 3C3.4 21.3 7.4 24 12 24Z"
-      />
-      <path
-        fill="#FBBC05"
-        d="M5.3 14.3a7.4 7.4 0 0 1 0-4.6l-3.9-3a12 12 0 0 0 0 10.6l3.9-3Z"
-      />
-      <path
-        fill="#EA4335"
-        d="M12 4.7c2.2 0 3.7.9 4.5 1.7l3.3-3.2C17.9 1.2 15.2 0 12 0 7.4 0 3.4 2.7 1.4 6.7l3.9 3c1-2.9 3.6-5 6.7-5Z"
-      />
-    </svg>
-  );
-}
-
-function MicrosoftGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
-      <path fill="#F25022" d="M1 1h10.2v10.2H1z" />
-      <path fill="#7FBA00" d="M12.8 1H23v10.2H12.8z" />
-      <path fill="#00A4EF" d="M1 12.8h10.2V23H1z" />
-      <path fill="#FFB900" d="M12.8 12.8H23V23H12.8z" />
-    </svg>
   );
 }

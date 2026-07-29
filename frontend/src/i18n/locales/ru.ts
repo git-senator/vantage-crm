@@ -635,7 +635,7 @@ const ru: Dictionary = {
     highlight3Title: "Встроенное соответствие требованиям",
     highlight3Body:
       "Сроки раскрытия и статус подписей отслеживаются по каждому файлу сделки.",
-    footer: "© 2026 Vantage Realty Group · Прототип интерфейса",
+    footer: "© 2026 Vantage Realty Group",
     mfaTitle: "Двухфакторная аутентификация",
     mfaSubtitle: "Введите 6-значный код из приложения-аутентификатора.",
     mfaCode: "Код подтверждения",

@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     template: "%s · Vantage",
   },
   description:
-    "A UI prototype for an AI-assisted real estate CRM: leads, deals, properties and analytics in one workspace.",
+    "An AI-assisted real estate CRM: leads, deals, properties and analytics in one workspace.",
 };
 
 export default async function RootLayout({

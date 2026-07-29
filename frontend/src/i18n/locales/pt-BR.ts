@@ -635,7 +635,7 @@ const ptBR: Dictionary = {
     highlight3Title: "Conformidade integrada",
     highlight3Body:
       "Prazos de divulgação e status de assinatura acompanhados em cada processo de transação.",
-    footer: "© 2026 Vantage Realty Group · Protótipo de UI",
+    footer: "© 2026 Vantage Realty Group",
     mfaTitle: "Autenticação de dois fatores",
     mfaSubtitle: "Digite o código de 6 dígitos do seu aplicativo autenticador.",
     mfaCode: "Código de verificação",

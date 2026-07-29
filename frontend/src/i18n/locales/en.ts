@@ -665,7 +665,7 @@ const en = {
     highlight3Title: "Compliance built in",
     highlight3Body:
       "Disclosure deadlines and signature status tracked against every transaction file.",
-    footer: "© 2026 Vantage Realty Group · UI prototype",
+    footer: "© 2026 Vantage Realty Group",
     mfaTitle: "Two-factor authentication",
     mfaSubtitle: "Enter the 6-digit code from your authenticator app.",
     mfaCode: "Verification code",

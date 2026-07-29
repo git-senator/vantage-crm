@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, HelpCircle, Search, Sparkles } from "lucide-react";
+import { Bell, HelpCircle, Sparkles } from "lucide-react";
 
-import { StatusBadge } from "@/components/shared/status-badge";
+import { CommandMenu } from "@/components/layout/command-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -41,24 +41,10 @@ export function Topbar({ unreadCount = 0 }: { unreadCount?: number }) {
         <span className="truncate text-sm font-medium">
           {current ? t(current.titleKey) : t("common.appName")}
         </span>
-        <StatusBadge
-          status="prototype"
-          label={t("common.prototype")}
-          tone="neutral"
-          dot={false}
-          className="hidden sm:inline-flex"
-        />
       </div>
 
       <div className="ml-auto flex items-center gap-1.5">
-        {/* Visual affordance only — opens nothing. */}
-        <button className="hidden h-8 items-center gap-2 rounded-lg border bg-card px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted md:flex">
-          <Search className="size-4" />
-          <span>{t("common.search")}</span>
-          <kbd className="ml-6 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-            ⌘K
-          </kbd>
-        </button>
+        <CommandMenu />
 
         <Tooltip>
           <TooltipTrigger
