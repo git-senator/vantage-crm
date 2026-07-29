@@ -51,7 +51,16 @@ export function LanguageCard() {
         <Label htmlFor="language">{t("settings.language")}</Label>
         <Select value={locale} onValueChange={handleChange}>
           <SelectTrigger id="language" className="sm:w-72">
-            <SelectValue />
+            {/* base-ui renders the raw value by default; show the flag + native
+                name of the active locale instead of the bare code ("ru"). */}
+            <SelectValue>
+              {() => (
+                <span>
+                  <span className="mr-2">{LOCALE_META[locale].flag}</span>
+                  {LOCALE_META[locale].nativeName}
+                </span>
+              )}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {(Object.values(LOCALE_META)).map((meta) => (
