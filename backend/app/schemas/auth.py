@@ -47,6 +47,19 @@ class PasswordChangeRequest(BaseModel):
         return value
 
 
+class ProfileUpdate(BaseModel):
+    """The fields a user may edit on their own profile.
+
+    Deliberately small: identity (email), role and status are not self-editable.
+    A missing field is left unchanged; an explicit null clears an optional one.
+    """
+
+    full_name: str | None = Field(default=None, min_length=1, max_length=200)
+    job_title: str | None = Field(default=None, max_length=120)
+    phone: str | None = Field(default=None, max_length=40)
+    avatar_hue: int | None = Field(default=None, ge=0, le=359)
+
+
 class OrganizationSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

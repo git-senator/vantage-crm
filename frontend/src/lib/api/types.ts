@@ -37,6 +37,14 @@ export interface SessionResponse {
   csrf_token: string;
 }
 
+/** Fields a user may edit on their own profile (PATCH /auth/me). */
+export interface ProfileUpdateInput {
+  full_name?: string;
+  job_title?: string | null;
+  phone?: string | null;
+  avatar_hue?: number;
+}
+
 /** RFC 7807 problem+json — the error shape every endpoint returns. */
 export interface ProblemDetail {
   type: string;

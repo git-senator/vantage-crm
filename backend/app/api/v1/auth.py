@@ -38,6 +38,7 @@ from app.schemas.auth import (
     MessageResponse,
     OrganizationSummary,
     PasswordChangeRequest,
+    ProfileUpdate,
     SessionResponse,
     UserProfile,
 )
@@ -250,6 +251,40 @@ async def logout(
 @router.get("/me", response_model=UserProfile)
 async def me(user: CurrentUser, authorization: Authorization) -> UserProfile:
     """The authenticated user, their organization, roles and permissions."""
+    return _profile(user, authorization)
+
+
+@router.patch(
+    "/me",
+    response_model=UserProfile,
+    dependencies=[Depends(verify_csrf)],
+)
+async def update_me(
+    payload: ProfileUpdate,
+    user: CurrentUser,
+    authorization: Authorization,
+    session: TenantSessionDep,
+) -> UserProfile:
+    """Update the caller's own editable profile fields.
+
+    `initials` is derived from `full_name`, so it re-renders for free. Identity,
+    role and status are not here — those are not self-editable.
+    """
+    data = payload.model_dump(exclude_unset=True)
+    if data.get("full_name") is not None:
+        user.full_name = data["full_name"].strip()
+    if "job_title" in data:
+        user.job_title = data["job_title"]
+    if "phone" in data:
+        user.phone = data["phone"]
+    if data.get("avatar_hue") is not None:
+        user.avatar_hue = data["avatar_hue"]
+
+    # `user` is bound to this request's session (see change_password), so a flush
+    # persists the edits; the session commits on a clean response. UserProfile
+    # carries no server-updated column, and `organization` is already loaded, so
+    # no refresh is needed — building the profile from the in-memory row is safe.
+    await session.flush()
     return _profile(user, authorization)
 
 
