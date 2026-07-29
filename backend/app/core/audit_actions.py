@@ -227,6 +227,18 @@ class AuditAction:
     CREDENTIAL_CREATED: Final = "credential.created"
     CREDENTIAL_REVOKED: Final = "credential.revoked"
 
+    # --- marketplace SDK & access (Phase 9.6) ---
+    #: An application registered its SDK requirements (or was refused for
+    #: incompatibility). Granting an application access to a tenant's data is an
+    #: egress-adjacent, privilege-granting act worth a same-day look; revoking and
+    #: event subscriptions complete the trail.
+    SDK_APPLICATION_REGISTERED: Final = "sdk.application.registered"
+    SDK_COMPATIBILITY_FAILED: Final = "sdk.compatibility.failed"
+    ACCESS_GRANTED: Final = "access.granted"
+    ACCESS_REVOKED: Final = "access.revoked"
+    EVENT_SUBSCRIPTION_CREATED: Final = "event.subscription.created"
+    EVENT_SUBSCRIPTION_REMOVED: Final = "event.subscription.removed"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
@@ -350,6 +362,9 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         # A developer API credential is a machine credential carrying a slice of
         # a developer's authority — the same class of act as minting an API key.
         AuditAction.CREDENTIAL_CREATED,
+        # Granting an application access to a tenant's data crosses a trust
+        # boundary — an egress-adjacent decision worth a same-day look.
+        AuditAction.ACCESS_GRANTED,
         # A newly live workflow can touch every record in the workspace.
         AuditAction.WORKFLOW_PUBLISHED,
         AuditAction.RECORD_EXPORTED,

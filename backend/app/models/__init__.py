@@ -65,6 +65,11 @@ from app.models.marketplace import (
     RevenueEvent,
     UsageRecord,
 )
+from app.models.marketplace_sdk import (
+    MarketplaceApiAccessGrant,
+    MarketplaceEventSubscription,
+    MarketplaceSdkApplication,
+)
 from app.models.mfa import MfaRecoveryCode
 from app.models.note import Note
 from app.models.notification import Notification, NotificationPreference
@@ -149,7 +154,10 @@ __all__ = [
     "JobFailure",
     "Lead",
     "LeadScore",
+    "MarketplaceApiAccessGrant",
     "MarketplaceApplication",
+    "MarketplaceEventSubscription",
+    "MarketplaceSdkApplication",
     "Message",
     "MetricSnapshot",
     "MfaRecoveryCode",

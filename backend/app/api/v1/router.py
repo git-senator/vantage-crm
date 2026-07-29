@@ -40,6 +40,7 @@ from app.api.v1 import (
     marketplace_admin,
     marketplace_billing,
     marketplace_developer,
+    marketplace_sdk,
     notes,
     notifications,
     organizations,
@@ -104,6 +105,11 @@ api_router.include_router(
     marketplace_developer.router,
     prefix="/marketplace",
     tags=["marketplace-developer"],
+)
+api_router.include_router(
+    marketplace_sdk.router,
+    prefix="/marketplace",
+    tags=["marketplace-sdk"],
 )
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
