@@ -17,62 +17,78 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+/**
+ * Navigation is defined by **translation keys**, not literal labels. The
+ * sidebar and topbar resolve `titleKey`/`labelKey` through `t()` at render
+ * time, so the menu is in the user's language without this module knowing which
+ * language that is. Hrefs and icons are language-independent and stay literal.
+ */
+
 export interface NavItem {
-  title: string;
+  /** Key into `nav.*` — resolved by the rendering component. */
+  titleKey: string;
   href: string;
   icon: LucideIcon;
-  /** Rendered as a count pill in the sidebar. */
+  /** A literal count pill (numbers are language-independent). */
   badge?: string;
+  /** A translated pill, e.g. `common.new`. Takes precedence over `badge`. */
+  badgeKey?: string;
 }
 
 export interface NavGroup {
-  label: string;
+  /** Key into `nav.*` for the group heading. */
+  labelKey: string;
   items: NavItem[];
 }
 
 export const navigation: NavGroup[] = [
   {
-    label: "Workspace",
+    labelKey: "nav.groupWorkspace",
     items: [
-      { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { title: "AI Assistant", href: "/ai-assistant", icon: Sparkles, badge: "New" },
+      { titleKey: "nav.dashboard", href: "/dashboard", icon: LayoutDashboard },
+      {
+        titleKey: "nav.aiAssistant",
+        href: "/ai-assistant",
+        icon: Sparkles,
+        badgeKey: "common.new",
+      },
     ],
   },
   {
-    label: "Pipeline",
+    labelKey: "nav.groupPipeline",
     items: [
-      { title: "Leads", href: "/leads", icon: Target, badge: "8" },
-      { title: "Clients", href: "/clients", icon: Users },
-      { title: "Properties", href: "/properties", icon: Building2 },
-      { title: "Deals", href: "/deals", icon: Handshake, badge: "10" },
+      { titleKey: "nav.leads", href: "/leads", icon: Target, badge: "8" },
+      { titleKey: "nav.clients", href: "/clients", icon: Users },
+      { titleKey: "nav.properties", href: "/properties", icon: Building2 },
+      { titleKey: "nav.deals", href: "/deals", icon: Handshake, badge: "10" },
     ],
   },
   {
-    label: "Work",
+    labelKey: "nav.groupWork",
     items: [
-      { title: "Calendar", href: "/calendar", icon: CalendarDays },
-      { title: "Tasks", href: "/tasks", icon: FileText, badge: "6" },
-      { title: "Messages", href: "/messages", icon: MessageSquare, badge: "3" },
-      { title: "Documents", href: "/documents", icon: FileText },
+      { titleKey: "nav.calendar", href: "/calendar", icon: CalendarDays },
+      { titleKey: "nav.tasks", href: "/tasks", icon: FileText, badge: "6" },
+      { titleKey: "nav.messages", href: "/messages", icon: MessageSquare, badge: "3" },
+      { titleKey: "nav.documents", href: "/documents", icon: FileText },
     ],
   },
   {
-    label: "Insights",
-    items: [{ title: "Reports", href: "/reports", icon: BarChart3 }],
+    labelKey: "nav.groupInsights",
+    items: [{ titleKey: "nav.reports", href: "/reports", icon: BarChart3 }],
   },
   {
-    label: "Automation",
-    items: [{ title: "Workflows", href: "/automations", icon: Workflow }],
+    labelKey: "nav.groupAutomation",
+    items: [{ titleKey: "nav.workflows", href: "/automations", icon: Workflow }],
   },
 ];
 
 export const secondaryNavigation: NavItem[] = [
-  { title: "Notifications", href: "/notifications", icon: Bell, badge: "3" },
-  { title: "Profile", href: "/profile", icon: CircleUser },
-  { title: "Settings", href: "/settings", icon: Settings },
+  { titleKey: "nav.notifications", href: "/notifications", icon: Bell, badge: "3" },
+  { titleKey: "nav.profile", href: "/profile", icon: CircleUser },
+  { titleKey: "nav.settings", href: "/settings", icon: Settings },
   // Admin-only. Listed here rather than in the sidebar groups because it is an
   // operator surface, not a place anyone works from day to day.
-  { title: "System", href: "/settings/system", icon: Activity },
+  { titleKey: "nav.system", href: "/settings/system", icon: Activity },
 ];
 
 /** Flat lookup used by the topbar to title the current page. */

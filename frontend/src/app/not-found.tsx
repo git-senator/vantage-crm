@@ -3,8 +3,11 @@ import { ArrowLeft, Compass } from "lucide-react";
 
 import { BrandLockup } from "@/components/shared/brand";
 import { Button } from "@/components/ui/button";
+import { getTranslations } from "@/i18n/server";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const t = await getTranslations();
+
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
       <BrandLockup />
@@ -13,15 +16,15 @@ export default function NotFound() {
       </span>
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">
-          This page isn&apos;t on the map
+          {t("errors.notFoundTitle")}
         </h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          The route you followed doesn&apos;t exist in this prototype.
+          {t("errors.notFoundBody")}
         </p>
       </div>
       <Button render={<Link href="/dashboard" />}>
         <ArrowLeft className="size-4" />
-        Back to dashboard
+        {t("errors.backToDashboard")}
       </Button>
     </div>
   );

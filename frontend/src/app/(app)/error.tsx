@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { RotateCw, TriangleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n/language-provider";
 
 /**
  * Error boundary for the authenticated shell.
@@ -22,6 +23,8 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useTranslation();
+
   useEffect(() => {
     console.error("Application error:", error.message);
   }, [error]);
@@ -33,21 +36,20 @@ export default function AppError({
       </span>
       <div className="space-y-2">
         <h1 className="text-xl font-semibold tracking-tight">
-          Something went wrong
+          {t("errors.genericTitle")}
         </h1>
         <p className="max-w-md text-sm text-muted-foreground">
-          We couldn&apos;t load this page. Your session is still active — try
-          again, and if it persists contact support.
+          {t("errors.genericBody")}
         </p>
         {error.digest && (
           <p className="pt-1 font-mono text-xs text-muted-foreground">
-            Reference: {error.digest}
+            {t("errors.reference", { id: error.digest })}
           </p>
         )}
       </div>
       <Button onClick={reset} variant="outline">
         <RotateCw className="size-4" />
-        Try again
+        {t("buttons.retry")}
       </Button>
     </div>
   );

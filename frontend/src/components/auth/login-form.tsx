@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useTranslation } from "@/i18n/language-provider";
 import { ClientApiError, apiRequest } from "@/lib/api/client";
 import type { SessionResponse } from "@/lib/api/types";
 
@@ -22,6 +23,7 @@ import type { SessionResponse } from "@/lib/api/types";
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,7 +59,7 @@ export function LoginForm() {
         // unknown account from a wrong password.
         setError(caught.message);
       } else {
-        setError("Unable to reach the server. Please try again.");
+        setError(t("auth.serverUnreachable"));
       }
       setPending(false);
     }
@@ -76,7 +78,7 @@ export function LoginForm() {
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="email">Work email</Label>
+        <Label htmlFor="email">{t("auth.workEmail")}</Label>
         <Input
           id="email"
           name="email"
@@ -93,12 +95,12 @@ export function LoginForm() {
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">{t("forms.password")}</Label>
           <Link
             href="/login"
             className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
-            Forgot password?
+            {t("forms.forgotPassword")}
           </Link>
         </div>
         <Input
@@ -118,7 +120,7 @@ export function LoginForm() {
       <div className="flex items-center gap-2 pt-1">
         <Checkbox id="remember" defaultChecked disabled={pending} />
         <Label htmlFor="remember" className="text-sm font-normal">
-          Keep me signed in for 30 days
+          {t("auth.keepSignedIn")}
         </Label>
       </div>
 
@@ -126,11 +128,11 @@ export function LoginForm() {
         {pending ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Signing in…
+            {t("auth.signingIn")}
           </>
         ) : (
           <>
-            Sign in
+            {t("auth.signIn")}
             <ArrowRight className="size-4" />
           </>
         )}

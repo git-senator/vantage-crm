@@ -8,28 +8,31 @@ import { LoginForm } from "@/components/auth/login-form";
 import { BrandLockup, BrandMark } from "@/components/shared/brand";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { getTranslations } from "@/i18n/server";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-const highlights = [
-  {
-    icon: Sparkles,
-    title: "Lead scoring that explains itself",
-    body: "Every score comes with the three signals that drove it, so you know why a buyer is worth calling first.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Pipeline forecasting",
-    body: "Commission projections update as deals move, with confidence bands you can defend in a Monday review.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Compliance built in",
-    body: "Disclosure deadlines and signature status tracked against every transaction file.",
-  },
-];
+export default async function LoginPage() {
+  const t = await getTranslations();
 
-export default function LoginPage() {
+  const highlights = [
+    {
+      icon: Sparkles,
+      title: t("auth.highlight1Title"),
+      body: t("auth.highlight1Body"),
+    },
+    {
+      icon: TrendingUp,
+      title: t("auth.highlight2Title"),
+      body: t("auth.highlight2Body"),
+    },
+    {
+      icon: ShieldCheck,
+      title: t("auth.highlight3Title"),
+      body: t("auth.highlight3Body"),
+    },
+  ];
+
   return (
     <div className="grid min-h-svh lg:grid-cols-[1fr_1.05fr]">
       {/* ---------------------------------------------------------- form */}
@@ -37,12 +40,12 @@ export default function LoginPage() {
         <header className="flex items-center justify-between">
           <BrandLockup />
           <span className="text-sm text-muted-foreground">
-            Need an account?{" "}
+            {t("auth.needAccount")}{" "}
             <Link
               href="/dashboard"
               className="font-medium text-foreground underline-offset-4 hover:underline"
             >
-              Request access
+              {t("auth.requestAccess")}
             </Link>
           </span>
         </header>
@@ -51,10 +54,10 @@ export default function LoginPage() {
           <div className="w-full max-w-sm">
             <div className="space-y-2">
               <h1 className="text-2xl font-semibold tracking-tight">
-                Welcome back
+                {t("auth.welcomeBack")}
               </h1>
               <p className="text-sm text-muted-foreground">
-                Sign in to your Vantage workspace to pick up where you left off.
+                {t("auth.signInSubtitle")}
               </p>
             </div>
 
@@ -64,29 +67,31 @@ export default function LoginPage() {
 
             <div className="my-6 flex items-center gap-3">
               <Separator className="flex-1" />
-              <span className="text-xs text-muted-foreground">OR</span>
+              <span className="text-xs text-muted-foreground">
+                {t("common.or")}
+              </span>
               <Separator className="flex-1" />
             </div>
 
             <div className="grid gap-2">
               <Button variant="outline" size="lg" className="w-full">
                 <GoogleGlyph />
-                Continue with Google
+                {t("auth.continueWithGoogle")}
               </Button>
               <Button variant="outline" size="lg" className="w-full">
                 <MicrosoftGlyph />
-                Continue with Microsoft
+                {t("auth.continueWithMicrosoft")}
               </Button>
             </div>
 
             <p className="mt-8 text-center text-xs text-muted-foreground">
-              By signing in you agree to the{" "}
+              {t("auth.termsAgreement")}{" "}
               <Link href="/login" className="underline underline-offset-4">
-                Terms of Service
+                {t("auth.termsOfService")}
               </Link>{" "}
-              and{" "}
+              {t("auth.and")}{" "}
               <Link href="/login" className="underline underline-offset-4">
-                Privacy Policy
+                {t("auth.privacyPolicy")}
               </Link>
               .
             </p>
@@ -94,7 +99,7 @@ export default function LoginPage() {
         </div>
 
         <footer className="text-xs text-muted-foreground">
-          © 2026 Vantage Realty Group · UI prototype
+          {t("auth.footer")}
         </footer>
       </div>
 
@@ -123,11 +128,10 @@ export default function LoginPage() {
           <div className="max-w-md">
             <BrandMark className="bg-white/15 text-white backdrop-blur-sm" />
             <h2 className="mt-8 text-3xl font-semibold tracking-tight text-balance xl:text-4xl">
-              Every listing, lead and closing in one line of sight.
+              {t("auth.heroHeadline")}
             </h2>
             <p className="mt-4 text-[15px] leading-relaxed text-primary-foreground/75">
-              Vantage keeps your brokerage&apos;s pipeline current and tells you
-              which conversation to have next.
+              {t("auth.heroSubtitle")}
             </p>
           </div>
 

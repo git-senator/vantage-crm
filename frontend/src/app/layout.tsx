@@ -4,6 +4,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { LOCALE_META } from "@/i18n/config";
+import { LanguageProvider } from "@/i18n/language-provider";
+import { getLocale } from "@/i18n/server";
 
 import "./globals.css";
 
@@ -26,12 +29,16 @@ export const metadata: Metadata = {
     "A UI prototype for an AI-assisted real estate CRM: leads, deals, properties and analytics in one workspace.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Resolved from the cookie so the first paint is already in the user's
+  // language and `<html lang>` is correct before any JS runs.
+  const locale = await getLocale();
+
   return (
     <html
-      lang="en"
+      lang={LOCALE_META[locale].htmlLang}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
@@ -42,8 +49,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>{children}</TooltipProvider>
-          <Toaster />
+          <LanguageProvider initialLocale={locale}>
+            <TooltipProvider>{children}</TooltipProvider>
+            <Toaster />
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>

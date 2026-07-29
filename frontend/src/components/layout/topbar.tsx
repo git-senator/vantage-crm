@@ -14,6 +14,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useTranslation } from "@/i18n/language-provider";
 import { allNavItems } from "@/lib/nav";
 
 /**
@@ -25,6 +26,7 @@ import { allNavItems } from "@/lib/nav";
  */
 export function Topbar({ unreadCount = 0 }: { unreadCount?: number }) {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const current = allNavItems.find(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );
@@ -37,11 +39,11 @@ export function Topbar({ unreadCount = 0 }: { unreadCount?: number }) {
 
       <div className="flex min-w-0 items-center gap-2">
         <span className="truncate text-sm font-medium">
-          {current?.title ?? "Vantage"}
+          {current ? t(current.titleKey) : t("common.appName")}
         </span>
         <StatusBadge
           status="prototype"
-          label="Prototype"
+          label={t("common.prototype")}
           tone="neutral"
           dot={false}
           className="hidden sm:inline-flex"
@@ -52,7 +54,7 @@ export function Topbar({ unreadCount = 0 }: { unreadCount?: number }) {
         {/* Visual affordance only — opens nothing. */}
         <button className="hidden h-8 items-center gap-2 rounded-lg border bg-card px-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted md:flex">
           <Search className="size-4" />
-          <span>Search</span>
+          <span>{t("common.search")}</span>
           <kbd className="ml-6 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
             ⌘K
           </kbd>
@@ -61,12 +63,12 @@ export function Topbar({ unreadCount = 0 }: { unreadCount?: number }) {
         <Tooltip>
           <TooltipTrigger
             render={
-              <Button variant="ghost" size="icon" aria-label="Ask the assistant" render={<Link href="/ai-assistant" />}>
+              <Button variant="ghost" size="icon" aria-label={t("tooltips.askAssistant")} render={<Link href="/ai-assistant" />}>
                 <Sparkles className="size-4" />
               </Button>
             }
           />
-          <TooltipContent>Ask Vantage AI</TooltipContent>
+          <TooltipContent>{t("tooltips.askAssistant")}</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -75,7 +77,7 @@ export function Topbar({ unreadCount = 0 }: { unreadCount?: number }) {
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={`Notifications, ${unread} unread`}
+                aria-label={`${t("tooltips.notifications")}, ${t("notifications.unreadCount", { count: unread })}`}
                 className="relative"
                 render={<Link href="/notifications" />}
               >
@@ -88,7 +90,7 @@ export function Topbar({ unreadCount = 0 }: { unreadCount?: number }) {
               </Button>
             }
           />
-          <TooltipContent>Notifications</TooltipContent>
+          <TooltipContent>{t("tooltips.notifications")}</TooltipContent>
         </Tooltip>
 
         <ThemeToggle />
@@ -96,7 +98,7 @@ export function Topbar({ unreadCount = 0 }: { unreadCount?: number }) {
         <Button
           variant="ghost"
           size="icon"
-          aria-label="Help"
+          aria-label={t("tooltips.help")}
           className="hidden sm:inline-flex"
         >
           <HelpCircle className="size-4" />

@@ -30,6 +30,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { useTranslation } from "@/i18n/language-provider";
 import { navigation, secondaryNavigation } from "@/lib/nav";
 import type { SessionUser } from "@/types";
 
@@ -40,6 +41,7 @@ import type { SessionUser } from "@/types";
  */
 export function AppSidebar({ user }: { user: SessionUser }) {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
@@ -50,33 +52,37 @@ export function AppSidebar({ user }: { user: SessionUser }) {
         </Link>
         <Button className="w-full justify-start gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <Plus className="size-4" />
-          <span className="group-data-[collapsible=icon]:hidden">Create</span>
+          <span className="group-data-[collapsible=icon]:hidden">
+            {t("buttons.create")}
+          </span>
         </Button>
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-slim px-1">
         {navigation.map((group) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+          <SidebarGroup key={group.labelKey}>
+            <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      isActive={isActive(item.href)}
-                      tooltip={item.title}
-                      render={
-                        <Link href={item.href}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </Link>
-                      }
-                    />
-                    {item.badge && (
-                      <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
-                    )}
-                  </SidebarMenuItem>
-                ))}
+                {group.items.map((item) => {
+                  const title = t(item.titleKey);
+                  const badge = item.badgeKey ? t(item.badgeKey) : item.badge;
+                  return (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        isActive={isActive(item.href)}
+                        tooltip={title}
+                        render={
+                          <Link href={item.href}>
+                            <item.icon />
+                            <span>{title}</span>
+                          </Link>
+                        }
+                      />
+                      {badge && <SidebarMenuBadge>{badge}</SidebarMenuBadge>}
+                    </SidebarMenuItem>
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -89,12 +95,12 @@ export function AppSidebar({ user }: { user: SessionUser }) {
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
                 isActive={isActive(item.href)}
-                tooltip={item.title}
+                tooltip={t(item.titleKey)}
                 size="sm"
                 render={
                   <Link href={item.href}>
                     <item.icon />
-                    <span>{item.title}</span>
+                    <span>{t(item.titleKey)}</span>
                   </Link>
                 }
               />
@@ -126,11 +132,11 @@ export function AppSidebar({ user }: { user: SessionUser }) {
             <DropdownMenuSeparator />
             <DropdownMenuItem render={<Link href="/profile" />}>
               <UserRound className="size-4" />
-              Profile
+              {t("nav.profile")}
             </DropdownMenuItem>
             <DropdownMenuItem render={<Link href="/settings" />}>
               <Settings className="size-4" />
-              Settings
+              {t("nav.settings")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <SignOutItem />

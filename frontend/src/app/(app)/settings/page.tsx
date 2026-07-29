@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { LanguageCard } from "@/components/settings/language-card";
 import { MfaCard } from "@/components/settings/mfa-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -37,21 +38,12 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { getTranslations } from "@/i18n/server";
 import { team } from "@/lib/mock-data";
 import { getMfaStatus } from "@/lib/api/mfa";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Settings" };
-
-const sections = [
-  { icon: UserCog, label: "General" },
-  { icon: Building2, label: "Workspace" },
-  { icon: Users, label: "Team & roles" },
-  { icon: Sparkles, label: "AI preferences" },
-  { icon: Plug, label: "Integrations" },
-  { icon: ShieldCheck, label: "Security" },
-  { icon: CreditCard, label: "Billing" },
-];
 
 const members = [
   { member: team.avery, access: "Owner", status: "active" },
@@ -72,13 +64,23 @@ const integrations = [
 ];
 
 export default async function SettingsPage() {
-  const mfa = await getMfaStatus();
+  const [mfa, t] = await Promise.all([getMfaStatus(), getTranslations()]);
+
+  const sections = [
+    { icon: UserCog, label: t("settings.sectionGeneral") },
+    { icon: Building2, label: t("settings.sectionWorkspace") },
+    { icon: Users, label: t("settings.sectionTeam") },
+    { icon: Sparkles, label: t("settings.sectionAi") },
+    { icon: Plug, label: t("settings.sectionIntegrations") },
+    { icon: ShieldCheck, label: t("settings.sectionSecurity") },
+    { icon: CreditCard, label: t("settings.sectionBilling") },
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Settings"
-        description="Workspace configuration, team access and connected services."
+        title={t("settings.title")}
+        description={t("settings.description")}
       />
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
@@ -104,26 +106,31 @@ export default async function SettingsPage() {
         </nav>
 
         <div className="min-w-0 space-y-6">
+          {/* ------------------------------------------ language & region */}
+          <LanguageCard />
+
           {/* ------------------------------------------------------ general */}
           <Card>
             <CardHeader>
-              <CardTitle>Workspace details</CardTitle>
+              <CardTitle>{t("settings.workspaceDetails")}</CardTitle>
               <CardDescription>
-                Shown on shared reports and client-facing pages.
+                {t("settings.workspaceDetailsDesc")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="org">Brokerage name</Label>
+                  <Label htmlFor="org">{t("settings.brokerageName")}</Label>
                   <Input id="org" defaultValue="Vantage Realty Group" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="license">Brokerage license</Label>
+                  <Label htmlFor="license">
+                    {t("settings.brokerageLicense")}
+                  </Label>
                   <Input id="license" defaultValue="CA DRE #02114876" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="timezone">Time zone</Label>
+                  <Label htmlFor="timezone">{t("settings.timezone")}</Label>
                   <Select defaultValue="Pacific Time (US & Canada)">
                     <SelectTrigger id="timezone">
                       <SelectValue />
@@ -137,7 +144,7 @@ export default async function SettingsPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="currency">Currency</Label>
+                  <Label htmlFor="currency">{t("settings.currency")}</Label>
                   <Select defaultValue="USD ($)">
                     <SelectTrigger id="currency">
                       <SelectValue />
@@ -172,8 +179,8 @@ export default async function SettingsPage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost">Cancel</Button>
-                <Button>Save changes</Button>
+                <Button variant="ghost">{t("buttons.cancel")}</Button>
+                <Button>{t("buttons.saveChanges")}</Button>
               </div>
             </CardContent>
           </Card>
@@ -183,10 +190,10 @@ export default async function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="size-4 text-primary" />
-                AI preferences
+                {t("settings.aiPreferences")}
               </CardTitle>
               <CardDescription>
-                How the assistant scores leads and drafts on your behalf.
+                {t("settings.aiPreferencesDesc")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -204,7 +211,7 @@ export default async function SettingsPage() {
               <Separator />
 
               <div className="space-y-2">
-                <Label htmlFor="tone">Drafting tone</Label>
+                <Label htmlFor="tone">{t("settings.draftingTone")}</Label>
                 <Select defaultValue="Professional">
                   <SelectTrigger id="tone" className="sm:w-64">
                     <SelectValue />
@@ -241,10 +248,12 @@ export default async function SettingsPage() {
           {/* ------------------------------------------------------- team */}
           <Card className="gap-0 overflow-hidden py-0">
             <CardHeader className="border-b py-4">
-              <CardTitle>Team & roles</CardTitle>
-              <CardDescription>6 of 25 seats used on your plan.</CardDescription>
+              <CardTitle>{t("settings.teamRoles")}</CardTitle>
+              <CardDescription>
+                {t("settings.seatsUsed", { used: 6, total: 25 })}
+              </CardDescription>
               <CardAction>
-                <Button size="sm">Invite member</Button>
+                <Button size="sm">{t("settings.inviteMember")}</Button>
               </CardAction>
             </CardHeader>
             <CardContent className="p-0">
@@ -271,10 +280,18 @@ export default async function SettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Owner">Owner</SelectItem>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Member">Member</SelectItem>
-                      <SelectItem value="Limited">Limited</SelectItem>
+                      <SelectItem value="Owner">
+                        {t("settings.accessOwner")}
+                      </SelectItem>
+                      <SelectItem value="Admin">
+                        {t("settings.accessAdmin")}
+                      </SelectItem>
+                      <SelectItem value="Member">
+                        {t("settings.accessMember")}
+                      </SelectItem>
+                      <SelectItem value="Limited">
+                        {t("settings.accessLimited")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -285,9 +302,9 @@ export default async function SettingsPage() {
           {/* ----------------------------------------------- integrations */}
           <Card>
             <CardHeader>
-              <CardTitle>Integrations</CardTitle>
+              <CardTitle>{t("settings.integrations")}</CardTitle>
               <CardDescription>
-                Connected services that feed data into your workspace.
+                {t("settings.integrationsDesc")}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2">
@@ -312,7 +329,9 @@ export default async function SettingsPage() {
                     size="sm"
                     className="shrink-0"
                   >
-                    {integration.connected ? "Manage" : "Connect"}
+                    {integration.connected
+                      ? t("buttons.manage")
+                      : t("buttons.connect")}
                   </Button>
                 </div>
               ))}
@@ -327,12 +346,12 @@ export default async function SettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Security</CardTitle>
+              <CardTitle>{t("settings.security")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {[
-                { icon: KeyRound, label: "Password", detail: "Last changed 3 months ago", action: "Change" },
-                { icon: Globe, label: "Active sessions", detail: "3 devices signed in", action: "Review" },
+                { icon: KeyRound, label: t("settings.passwordLabel"), detail: "Last changed 3 months ago", action: t("buttons.change") },
+                { icon: Globe, label: t("settings.activeSessions"), detail: "3 devices signed in", action: t("buttons.review") },
               ].map((row, index) => (
                 <div
                   key={row.label}
@@ -359,16 +378,15 @@ export default async function SettingsPage() {
           {/* ------------------------------------------------ danger zone */}
           <Card className="border-destructive/40">
             <CardHeader>
-              <CardTitle className="text-destructive">Danger zone</CardTitle>
-              <CardDescription>
-                Deleting a workspace removes all leads, deals and documents. This
-                cannot be undone.
-              </CardDescription>
+              <CardTitle className="text-destructive">
+                {t("settings.dangerZone")}
+              </CardTitle>
+              <CardDescription>{t("settings.dangerZoneDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <Button variant="destructive">
                 <Trash2 className="size-4" />
-                Delete workspace
+                {t("settings.deleteWorkspace")}
               </Button>
             </CardContent>
           </Card>
