@@ -187,7 +187,10 @@ function NotificationGroup({
                     {item.body}
                   </p>
                 )}
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p
+                  className="mt-1 text-[11px] text-muted-foreground"
+                  suppressHydrationWarning
+                >
                   {relativeTime(item.created_at)}
                   {item.actor && ` · ${item.actor.full_name}`}
                 </p>
