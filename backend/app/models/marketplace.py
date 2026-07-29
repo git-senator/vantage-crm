@@ -26,6 +26,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -294,3 +295,254 @@ class IntegrationReview(Base, UUIDPrimaryKeyMixin):
 
     def __repr__(self) -> str:
         return f"<IntegrationReview {self.listing_id} {self.decision}>"
+
+
+class IntegrationPlan(Base, UUIDPrimaryKeyMixin):
+    """A pricing plan for a listing (Phase 9.4).
+
+    A listing may have several plans (a free tier and a paid tier, say). Money is
+    integer cents. Shares the listing's *operational* RLS visibility via the same
+    keying column, so a curated listing's plans are global and a tenant's private
+    listing's plans are the tenant's.
+    """
+
+    __tablename__ = "integration_plans"
+
+    publisher_organization_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    created_by: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    listing_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("integration_listings.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    key: Mapped[str] = mapped_column(String(40), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    #: free | flat | per_seat | usage.
+    pricing_model: Mapped[str] = mapped_column(String(16), nullable=False)
+    amount_cents: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="USD")
+    #: month | year.
+    interval: Mapped[str] = mapped_column(
+        String(8), nullable=False, server_default="month"
+    )
+    included_units: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    unit_amount_cents: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    trial_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="true"
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("listing_id", "key", name="uq_integration_plans"),
+        Index("ix_integration_plans_publisher", "publisher_organization_id"),
+        Index("ix_integration_plans_listing", "listing_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<IntegrationPlan {self.listing_id} {self.key} {self.pricing_model}>"
+
+
+class IntegrationEntitlement(Base, UUIDPrimaryKeyMixin):
+    """A tenant's right to a paid integration (Phase 9.4).
+
+    Tenant-scoped and RLS-FORCEd. Records the plan, the entitlement status, the
+    trial and period deadlines the effective status is derived from, and an opaque
+    ``provider_reference`` — the seam where the existing billing provider
+    abstraction would place its handle. No payment is processed here.
+    """
+
+    __tablename__ = "integration_entitlements"
+
+    organization_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    created_by: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    listing_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("integration_listings.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    plan_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("integration_plans.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    #: trialing | active | canceled | expired.
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    #: The billing provider that backs this entitlement (label only).
+    provider: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default="manual"
+    )
+    provider_reference: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+    trial_ends_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    current_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    canceled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_integration_entitlements_org_listing",
+            "organization_id", "listing_id", "status",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<IntegrationEntitlement {self.organization_id} "
+            f"{self.listing_id} {self.status}>"
+        )
+
+
+class UsageRecord(Base, UUIDPrimaryKeyMixin):
+    """A metered usage event for an installed integration (Phase 9.4).
+
+    Tenant-scoped and RLS-FORCEd. One row per recorded ``(metric, quantity)``,
+    the durable record the metering framework aggregates and prices.
+    """
+
+    __tablename__ = "usage_records"
+
+    organization_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    listing_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("integration_listings.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    entitlement_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("integration_entitlements.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    #: api_call | action | message | record | compute.
+    metric: Mapped[str] = mapped_column(String(20), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_usage_records_org_listing_metric",
+            "organization_id", "listing_id", "metric",
+        ),
+    )
+
+    def __repr__(self) -> str:
+        return f"<UsageRecord {self.listing_id} {self.metric}={self.quantity}>"
+
+
+class RevenueEvent(Base, UUIDPrimaryKeyMixin):
+    """A recorded revenue event, split platform/developer (Phase 9.4).
+
+    Tenant-scoped and RLS-FORCEd against the paying workspace. ``developer_org_id``
+    attributes the developer share to the integration's publisher (NULL for a
+    curated, platform-owned listing) — the foundation for developer revenue
+    attribution. ``invoice_reference`` is an opaque marketplace invoice reference;
+    no invoice is generated here.
+    """
+
+    __tablename__ = "revenue_events"
+
+    organization_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    listing_id: Mapped[UUID] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("integration_listings.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    plan_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("integration_plans.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    #: The developer the developer share is attributed to. NULL = platform.
+    developer_org_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    #: subscription | usage | one_time.
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    gross_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    platform_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    developer_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default="USD")
+    #: An opaque reference to the invoice this revenue belongs to, if any.
+    invoice_reference: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("ix_revenue_events_org_listing", "organization_id", "listing_id"),
+        Index("ix_revenue_events_developer", "developer_org_id"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<RevenueEvent {self.listing_id} {self.kind} {self.gross_cents}c>"

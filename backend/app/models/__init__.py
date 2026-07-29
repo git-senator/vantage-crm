@@ -50,10 +50,14 @@ from app.models.job import JobFailure
 from app.models.lead import Lead
 from app.models.lead_score import LeadScore
 from app.models.marketplace import (
+    IntegrationEntitlement,
     IntegrationInstallation,
     IntegrationListing,
+    IntegrationPlan,
     IntegrationReview,
     IntegrationVersion,
+    RevenueEvent,
+    UsageRecord,
 )
 from app.models.mfa import MfaRecoveryCode
 from app.models.note import Note
@@ -124,8 +128,10 @@ __all__ = [
     "Goal",
     "GrowthScore",
     "IntegrationConnection",
+    "IntegrationEntitlement",
     "IntegrationInstallation",
     "IntegrationListing",
+    "IntegrationPlan",
     "IntegrationReview",
     "IntegrationSubscription",
     "IntegrationSyncRun",
@@ -157,6 +163,7 @@ __all__ = [
     "RefreshToken",
     "ReportDefinition",
     "ReportRun",
+    "RevenueEvent",
     "Risk",
     "Role",
     "RolePermission",
@@ -171,6 +178,7 @@ __all__ = [
     "TeamMember",
     "TrustProfile",
     "TrustedDevice",
+    "UsageRecord",
     "User",
     "UserRole",
     "WebhookDelivery",

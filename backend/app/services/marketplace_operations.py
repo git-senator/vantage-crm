@@ -257,6 +257,15 @@ class MarketplaceOperationsService:
                     f"Version '{newest.version}' is not compatible: {compat.reason}."
                 )
 
+        # Enforce the monetization entitlement gate (Phase 9.4). A no-op unless
+        # MARKETPLACE_BILLING_ENFORCED is on, so free integrations and existing
+        # install behaviour are unaffected.
+        from app.services.marketplace_billing import IntegrationEntitlementService
+
+        await IntegrationEntitlementService(
+            self.session, self.auth, self.settings
+        ).require_installable(listing)
+
         # Delegate the runtime install to the 9.2 service (plugin platform).
         installed = await IntegrationInstallationService(
             self.session, self.auth, self.settings

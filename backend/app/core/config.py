@@ -459,6 +459,15 @@ class Settings(BaseSettings):
     #: Phase 9.1. When true, the SDK validation endpoint treats warnings as
     #: failures — a stricter gate for a marketplace that requires clean manifests.
     SDK_STRICT_VALIDATION: bool = False
+    #: Phase 9.4. The platform's take rate on marketplace revenue, in basis points
+    #: (2000 = 20%). The remainder is attributed to the integration's developer.
+    MARKETPLACE_PLATFORM_FEE_BPS: int = 2000
+    #: Phase 9.4. Default trial length for a paid integration plan, in days.
+    MARKETPLACE_TRIAL_DAYS: int = 14
+    #: Phase 9.4. When off (the default), installing a paid integration does not
+    #: require an entitlement — preserving existing install behaviour. Turn it on
+    #: to enforce that a paid-only integration needs an active entitlement first.
+    MARKETPLACE_BILLING_ENFORCED: bool = False
 
     # ------------------------------------------- security operations
     # Phase 8.2. Thresholds for the security-ops detection framework. Reused by

@@ -201,6 +201,15 @@ class AuditAction:
         "marketplace.integration.upgrade_started"
     )
 
+    # --- marketplace billing & monetization (Phase 9.4) ---
+    #: Creating a pricing plan for an integration, and a tenant subscribing to or
+    #: cancelling a paid integration, change what a workspace owes and what it may
+    #: install — each is an auditable act. No payment is processed here; these are
+    #: entitlement and revenue records.
+    MARKETPLACE_PLAN_CREATED: Final = "marketplace.plan.created"
+    MARKETPLACE_ENTITLEMENT_GRANTED: Final = "marketplace.entitlement.granted"
+    MARKETPLACE_ENTITLEMENT_CANCELED: Final = "marketplace.entitlement.canceled"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"

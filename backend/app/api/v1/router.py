@@ -38,6 +38,7 @@ from app.api.v1 import (
     leads,
     marketplace,
     marketplace_admin,
+    marketplace_billing,
     notes,
     notifications,
     organizations,
@@ -92,6 +93,11 @@ api_router.include_router(
     marketplace_admin.router,
     prefix="/marketplace/admin",
     tags=["marketplace-admin"],
+)
+api_router.include_router(
+    marketplace_billing.router,
+    prefix="/marketplace/billing",
+    tags=["marketplace-billing"],
 )
 api_router.include_router(audit.router, prefix="/audit-logs", tags=["audit"])
 api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
