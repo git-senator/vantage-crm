@@ -27,6 +27,12 @@ from app.models.compliance_ops import ComplianceEvidence, DataProcessingActivity
 from app.models.conversation import Conversation, Message
 from app.models.deal import Deal, DealStageHistory
 from app.models.deal_score import DealScore
+from app.models.developer import (
+    ApplicationVersionReview,
+    DeveloperApiCredential,
+    DeveloperOrganization,
+    MarketplaceApplication,
+)
 from app.models.enterprise import (
     CompliancePolicy,
     DataRequest,
@@ -105,6 +111,7 @@ __all__ = [
     "AiJob",
     "AiMessage",
     "ApiKey",
+    "ApplicationVersionReview",
     "Attachment",
     "AuditLog",
     "BusinessService",
@@ -123,6 +130,8 @@ __all__ = [
     "Deal",
     "DealScore",
     "DealStageHistory",
+    "DeveloperApiCredential",
+    "DeveloperOrganization",
     "EventAttendee",
     "FeatureFlag",
     "Goal",
@@ -140,6 +149,7 @@ __all__ = [
     "JobFailure",
     "Lead",
     "LeadScore",
+    "MarketplaceApplication",
     "Message",
     "MetricSnapshot",
     "MfaRecoveryCode",

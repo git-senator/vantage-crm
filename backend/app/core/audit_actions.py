@@ -210,6 +210,23 @@ class AuditAction:
     MARKETPLACE_ENTITLEMENT_GRANTED: Final = "marketplace.entitlement.granted"
     MARKETPLACE_ENTITLEMENT_CANCELED: Final = "marketplace.entitlement.canceled"
 
+    # --- marketplace developer platform (Phase 9.5) ---
+    #: The developer ecosystem: registering a developer organization, authoring an
+    #: application and moving it through the publication lifecycle, and minting or
+    #: revoking a developer API credential. Creating and revoking a credential are
+    #: privilege-granting acts; every lifecycle transition is recorded so the
+    #: publication trail is complete.
+    DEVELOPER_CREATED: Final = "developer.created"
+    APPLICATION_CREATED: Final = "application.created"
+    APPLICATION_SUBMITTED: Final = "application.submitted"
+    APPLICATION_APPROVED: Final = "application.approved"
+    APPLICATION_REJECTED: Final = "application.rejected"
+    APPLICATION_PUBLISHED: Final = "application.published"
+    APPLICATION_DEPRECATED: Final = "application.deprecated"
+    APPLICATION_RETIRED: Final = "application.retired"
+    CREDENTIAL_CREATED: Final = "credential.created"
+    CREDENTIAL_REVOKED: Final = "credential.revoked"
+
     # --- organization ---
     ORGANIZATION_UPDATED: Final = "organization.updated"
     SETTINGS_CHANGED: Final = "organization.settings.changed"
@@ -330,6 +347,9 @@ HIGH_SEVERITY_ACTIONS: frozenset[str] = frozenset(
         # Installing a plugin grants a third party a slice of the tenant's
         # capabilities — a privilege-granting act worth a same-day look.
         AuditAction.PLUGIN_INSTALLED,
+        # A developer API credential is a machine credential carrying a slice of
+        # a developer's authority — the same class of act as minting an API key.
+        AuditAction.CREDENTIAL_CREATED,
         # A newly live workflow can touch every record in the workspace.
         AuditAction.WORKFLOW_PUBLISHED,
         AuditAction.RECORD_EXPORTED,
