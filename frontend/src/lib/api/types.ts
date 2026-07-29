@@ -611,6 +611,39 @@ export interface Task {
   updated_at: string;
 }
 
+/** Create payload. `status` is server-set to `todo` — completion is a separate
+ * action, so it is not here. */
+export interface TaskInput {
+  title: string;
+  description?: string | null;
+  priority?: TaskPriority;
+  due_at?: string | null;
+  entity_type?: RecordEntityType | null;
+  entity_id?: string | null;
+  assignee_id?: string | null;
+}
+
+/** Partial update. `status` may move between open states here; moving to `done`
+ * is refused by the API — use the complete action. */
+export interface TaskUpdateInput {
+  title?: string;
+  description?: string | null;
+  status?: Exclude<TaskStatus, "done">;
+  priority?: TaskPriority;
+  due_at?: string | null;
+  assignee_id?: string | null;
+}
+
+export interface TaskFilters {
+  search?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  assignee_id?: string;
+  overdue?: boolean;
+  limit?: number;
+  cursor?: string;
+}
+
 // --- Dashboard (Phase 2.8) ---
 
 export interface DashboardSummary {
