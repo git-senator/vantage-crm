@@ -22,6 +22,12 @@ PeriodName = Literal["today", "week", "month", "quarter", "year", "custom"]
 
 
 class MetricRead(BaseModel):
+    # Dashboards assemble their tiles from `MetricValue` dataclasses (see
+    # InsightsService.dashboard), so validation must read attributes, not only
+    # dicts — this lets `DashboardResponse.model_validate` build each tile
+    # straight from a MetricValue (its `delta_percent` is a computed property).
+    model_config = ConfigDict(from_attributes=True)
+
     key: str
     label: str
     unit: str
@@ -46,6 +52,11 @@ class MetricDefinitionRead(BaseModel):
 
 
 class PeriodRead(BaseModel):
+    # The forecast panel embeds the service's `Period` dataclass directly, so
+    # (like MetricRead) validation must accept an attribute-bearing object, not
+    # only a dict.
+    model_config = ConfigDict(from_attributes=True)
+
     start: datetime
     end: datetime
     label: str

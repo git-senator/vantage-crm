@@ -158,7 +158,13 @@ function NoteCard({
             <p className="text-xs font-medium">
               {note.author?.full_name ?? "Unknown"}
             </p>
-            <p className="text-[11px] text-muted-foreground">
+            {/* Rendered in the viewer's locale/timezone, which differs from the
+                server's — suppress the unavoidable hydration text mismatch so
+                the client value wins without a console error (React #418). */}
+            <p
+              className="text-[11px] text-muted-foreground"
+              suppressHydrationWarning
+            >
               {new Date(note.created_at).toLocaleString()}
             </p>
           </div>
