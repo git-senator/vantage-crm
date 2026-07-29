@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronsUpDown, Plus, Settings, UserRound } from "lucide-react";
 
 import { SignOutItem } from "@/components/auth/sign-out-item";
+import { LanguageMenu } from "@/components/layout/language-menu";
 import { BrandLockup } from "@/components/shared/brand";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
@@ -138,6 +139,8 @@ export function AppSidebar({ user }: { user: SessionUser }) {
               <Settings className="size-4" />
               {t("nav.settings")}
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <LanguageMenu />
             <DropdownMenuSeparator />
             <SignOutItem />
           </DropdownMenuContent>
