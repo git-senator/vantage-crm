@@ -1,0 +1,46 @@
+# Production overlay for a single VPS (Hetzner/Vultr/DigitalOcean + Docker).
+#
+# Use ON TOP of the base compose, from the repo root:
+#
+#   docker compose -f docker-compose.yml -f deploy/compose/docker-compose.prod.yml \
+#     --env-file .env up -d --build
+#
+# What it changes vs the local stack:
+#   * Adds Caddy on 80/443 as the only public entrypoint, with automatic HTTPS
+#     (Let's Encrypt) for the app domain and the file (S3) subdomain.
+#   * Stops publishing web:3000 to the host — Caddy reaches it over the compose
+#     network, so nothing but 80/443 is exposed. (`!reset` clears the base
+#     port list; requires Docker Compose v2.24+, which the target hosts have.)
+#   * Postgres/Redis/MinIO already bind to 127.0.0.1 in the base file, so they
+#     stay off the public interface.
+#
+# DNS: point both `${DOMAIN}` and `files.${DOMAIN}` A-records at the VPS IP.
+# Presigned upload/download URLs are issued for https://files.${DOMAIN}
+# (S3_PUBLIC_ENDPOINT_URL), which Caddy proxies to MinIO.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./deploy/compose/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - minio
+
+  web:
+    # Not published to the host in production — Caddy fronts it.
+    ports: !reset []
+    expose:
+      - "3000"
+
+volumes:
+  caddy_data:
+  caddy_config:

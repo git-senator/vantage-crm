@@ -1,0 +1,27 @@
+# Automatic HTTPS for Vantage CRM on a single VPS.
+#
+# Caddy provisions and renews Let's Encrypt certificates on its own; there is
+# nothing to run by hand. {$DOMAIN} is read from the environment (set in .env
+# and passed by the compose overlay).
+#
+# Two names, both pointed at this VPS by an A-record:
+#   {$DOMAIN}        the app (Next.js, which proxies to the API internally)
+#   files.{$DOMAIN}  the S3/MinIO endpoint presigned upload/download URLs use
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+files.{$DOMAIN} {
+	encode zstd gzip
+	# Preserve the Host header so MinIO's SigV4 signature check matches the
+	# host the URL was signed for (S3_PUBLIC_ENDPOINT_URL=https://files.{$DOMAIN}).
+	reverse_proxy minio:9000 {
+		header_up Host {host}
+	}
+	# Uploads can be large; do not buffer the whole body.
+	request_body {
+		max_size 60MB
+	}
+}
