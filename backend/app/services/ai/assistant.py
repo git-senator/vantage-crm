@@ -280,6 +280,16 @@ class AssistantService:
         # Drop the final user turn — it is the message we are answering and is
         # composed as the latest block, so including it here would duplicate it.
         prior = turns[:-1] if turns and turns[-1].role == "user" else turns
+        # The model (and the CompletionRequest validator) require the first turn
+        # to be the user's. A history window can legitimately open on an
+        # assistant turn — the tail cut landed mid-pair, or an earlier turn
+        # failed and left the pairing uneven (two user turns with no reply
+        # between them). Drop any leading assistant turns so the history opens on
+        # a user message, or is empty.
+        first_user = next(
+            (i for i, turn in enumerate(prior) if turn.role == "user"), len(prior)
+        )
+        prior = prior[first_user:]
         return [
             ChatMessage(role=turn.role, content=turn.content)  # type: ignore[arg-type]
             for turn in prior

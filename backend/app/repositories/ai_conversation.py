@@ -68,10 +68,18 @@ class AiConversationRepository:
         called, so this reads by conversation id alone — it is never a public
         entry point.
         """
+        # `id` is the tiebreaker, and it is load-bearing: the two turns of one
+        # exchange are written in a single transaction, so `created_at` (Postgres
+        # `now()`, fixed for the whole transaction) is *identical* for the user
+        # message and the assistant reply. Ordering by `created_at` alone is then
+        # ambiguous and can return the reply before the question — which both
+        # scrambles the displayed thread and hands the model a history that opens
+        # on an assistant turn. `AiMessage.id` is a UUIDv7, monotonic in creation
+        # order, so it disambiguates ties as true insertion order.
         query = (
             select(AiMessage)
             .where(AiMessage.conversation_id == conversation_id)
-            .order_by(AiMessage.created_at.asc())
+            .order_by(AiMessage.created_at.asc(), AiMessage.id.asc())
         )
         if limit is not None:
             # For history fed back to the model, the *most recent* N turns are
@@ -79,7 +87,7 @@ class AiConversationRepository:
             query = (
                 select(AiMessage)
                 .where(AiMessage.conversation_id == conversation_id)
-                .order_by(AiMessage.created_at.desc())
+                .order_by(AiMessage.created_at.desc(), AiMessage.id.desc())
                 .limit(limit)
             )
             rows = list((await self.session.execute(query)).scalars().all())
