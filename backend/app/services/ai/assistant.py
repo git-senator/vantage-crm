@@ -20,10 +20,12 @@ Three things worth stating because they are where the safety lives:
   * **Context is re-fetched every turn, under scope.** Data changes between
     turns, and access can be revoked between turns; rebuilding from the scoped
     service each time is both fresher and safer than caching a snapshot.
-  * **A failed reply still records.** If the model errors or the budget refuses,
-    the user's turn and the ledger row are committed before the error is raised,
-    so the conversation is not silently lost and the attempt is still accounted
-    for.
+  * **One transaction per turn.** The whole turn — the user's message, the
+    scoped context fetch, the reply — runs inside the request's tenant-bound
+    transaction, which the session dependency commits on a clean return. The
+    service never commits: doing so mid-request would drop the transaction-scoped
+    `SET LOCAL` RLS binding. A model failure therefore rolls the turn back; the
+    client keeps the user's message on screen, so nothing visible is lost.
 """
 
 from __future__ import annotations
@@ -47,7 +49,7 @@ from app.models.ai_conversation import (
 )
 from app.models.user import User
 from app.repositories.ai_conversation import AiConversationRepository
-from app.services.ai.base import AIError, ChatMessage
+from app.services.ai.base import ChatMessage
 from app.services.ai.context_builders import build_entity_context
 from app.services.ai.service import AIService
 from app.services.rbac import AuthorizationContext
@@ -161,8 +163,8 @@ class AssistantService:
         """One turn: persist the user's message, answer it, persist the reply.
 
         Returns the assistant's message. Raises `AIError`/`BudgetExceededError`
-        when the model or the budget refuses — but only after the user's turn and
-        the ledger row are committed, so nothing is silently lost.
+        when the model or the budget refuses; the request transaction then rolls
+        back, and the client keeps the user's message on screen.
         """
         self.auth.require("ai.use")
 
@@ -177,8 +179,15 @@ class AssistantService:
 
         conversation = await self.get_conversation(conversation_id, actor)
 
-        # Persist the user's turn and commit it first: whatever happens to the
-        # reply, the user said this and it is theirs to keep.
+        # Persist the user's turn (flush, not commit): the whole turn is one
+        # request transaction, owned by the tenant-session dependency, which
+        # commits on a clean return and rolls back on an exception. Committing
+        # here would both break that transaction's context manager and drop the
+        # `SET LOCAL` RLS binding, which is transaction-scoped — every other
+        # service in the codebase flushes and lets the dependency commit, and
+        # this one now does the same. The trade is that a model failure rolls the
+        # user's turn back with everything else; the client keeps the message on
+        # screen, so nothing the user can see is lost.
         user_turn = AiMessage(
             organization_id=self.auth.organization_id,
             conversation_id=conversation.id,
@@ -188,18 +197,16 @@ class AssistantService:
         self.session.add(user_turn)
         if conversation.title is None:
             conversation.title = _derive_title(message)
-        await self.session.commit()
+        await self.session.flush()
 
         request = await self._compose(conversation, message)
 
-        try:
-            result = await self.ai.complete(request, feature=FEATURE, actor=actor)
-        except AIError:
-            # The failed/refused ledger row and audit entry were written inside
-            # `complete`; commit them so the attempt is recorded, then let the
-            # error surface. The user's turn is already saved.
-            await self.session.commit()
-            raise
+        # An AIError (or its BudgetExceededError subclass) propagates out to the
+        # endpoint, which maps it to a 503/429; the request transaction then
+        # rolls back. The ledger row `complete` flushed rolls back with it — a
+        # failed turn is not recorded, which is the accepted cost of keeping the
+        # RLS-scoped request in a single transaction.
+        result = await self.ai.complete(request, feature=FEATURE, actor=actor)
 
         assistant_turn = AiMessage(
             organization_id=self.auth.organization_id,
@@ -213,7 +220,7 @@ class AssistantService:
         )
         self.session.add(assistant_turn)
         await self.repo.touch(conversation, datetime.now(UTC))
-        await self.session.commit()
+        await self.session.flush()
 
         logger.info(
             "assistant_turn",

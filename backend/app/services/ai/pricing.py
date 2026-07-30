@@ -39,6 +39,26 @@ MODEL_RATES: dict[str, ModelRate] = {
     "claude-sonnet-5": ModelRate(Decimal("3"), Decimal("15")),
     "claude-fable-5": ModelRate(Decimal("3"), Decimal("15")),
     "claude-haiku-4-5-20251001": ModelRate(Decimal("1"), Decimal("5")),
+    # OpenAI-compatible models reached through app/services/ai/openai_compatible.py.
+    # Priced at each vendor's published *paid-tier* list rate even when a
+    # deployment is on the free tier: the ceiling should budget against what the
+    # tokens would cost, and — just as important — a free model must NOT fall
+    # through to the expensive unknown-model rate, or its phantom cost would trip
+    # the ceiling and refuse a model that is actually costing nothing.
+    # Google Gemini (USD per million tokens). The `-latest` aliases float to the
+    # current flash/pro; priced at the family's list rate so the alias does not
+    # fall through to the expensive unknown-model default. Output rate covers a
+    # reasoning model's thinking tokens, which Gemini bills as output.
+    "gemini-flash-latest": ModelRate(Decimal("0.50"), Decimal("2.50")),
+    "gemini-pro-latest": ModelRate(Decimal("2.00"), Decimal("12.00")),
+    "gemini-2.5-flash": ModelRate(Decimal("0.30"), Decimal("2.50")),
+    "gemini-2.5-flash-lite": ModelRate(Decimal("0.10"), Decimal("0.40")),
+    "gemini-2.0-flash": ModelRate(Decimal("0.10"), Decimal("0.40")),
+    "gemini-2.0-flash-lite": ModelRate(Decimal("0.075"), Decimal("0.30")),
+    "gemini-1.5-flash": ModelRate(Decimal("0.075"), Decimal("0.30")),
+    # Groq (Llama, published token rates):
+    "llama-3.3-70b-versatile": ModelRate(Decimal("0.59"), Decimal("0.79")),
+    "llama-3.1-8b-instant": ModelRate(Decimal("0.05"), Decimal("0.08")),
     # The echo provider costs nothing — it never calls a model — but is priced
     # so cost accounting has a rate for every model that can appear in a job
     # row, rather than falling through to the unknown-model default and logging

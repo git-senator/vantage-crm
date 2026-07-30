@@ -67,6 +67,10 @@ def build_provider(settings: Settings) -> CompletionProvider:
             from app.services.ai.anthropic import AnthropicCompletionProvider
 
             return AnthropicCompletionProvider(settings)
+        case "openai_compatible":
+            from app.services.ai.openai_compatible import OpenAICompatibleProvider
+
+            return OpenAICompatibleProvider(settings)
         case "echo":
             from app.services.ai.echo import EchoCompletionProvider
 

@@ -350,7 +350,12 @@ class Settings(BaseSettings):
     # a customer's data to a third party during local development or a test run,
     # which is the most serious class of AI-integration accident. Production must
     # set a real provider *and* opt in — see assert_production_ready.
-    AI_PROVIDER: Literal["anthropic", "echo"] = "echo"
+    #
+    # `openai_compatible` is one adapter for every provider that speaks the
+    # OpenAI Chat Completions shape — Google Gemini (its OpenAI endpoint), Groq,
+    # OpenRouter, Cerebras, Mistral, OpenAI. Which one is reached is set by
+    # AI_API_BASE + AI_MODEL, not by code. See app/services/ai/openai_compatible.py.
+    AI_PROVIDER: Literal["anthropic", "openai_compatible", "echo"] = "echo"
 
     #: Master switch. Off by default: the AI layer sends CRM data to an external
     #: model, so it is opt-in per deployment rather than on the moment a key is
@@ -364,6 +369,14 @@ class Settings(BaseSettings):
     #: (lead scoring runs on Haiku) rather than globally.
     AI_MODEL: str = "claude-sonnet-5"
     AI_TIMEOUT_SECONDS: float = 60.0
+
+    #: Thinking budget for reasoning models reached through the OpenAI-compatible
+    #: adapter (Gemini 3.x "flash", OpenAI o-series). Empty means the field is
+    #: not sent — the provider's default. `low` bounds hidden reasoning so it
+    #: does not consume the whole output budget and truncate the visible answer,
+    #: which is exactly what an unbounded thinking model does at a modest
+    #: `AI_MAX_OUTPUT_TOKENS`. Ignored by providers that do not reason (Groq).
+    AI_REASONING_EFFORT: Literal["", "none", "low", "medium", "high"] = ""
 
     #: Hard monthly cost ceiling per organization, in USD. Enforced *before*
     #: dispatch (SECURITY.md §5): once a tenant's month-to-date spend reaches
@@ -659,6 +672,17 @@ class Settings(BaseSettings):
                 )
             if self.AI_PROVIDER == "anthropic" and not self.AI_API_KEY.get_secret_value():
                 problems.append("AI_PROVIDER is 'anthropic' but AI_API_KEY is unset")
+            if self.AI_PROVIDER == "openai_compatible":
+                if not self.AI_API_KEY.get_secret_value():
+                    problems.append(
+                        "AI_PROVIDER is 'openai_compatible' but AI_API_KEY is unset"
+                    )
+                if self.AI_API_BASE.rstrip("/") == "https://api.anthropic.com":
+                    problems.append(
+                        "AI_PROVIDER is 'openai_compatible' but AI_API_BASE still "
+                        "points at the Anthropic default — set it to the provider's "
+                        "OpenAI-compatible endpoint (e.g. Gemini, Groq, OpenRouter)"
+                    )
             if self.AI_MONTHLY_COST_CEILING_USD <= 0:
                 problems.append(
                     "AI_MONTHLY_COST_CEILING_USD must be a positive ceiling in "

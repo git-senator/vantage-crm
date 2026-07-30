@@ -35,6 +35,12 @@ import { cn } from "@/lib/utils";
  * The user's message is shown immediately; the reply is awaited. The server
  * commits the user's turn before it dispatches, so a failed reply leaves the
  * message in place with an error rather than losing it.
+ *
+ * **The reply is revealed as if typed.** The whole answer arrives at once from
+ * the server, but it is unveiled word by word, with a pause on the animated
+ * dots first — the broker "reads, then writes". This is presentation only: the
+ * message, its cost, and its record are already final the moment it arrives;
+ * the animation cannot change or lose a character of it.
  */
 
 const SUGGESTIONS = [
@@ -45,6 +51,34 @@ const SUGGESTIONS = [
 ];
 
 type PendingMessage = AiMessage & { pending?: boolean };
+
+/** An assistant reply being unveiled word by word. */
+type Typing = { message: PendingMessage; full: string; shown: number };
+
+//: How long a word takes to "type". Base cadence plus a human pause after
+//: sentence- and clause-ending punctuation, so the reveal breathes where a
+//: person would. Jitter keeps it from feeling metronomic.
+function wordDelay(justRevealed: string): number {
+  const last = justRevealed.trimEnd().slice(-1);
+  const base = 34 + Math.random() * 26; // ~34–60ms between words
+  if (last === "." || last === "!" || last === "?") return base + 280;
+  if (last === "," || last === ";" || last === ":") return base + 130;
+  return base;
+}
+
+//: Advance the reveal to the end of the next word (the run of non-spaces plus
+//: the spaces after it). Long replies step by several words so a page of text
+//: does not take a full minute to unveil.
+function nextBoundary(full: string, from: number): number {
+  const words = full.length - from > 900 ? 3 : 1;
+  let i = from;
+  for (let w = 0; w < words && i < full.length; w += 1) {
+    while (i < full.length && full[i] === " ") i += 1;
+    while (i < full.length && full[i] !== " ") i += 1;
+    while (i < full.length && full[i] === " ") i += 1;
+  }
+  return i;
+}
 
 export function AssistantChat({
   user,
@@ -64,21 +98,53 @@ export function AssistantChat({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
+  // The reply currently being unveiled, or null when nothing is being typed.
+  const [typing, setTyping] = useState<Typing | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   // A monotonic counter for optimistic ids — mutated only in event handlers, so
   // it stays out of render and needs no impure clock or randomness.
   const pendingSeq = useRef(0);
+
+  // Busy whenever we are waiting on the server *or* still unveiling a reply, so
+  // the composer stays disabled until the broker has "finished writing".
+  const busy = sending || typing !== null;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages]);
+  }, [messages, typing]);
+
+  // The typewriter. Re-runs on every reveal step: schedule the next word, and
+  // when the whole reply is shown, commit it to the message list and stop.
+  // Every state change is deferred into a timeout — never a synchronous
+  // setState in the effect body — so a long reply cannot cascade renders.
+  useEffect(() => {
+    if (typing === null) return;
+    if (typing.shown >= typing.full.length) {
+      // A short beat after the last word — the caret lingers, then the finished
+      // message settles into the transcript. Feels like a person hitting send.
+      const finished = typing.message;
+      const timer = setTimeout(() => {
+        setMessages((current) => [...current, finished]);
+        setTyping(null);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+    const next = nextBoundary(typing.full, typing.shown);
+    const revealed = typing.full.slice(typing.shown, next);
+    const timer = setTimeout(
+      () => setTyping((t) => (t ? { ...t, shown: next } : t)),
+      wordDelay(revealed),
+    );
+    return () => clearTimeout(timer);
+  }, [typing]);
 
   async function openConversation(id: string) {
     setActiveId(id);
     setLoading(true);
+    setTyping(null);
     try {
       const detail = await getConversation(id);
       setMessages(detail.messages);
@@ -93,11 +159,12 @@ export function AssistantChat({
     setActiveId(null);
     setMessages([]);
     setDraft("");
+    setTyping(null);
   }
 
   async function submit(text: string) {
     const message = text.trim();
-    if (!message || sending) return;
+    if (!message || busy) return;
     setSending(true);
     setDraft("");
 
@@ -124,11 +191,13 @@ export function AssistantChat({
       }
 
       const reply = await sendMessage(conversationId, message);
+      // Settle the user's turn, then hand the reply to the typewriter instead of
+      // dropping it in whole — it appears as if the broker is writing it back.
       setMessages((current) => [
         ...current.filter((m) => m.id !== optimistic.id),
         { ...optimistic, id: `${optimistic.id}-final` },
-        reply,
       ]);
+      setTyping({ message: reply, full: reply.content ?? "", shown: 0 });
     } catch (error) {
       // Keep the user's message on screen; the server kept it too. Surface the
       // server's own words — a budget refusal explains when it resets.
@@ -173,7 +242,7 @@ export function AssistantChat({
             ref={scrollRef}
             className="scrollbar-slim flex-1 space-y-6 overflow-y-auto p-5"
           >
-            {messages.length === 0 && !loading ? (
+            {messages.length === 0 && !loading && !typing ? (
               <div className="flex h-full flex-col items-center justify-center gap-5 text-center">
                 <BrandMark className="size-11" />
                 <div className="max-w-md space-y-1">
@@ -238,13 +307,24 @@ export function AssistantChat({
               ),
             )}
 
-            {sending ? (
+            {/* The reply mid-typewriter: revealed text with a blinking caret. */}
+            {typing && typing.shown > 0 ? (
               <div className="flex gap-3">
                 <BrandMark className="mt-0.5 size-8 shrink-0" />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  Thinking…
+                <div className="min-w-0 flex-1">
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {typing.full.slice(0, typing.shown)}
+                    <span className="ml-0.5 inline-block h-4 w-px translate-y-0.5 animate-pulse bg-foreground/70 align-middle" />
+                  </div>
                 </div>
+              </div>
+            ) : null}
+
+            {/* Before the first word: the "broker is typing" dots. */}
+            {sending || (typing && typing.shown === 0) ? (
+              <div className="flex gap-3">
+                <BrandMark className="mt-0.5 size-8 shrink-0" />
+                <TypingDots />
               </div>
             ) : null}
           </div>
@@ -269,15 +349,15 @@ export function AssistantChat({
                 placeholder="Ask about a lead, a deal, your pipeline…"
                 rows={1}
                 className="max-h-40 min-h-[42px] resize-none"
-                disabled={sending}
+                disabled={busy}
               />
               <Button
                 type="submit"
                 size="icon"
-                disabled={sending || !draft.trim()}
+                disabled={busy || !draft.trim()}
                 className="size-[42px] shrink-0"
               >
-                {sending ? (
+                {busy ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
                   <ArrowUp className="size-4" />
@@ -336,6 +416,21 @@ export function AssistantChat({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Three dots that rise in sequence — the "someone is typing" cue. */
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1 py-2" aria-label="Assistant is typing">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60"
+          style={{ animationDelay: `${i * 160}ms`, animationDuration: "1s" }}
+        />
+      ))}
     </div>
   );
 }
