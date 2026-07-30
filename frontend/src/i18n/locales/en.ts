@@ -614,6 +614,51 @@ const en = {
     dangerZoneDesc:
       "Deleting a workspace removes all leads, deals and documents. This cannot be undone.",
     deleteWorkspace: "Delete workspace",
+
+    // integrations — connect dialog
+    integrationConnectTitle: "Connect {name}",
+    integrationManageTitle: "Manage {name}",
+    integrationConnected: "Connected",
+    integrationNotConnected: "Not connected",
+    integrationApiKey: "API key",
+    integrationNote:
+      "Live sync turns on once the provider's credentials are configured during setup.",
+    integrationSaved: "We'll finish connecting {name} during setup.",
+    detailMls: "Listing sync every 15 minutes",
+    detailDocusign: "E-signature requests and status",
+    detailGoogleCalendar: "Two-way event sync",
+    detailZillow: "Inbound lead capture",
+    detailMailchimp: "Drip campaigns for past clients",
+    detailQuickbooks: "Commission reconciliation",
+
+    // general toggles
+    weekendNotifications: "Weekend notifications",
+    weekendNotificationsDetail: "Send lead alerts on Saturday and Sunday.",
+    autoAssign: "Auto-assign inbound leads",
+    autoAssignDetail: "Route new leads by round robin within the team.",
+    dealApproval: "Require deal approval over $5M",
+    dealApprovalDetail:
+      "Managing broker signs off before an offer is submitted.",
+
+    // AI preferences
+    leadScoreThreshold: "Lead score threshold for alerts",
+    leadScoreThresholdHint:
+      "You'll be notified the moment a lead crosses this score.",
+    suggestReplies: "Suggest replies in Messages",
+    suggestRepliesDetail: "Draft three options under each incoming message.",
+    dailyBriefing: "Daily priority briefing",
+    dailyBriefingDetail: "A ranked call list in your inbox at 7:30am.",
+    autoSummarize: "Auto-summarise documents",
+    autoSummarizeDetail:
+      "Generate a plain-language summary when a file is uploaded.",
+    toneProfessional: "Professional",
+    toneWarm: "Warm and conversational",
+    toneConcise: "Concise",
+    toneFormal: "Formal",
+
+    // security rows
+    passwordDetail: "Last changed 3 months ago",
+    activeSessionsDetail: "3 devices signed in",
   },
 
   // ------------------------------------------------------------ notifications

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Globe, KeyRound, Sparkles, Trash2 } from "lucide-react";
 
+import { IntegrationDialog } from "@/components/settings/integration-dialog";
 import { LanguageCard } from "@/components/settings/language-card";
 import { MfaCard } from "@/components/settings/mfa-card";
 import { SettingsNav } from "@/components/settings/settings-nav";
@@ -44,17 +45,17 @@ const members = [
   { member: team.dmitri, access: "Limited", status: "dormant" },
 ];
 
-const integrations = [
-  { name: "MLS / Bay Area Real Estate Information Services", detail: "Listing sync every 15 minutes", connected: true },
-  { name: "DocuSign", detail: "E-signature requests and status", connected: true },
-  { name: "Google Calendar", detail: "Two-way event sync", connected: true },
-  { name: "Zillow Premier Agent", detail: "Inbound lead capture", connected: true },
-  { name: "Mailchimp", detail: "Drip campaigns for past clients", connected: false },
-  { name: "QuickBooks", detail: "Commission reconciliation", connected: false },
-];
-
 export default async function SettingsPage() {
   const [mfa, t] = await Promise.all([getMfaStatus(), getTranslations()]);
+
+  const integrations = [
+    { name: "MLS / Bay Area Real Estate Information Services", detail: t("settings.detailMls"), connected: true },
+    { name: "DocuSign", detail: t("settings.detailDocusign"), connected: true },
+    { name: "Google Calendar", detail: t("settings.detailGoogleCalendar"), connected: true },
+    { name: "Zillow Premier Agent", detail: t("settings.detailZillow"), connected: true },
+    { name: "Mailchimp", detail: t("settings.detailMailchimp"), connected: false },
+    { name: "QuickBooks", detail: t("settings.detailQuickbooks"), connected: false },
+  ];
 
   return (
     <div className="space-y-6">
@@ -126,9 +127,9 @@ export default async function SettingsPage() {
 
               <div className="space-y-4">
                 {[
-                  { label: "Weekend notifications", detail: "Send lead alerts on Saturday and Sunday.", on: false },
-                  { label: "Auto-assign inbound leads", detail: "Route new leads by round robin within the team.", on: true },
-                  { label: "Require deal approval over $5M", detail: "Managing broker signs off before an offer is submitted.", on: true },
+                  { label: t("settings.weekendNotifications"), detail: t("settings.weekendNotificationsDetail"), on: false },
+                  { label: t("settings.autoAssign"), detail: t("settings.autoAssignDetail"), on: true },
+                  { label: t("settings.dealApproval"), detail: t("settings.dealApprovalDetail"), on: true },
                 ].map((row) => (
                   <div key={row.label} className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
@@ -163,12 +164,12 @@ export default async function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="space-y-3">
                 <div className="flex items-baseline justify-between">
-                  <Label>Lead score threshold for alerts</Label>
+                  <Label>{t("settings.leadScoreThreshold")}</Label>
                   <span className="tabular text-sm font-medium">80</span>
                 </div>
                 <Slider defaultValue={[80]} max={100} step={5} />
                 <p className="text-sm text-muted-foreground">
-                  You&apos;ll be notified the moment a lead crosses this score.
+                  {t("settings.leadScoreThresholdHint")}
                 </p>
               </div>
 
@@ -181,19 +182,27 @@ export default async function SettingsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Professional">Professional</SelectItem>
-                    <SelectItem value="Warm and conversational">Warm and conversational</SelectItem>
-                    <SelectItem value="Concise">Concise</SelectItem>
-                    <SelectItem value="Formal">Formal</SelectItem>
+                    <SelectItem value="Professional">
+                      {t("settings.toneProfessional")}
+                    </SelectItem>
+                    <SelectItem value="Warm and conversational">
+                      {t("settings.toneWarm")}
+                    </SelectItem>
+                    <SelectItem value="Concise">
+                      {t("settings.toneConcise")}
+                    </SelectItem>
+                    <SelectItem value="Formal">
+                      {t("settings.toneFormal")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-4">
                 {[
-                  { label: "Suggest replies in Messages", detail: "Draft three options under each incoming message.", on: true },
-                  { label: "Daily priority briefing", detail: "A ranked call list in your inbox at 7:30am.", on: true },
-                  { label: "Auto-summarise documents", detail: "Generate a plain-language summary when a file is uploaded.", on: false },
+                  { label: t("settings.suggestReplies"), detail: t("settings.suggestRepliesDetail"), on: true },
+                  { label: t("settings.dailyBriefing"), detail: t("settings.dailyBriefingDetail"), on: true },
+                  { label: t("settings.autoSummarize"), detail: t("settings.autoSummarizeDetail"), on: false },
                 ].map((row) => (
                   <div key={row.label} className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
@@ -288,15 +297,11 @@ export default async function SettingsPage() {
                       {integration.detail}
                     </p>
                   </div>
-                  <Button
-                    variant={integration.connected ? "outline" : "default"}
-                    size="sm"
-                    className="shrink-0"
-                  >
-                    {integration.connected
-                      ? t("buttons.manage")
-                      : t("buttons.connect")}
-                  </Button>
+                  <IntegrationDialog
+                    name={integration.name}
+                    detail={integration.detail}
+                    connected={integration.connected}
+                  />
                 </div>
               ))}
             </CardContent>
@@ -314,8 +319,8 @@ export default async function SettingsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {[
-                { icon: KeyRound, label: t("settings.passwordLabel"), detail: "Last changed 3 months ago", action: t("buttons.change") },
-                { icon: Globe, label: t("settings.activeSessions"), detail: "3 devices signed in", action: t("buttons.review") },
+                { icon: KeyRound, label: t("settings.passwordLabel"), detail: t("settings.passwordDetail"), action: t("buttons.change") },
+                { icon: Globe, label: t("settings.activeSessions"), detail: t("settings.activeSessionsDetail"), action: t("buttons.review") },
               ].map((row, index) => (
                 <div
                   key={row.label}

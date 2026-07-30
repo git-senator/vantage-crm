@@ -586,6 +586,51 @@ const ptBR: Dictionary = {
     dangerZoneDesc:
       "Excluir um espaço remove todos os leads, negócios e documentos. Isto não pode ser desfeito.",
     deleteWorkspace: "Excluir espaço",
+
+    // integrations — connect dialog
+    integrationConnectTitle: "Conectar {name}",
+    integrationManageTitle: "Gerenciar {name}",
+    integrationConnected: "Conectado",
+    integrationNotConnected: "Não conectado",
+    integrationApiKey: "Chave de API",
+    integrationNote:
+      "A sincronização é ativada assim que as credenciais do provedor forem configuradas na instalação.",
+    integrationSaved: "Concluiremos a conexão de {name} durante a configuração.",
+    detailMls: "Sincronização de imóveis a cada 15 minutos",
+    detailDocusign: "Solicitações e status de assinatura eletrônica",
+    detailGoogleCalendar: "Sincronização de eventos nos dois sentidos",
+    detailZillow: "Captura de leads de entrada",
+    detailMailchimp: "Campanhas de nutrição para clientes antigos",
+    detailQuickbooks: "Conciliação de comissões",
+
+    // general toggles
+    weekendNotifications: "Notificações de fim de semana",
+    weekendNotificationsDetail: "Enviar alertas de leads no sábado e domingo.",
+    autoAssign: "Atribuir leads recebidos automaticamente",
+    autoAssignDetail: "Distribuir novos leads por rodízio dentro da equipe.",
+    dealApproval: "Exigir aprovação de negócios acima de US$ 5M",
+    dealApprovalDetail:
+      "O corretor responsável aprova antes de uma oferta ser enviada.",
+
+    // AI preferences
+    leadScoreThreshold: "Limite de pontuação de lead para alertas",
+    leadScoreThresholdHint:
+      "Você será notificado no momento em que um lead ultrapassar esta pontuação.",
+    suggestReplies: "Sugerir respostas em Mensagens",
+    suggestRepliesDetail: "Rascunhar três opções sob cada mensagem recebida.",
+    dailyBriefing: "Resumo diário de prioridades",
+    dailyBriefingDetail: "Uma lista de chamadas priorizada na sua caixa às 7h30.",
+    autoSummarize: "Resumir documentos automaticamente",
+    autoSummarizeDetail:
+      "Gerar um resumo em linguagem simples quando um arquivo é enviado.",
+    toneProfessional: "Profissional",
+    toneWarm: "Caloroso e conversacional",
+    toneConcise: "Conciso",
+    toneFormal: "Formal",
+
+    // security rows
+    passwordDetail: "Alterada há 3 meses",
+    activeSessionsDetail: "3 dispositivos conectados",
   },
 
   notifications: {

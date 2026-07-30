@@ -586,6 +586,51 @@ const ru: Dictionary = {
     dangerZoneDesc:
       "Удаление пространства уничтожает все лиды, сделки и документы. Это нельзя отменить.",
     deleteWorkspace: "Удалить пространство",
+
+    // integrations — connect dialog
+    integrationConnectTitle: "Подключить {name}",
+    integrationManageTitle: "Управление {name}",
+    integrationConnected: "Подключено",
+    integrationNotConnected: "Не подключено",
+    integrationApiKey: "API-ключ",
+    integrationNote:
+      "Синхронизация включится, как только при настройке будут заданы учётные данные провайдера.",
+    integrationSaved: "Завершим подключение {name} при настройке.",
+    detailMls: "Синхронизация объявлений каждые 15 минут",
+    detailDocusign: "Запросы на электронную подпись и их статус",
+    detailGoogleCalendar: "Двусторонняя синхронизация событий",
+    detailZillow: "Захват входящих лидов",
+    detailMailchimp: "Цепочки писем для прошлых клиентов",
+    detailQuickbooks: "Сверка комиссий",
+
+    // general toggles
+    weekendNotifications: "Уведомления по выходным",
+    weekendNotificationsDetail: "Слать оповещения о лидах в субботу и воскресенье.",
+    autoAssign: "Автоназначение входящих лидов",
+    autoAssignDetail: "Распределять новых лидов по кругу внутри команды.",
+    dealApproval: "Требовать одобрение сделок свыше $5M",
+    dealApprovalDetail:
+      "Управляющий брокер подтверждает до отправки предложения.",
+
+    // AI preferences
+    leadScoreThreshold: "Порог оценки лида для оповещений",
+    leadScoreThresholdHint:
+      "Вы получите уведомление, как только лид превысит этот балл.",
+    suggestReplies: "Предлагать ответы в Сообщениях",
+    suggestRepliesDetail: "Черновики из трёх вариантов под каждым входящим.",
+    dailyBriefing: "Ежедневная сводка приоритетов",
+    dailyBriefingDetail: "Ранжированный список звонков в почте в 7:30.",
+    autoSummarize: "Авто-резюме документов",
+    autoSummarizeDetail:
+      "Создавать понятное резюме при загрузке файла.",
+    toneProfessional: "Профессиональный",
+    toneWarm: "Тёплый и дружелюбный",
+    toneConcise: "Краткий",
+    toneFormal: "Формальный",
+
+    // security rows
+    passwordDetail: "Изменён 3 месяца назад",
+    activeSessionsDetail: "3 устройства в сети",
   },
 
   notifications: {
