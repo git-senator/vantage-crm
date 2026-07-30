@@ -309,13 +309,28 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------ mail
     # Provider is swappable; business logic depends on NotificationService,
     # never on SES. See app/services/notifications/.
-    EMAIL_PROVIDER: Literal["ses", "console"] = "console"
+    #
+    # `smtp` is the vendor-neutral path — any SMTP server (Gmail, Resend, a
+    # corporate relay). It exists so a self-hosted deployment can send real mail
+    # without AWS. See app/services/notifications/smtp.py.
+    EMAIL_PROVIDER: Literal["ses", "smtp", "console"] = "console"
     EMAIL_FROM: str = "no-reply@vantagerealty.example"
     EMAIL_FROM_NAME: str = "Vantage CRM"
     AWS_SES_REGION: str = "us-east-1"
     AWS_SES_ACCESS_KEY_ID: SecretStr = SecretStr("")
     AWS_SES_SECRET_ACCESS_KEY: SecretStr = SecretStr("")
     AWS_SES_CONFIGURATION_SET: str | None = None
+
+    # SMTP transport (EMAIL_PROVIDER=smtp). Port 465 uses implicit TLS; any other
+    # port (587 is standard) upgrades with STARTTLS when SMTP_STARTTLS is on.
+    # For Gmail: host smtp.gmail.com, port 587, username the address, password an
+    # App Password (not the account password).
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: SecretStr = SecretStr("")
+    SMTP_STARTTLS: bool = True
+    SMTP_TIMEOUT_SECONDS: float = 15.0
 
     # -------------------------------------------------------- messaging
     #: Shared secret for the inbound-mail webhook's HMAC. Unset means inbound
@@ -605,6 +620,8 @@ class Settings(BaseSettings):
             problems.append("DB_ECHO must be false in production (leaks SQL to logs)")
         if self.EMAIL_PROVIDER == "console":
             problems.append("EMAIL_PROVIDER must not be 'console' in production")
+        if self.EMAIL_PROVIDER == "smtp" and not self.SMTP_HOST:
+            problems.append("EMAIL_PROVIDER is 'smtp' but SMTP_HOST is unset")
         if self.STORAGE_PROVIDER != "s3":
             problems.append(
                 "STORAGE_PROVIDER must be 's3' in production — 'memory' loses "
@@ -629,11 +646,22 @@ class Settings(BaseSettings):
                 "(id:base64-key) or ENCRYPTION_PROVIDER=aws_kms with KMS_KEY_ID "
                 "— without it MFA secrets are stored in plaintext"
             )
-        elif self.ENCRYPTION_PROVIDER == "local":
+        elif (
+            self.ENCRYPTION_PROVIDER == "local"
+            and not self.ENCRYPTION_KEYS.get_secret_value().strip()
+        ):
+            # An explicit, self-managed local key is an accepted posture for a
+            # self-hosted single-VPS deployment where AWS KMS is not available —
+            # secrets are still encrypted at rest. What production refuses is the
+            # *derived* local key (empty ENCRYPTION_KEYS): it is computed from
+            # JWT_SECRET, so rotating JWT_SECRET would silently make every sealed
+            # secret unreadable. That coupling, not local keys as such, is the
+            # danger.
             problems.append(
-                "ENCRYPTION_PROVIDER is 'local' in production: the key lives in "
-                "this process's environment, so anything that reads the "
-                "environment reads the key. Use aws_kms"
+                "ENCRYPTION_PROVIDER is 'local' with no ENCRYPTION_KEYS, so the "
+                "key is derived from JWT_SECRET — rotating JWT_SECRET would make "
+                "every sealed secret unreadable. Set an explicit ENCRYPTION_KEYS "
+                "(id:base64-of-32-bytes, with ENCRYPTION_ACTIVE_KEY_ID) or use aws_kms"
             )
 
         if self.INTEGRATIONS_ENABLE_MOCK:

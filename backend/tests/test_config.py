@@ -129,6 +129,39 @@ class TestProductionGuard:
         with pytest.raises(RuntimeError, match="Secret encryption is not configured"):
             settings.assert_production_ready()
 
+    def test_smtp_provider_requires_a_host(self) -> None:
+        settings = _settings(
+            ENVIRONMENT="production", POSTGRES_PASSWORD="x", EMAIL_PROVIDER="smtp"
+        )
+        with pytest.raises(RuntimeError, match="SMTP_HOST"):
+            settings.assert_production_ready()
+
+    def test_accepts_self_hosted_config_without_aws(self) -> None:
+        """A single-VPS deploy with SMTP mail and an *explicit* local encryption
+        key is a valid production posture — no AWS SES or KMS required. What
+        production still refuses is the JWT-derived local key (tested above)."""
+        # base64 of 32 bytes — a real key, not a passphrase.
+        key = "main:MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA="
+        settings = _settings(
+            ENVIRONMENT="production",
+            POSTGRES_PASSWORD="a-real-password",
+            COOKIE_SECURE=True,
+            DB_ECHO=False,
+            STORAGE_PROVIDER="s3",
+            S3_ENDPOINT_URL="http://minio:9000",
+            S3_ACCESS_KEY_ID="k",
+            S3_SECRET_ACCESS_KEY="s",
+            CORS_ORIGINS=[],
+            ENCRYPTION_PROVIDER="local",
+            ENCRYPTION_KEYS=key,
+            ENCRYPTION_ACTIVE_KEY_ID="main",
+            EMAIL_PROVIDER="smtp",
+            SMTP_HOST="smtp.gmail.com",
+            SMTP_USERNAME="owner@gmail.com",
+            SMTP_PASSWORD="app-password",
+        )
+        settings.assert_production_ready()  # does not raise
+
 
 class TestDsnConstruction:
     def test_app_and_migration_roles_are_distinct(self) -> None:

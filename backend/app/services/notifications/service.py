@@ -20,7 +20,6 @@ from app.services.notifications.base import (
     SendResult,
 )
 from app.services.notifications.console import ConsoleEmailProvider
-from app.services.notifications.ses import SESEmailProvider
 
 logger = get_logger(__name__)
 
@@ -29,11 +28,18 @@ def build_email_provider(settings: Settings) -> EmailProvider:
     """Resolve the configured adapter.
 
     Add a provider by writing an adapter and extending this match — no caller
-    changes anywhere.
+    changes anywhere. Adapters are imported lazily so a deployment that uses one
+    provider does not pay for another's dependency (boto3 for SES) at import.
     """
     match settings.EMAIL_PROVIDER:
         case "ses":
+            from app.services.notifications.ses import SESEmailProvider
+
             return SESEmailProvider(settings)
+        case "smtp":
+            from app.services.notifications.smtp import SMTPEmailProvider
+
+            return SMTPEmailProvider(settings)
         case "console":
             return ConsoleEmailProvider()
         case unknown:  # pragma: no cover — Literal makes this unreachable
