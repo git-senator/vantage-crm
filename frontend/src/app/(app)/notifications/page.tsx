@@ -8,6 +8,7 @@ import {
   listNotificationPreferences,
   listNotifications,
 } from "@/lib/api/notifications";
+import { getTranslations } from "@/i18n/server";
 
 export const metadata: Metadata = { title: "Notifications" };
 
@@ -18,9 +19,10 @@ export const metadata: Metadata = { title: "Notifications" };
  * other, and awaiting them in sequence would add a round trip for nothing.
  */
 export default async function NotificationsPage() {
-  const [notifications, preferences] = await Promise.all([
+  const [notifications, preferences, t] = await Promise.all([
     listNotifications({ limit: 50 }),
     listNotificationPreferences(),
+    getTranslations(),
   ]);
 
   const unread = notifications.unread_count;
@@ -28,11 +30,11 @@ export default async function NotificationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Notifications"
+        title={t("body.notificationsTitle")}
         description={
           unread === 0
-            ? "You're all caught up."
-            : `You have ${unread} unread update${unread === 1 ? "" : "s"}.`
+            ? t("empty.noNotifications")
+            : t("notifications.unreadCount", { count: unread })
         }
       />
 

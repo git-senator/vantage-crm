@@ -20,6 +20,7 @@ import {
 import { listDeals } from "@/lib/api/deals";
 import type { DealFilters } from "@/lib/api/types";
 import { formatPrice } from "@/lib/format";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Deals" };
@@ -31,6 +32,7 @@ export default async function DealsTablePage({
 }) {
   const session = await requireSession();
   const params = await searchParams;
+  const t = await getTranslations();
 
   const filters: DealFilters = {
     search: params.search,
@@ -47,13 +49,13 @@ export default async function DealsTablePage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Deals"
-        description="Every transaction in flight, as a table."
+        title={t("body.dealsTitle")}
+        description={t("body.dealsTableDesc")}
         actions={
           <>
             <Button variant="outline" render={<Link href="/deals" />}>
               <LayoutGrid className="size-4" />
-              Board view
+              {t("deals.board")}
             </Button>
             {canManage && (
               <Button render={<Link href="/deals/new" />}>

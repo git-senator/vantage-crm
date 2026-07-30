@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { getConversation, listConversations } from "@/lib/api/conversations";
 import type { Conversation, ConversationMessage } from "@/lib/api/types";
+import { getTranslations } from "@/i18n/server";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Messages" };
@@ -32,6 +33,7 @@ export default async function MessagesPage({
   searchParams: Promise<{ c?: string }>;
 }) {
   const { c } = await searchParams;
+  const t = await getTranslations();
   const { data: conversations } = await listConversations({ limit: 50 });
 
   // Fall back to the first thread rather than trusting the parameter: a stale
@@ -46,13 +48,11 @@ export default async function MessagesPage({
       <Card className="flex h-full flex-row gap-0 overflow-hidden p-0">
         <aside className="hidden w-[320px] shrink-0 flex-col border-r md:flex">
           <div className="border-b p-3">
-            <h1 className="text-sm font-medium">Inbox</h1>
+            <h1 className="text-sm font-medium">{t("body.messagesTitle")}</h1>
             <p className="text-[11px] text-muted-foreground">
               {conversations.length === 0
-                ? "No conversations yet."
-                : `${conversations.length} conversation${
-                    conversations.length === 1 ? "" : "s"
-                  }`}
+                ? t("body.messagesEmptyTitle")
+                : t("body.conversationsCount", { n: conversations.length })}
             </p>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
@@ -89,8 +89,8 @@ export default async function MessagesPage({
             <div className="grid flex-1 place-items-center p-8">
               <EmptyState
                 icon={Inbox}
-                title="No conversations yet"
-                description="Email sent from a lead or client page appears here, and replies thread back automatically."
+                title={t("body.messagesEmptyTitle")}
+                description={t("body.messagesEmptyDesc")}
               />
             </div>
           )}

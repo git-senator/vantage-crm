@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listCalendarEvents } from "@/lib/api/calendar";
+import { getTranslations } from "@/i18n/server";
 import type { CalendarEvent, CalendarEventType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -95,6 +96,7 @@ export default async function CalendarPage({
   searchParams: Promise<{ m?: string }>;
 }) {
   const { m } = await searchParams;
+  const t = await getTranslations();
   const now = new Date();
   const parsed = m?.match(/^(\d{4})-(\d{2})$/);
   const year = parsed ? Number(parsed[1]) : now.getFullYear();
@@ -127,8 +129,8 @@ export default async function CalendarPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Calendar"
-        description="Showings, closings and open houses across the whole team."
+        title={t("body.calendarTitle")}
+        description={t("body.calendarDesc")}
       />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
@@ -241,8 +243,8 @@ export default async function CalendarPage({
               <EmptyState
                 compact
                 icon={CalendarDays}
-                title="Nothing scheduled"
-                description="Showings and closings booked against a record appear here."
+                title={t("body.calendarEmptyTitle")}
+                description={t("body.calendarEmptyDesc")}
               />
             ) : (
               upcoming.map((event) => {

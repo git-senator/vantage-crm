@@ -41,6 +41,7 @@ import { listCalendarEvents } from "@/lib/api/calendar";
 import { requireSession } from "@/lib/auth/session";
 import type { SeriesPoint } from "@/lib/api/types";
 import { getSeries } from "@/lib/api/analytics";
+import { getTranslations } from "@/i18n/server";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -94,6 +95,7 @@ function relativeTime(iso: string): string {
 
 export default async function DashboardPage() {
   const session = await requireSession();
+  const t = await getTranslations();
 
   // Everything below reads live data within the caller's scope. Sorted here
   // rather than by the API because the list endpoint orders by created_at for
@@ -131,30 +133,30 @@ export default async function DashboardPage() {
 
   const stats: Stat[] = [
     {
-      label: "Open pipeline",
+      label: t("body.dashOpenPipeline"),
       value: formatPrice(Number(summary.deals.open_value)),
-      hint: `${summary.deals.open_count} open deals`,
+      hint: t("body.dashOpenDealsCount", { n: summary.deals.open_count }),
       icon: CircleDollarSign,
     },
     {
-      label: "Weighted forecast",
+      label: t("body.dashWeightedForecast"),
       value: formatPrice(Number(summary.deals.weighted_value)),
-      hint: `${summary.deals.won_this_month_count} won this month`,
+      hint: t("body.dashWonThisMonth", { n: summary.deals.won_this_month_count }),
       icon: TrendingUp,
     },
     {
-      label: "Open leads",
+      label: t("body.dashOpenLeads"),
       value: String(summary.leads.open),
-      hint: `${summary.leads.total} total`,
+      hint: t("body.dashLeadsTotal", { n: summary.leads.total }),
       icon: Target,
     },
     {
-      label: "Open tasks",
+      label: t("body.dashOpenTasks"),
       value: String(summary.tasks.open),
       hint:
         summary.tasks.overdue > 0
-          ? `${summary.tasks.overdue} overdue`
-          : "none overdue",
+          ? t("body.dashOverdue", { n: summary.tasks.overdue })
+          : t("body.dashNoneOverdue"),
       icon: Clock,
       invertDelta: true,
     },
@@ -163,17 +165,17 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Welcome back, ${session.full_name.split(" ")[0]}`}
-        description="Here's where your book of business stands right now."
+        title={t("body.dashWelcome", { name: session.full_name.split(" ")[0] })}
+        description={t("body.dashSubtitle")}
         actions={
           <>
             <Button variant="outline" render={<Link href="/reports" />}>
               <TrendingUp className="size-4" />
-              View reports
+              {t("body.dashViewReports")}
             </Button>
-            <Button>
+            <Button render={<Link href="/deals/new" />}>
               <Plus className="size-4" />
-              New deal
+              {t("body.newDeal")}
             </Button>
           </>
         }
@@ -188,10 +190,8 @@ export default async function DashboardPage() {
         {/* --------------------------------------------------- revenue */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Revenue performance</CardTitle>
-            <CardDescription>
-              Closed volume against open pipeline, in millions.
-            </CardDescription>
+            <CardTitle>{t("body.dashRevenue")}</CardTitle>
+            <CardDescription>{t("body.dashRevenueDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <RevenueChart
@@ -204,13 +204,12 @@ export default async function DashboardPage() {
         {/* ---------------------------------------------------- agenda */}
         <Card>
           <CardHeader>
-            <CardTitle>Today&apos;s agenda</CardTitle>
-            <CardDescription>Monday, July 20</CardDescription>
+            <CardTitle>{t("body.dashAgenda")}</CardTitle>
             <CardAction>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Open calendar"
+                aria-label={t("body.dashOpenCalendar")}
                 render={<Link href="/calendar" />}
               >
                 <CalendarDays className="size-4" />
@@ -252,11 +251,11 @@ export default async function DashboardPage() {
         {/* ------------------------------------------------- top deals */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Deals closest to closing</CardTitle>
-            <CardDescription>Ranked by contract value.</CardDescription>
+            <CardTitle>{t("body.dashTopDeals")}</CardTitle>
+            <CardDescription>{t("body.dashTopDealsDesc")}</CardDescription>
             <CardAction>
               <Button variant="ghost" size="sm" render={<Link href="/deals" />}>
-                All deals
+                {t("body.dashAllDeals")}
                 <ArrowRight className="size-4" />
               </Button>
             </CardAction>
@@ -319,13 +318,13 @@ export default async function DashboardPage() {
         {/* -------------------------------------------------- hot leads */}
         <Card>
           <CardHeader>
-            <CardTitle>Hot leads</CardTitle>
-            <CardDescription>Scored 80 and above.</CardDescription>
+            <CardTitle>{t("body.dashHotLeads")}</CardTitle>
+            <CardDescription>{t("body.dashHotLeadsDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {hotLeads.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No hot leads right now.
+                {t("body.dashNoHotLeads")}
               </p>
             ) : (
               hotLeads.map((lead) => (
@@ -359,17 +358,17 @@ export default async function DashboardPage() {
         {/* ------------------------------------------------------ tasks */}
         <Card>
           <CardHeader>
-            <CardTitle>Your open tasks</CardTitle>
+            <CardTitle>{t("body.dashYourTasks")}</CardTitle>
             <CardAction>
               <Button variant="ghost" size="sm" render={<Link href="/tasks" />}>
-                All tasks
+                {t("body.dashAllTasks")}
               </Button>
             </CardAction>
           </CardHeader>
           <CardContent className="space-y-2.5">
             {openTasks.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nothing due. You&apos;re clear.
+                {t("body.dashNothingDue")}
               </p>
             ) : (
               openTasks.map((task) => (
@@ -396,13 +395,13 @@ export default async function DashboardPage() {
         {/* --------------------------------------------------- activity */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent activity</CardTitle>
-            <CardDescription>Your notes and logged activity.</CardDescription>
+            <CardTitle>{t("body.dashRecentActivity")}</CardTitle>
+            <CardDescription>{t("body.dashActivityDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {recent.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nothing logged yet.
+                {t("body.dashNothingLogged")}
               </p>
             ) : (
               <ol className="space-y-4">
@@ -435,21 +434,19 @@ export default async function DashboardPage() {
         {/* ------------------------------------- empty state demonstration */}
         <Card>
           <CardHeader>
-            <CardTitle>Saved searches</CardTitle>
-            <CardDescription>
-              Pin a filtered view to reach it in one click.
-            </CardDescription>
+            <CardTitle>{t("body.dashSaved")}</CardTitle>
+            <CardDescription>{t("body.dashSavedDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <EmptyState
               compact
               icon={Target}
-              title="No saved searches yet"
-              description="Save a filter from any list view and it will show up here."
+              title={t("body.dashSavedEmpty")}
+              description={t("body.dashSavedEmptyDesc")}
               action={
                 <Button variant="outline" size="sm">
                   <Plus className="size-4" />
-                  Create a search
+                  {t("body.dashCreateSearch")}
                 </Button>
               }
             />

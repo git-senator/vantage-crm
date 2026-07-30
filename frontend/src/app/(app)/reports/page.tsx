@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { getDashboard } from "@/lib/api/analytics";
 import type { PeriodName } from "@/lib/api/types";
+import { getTranslations } from "@/i18n/server";
 import { formatMoney } from "@/lib/metrics";
 
 export const metadata: Metadata = { title: "Reports & Analytics" };
@@ -47,6 +48,7 @@ export default async function ReportsPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const period = resolvePeriod((await searchParams).period);
+  const t = await getTranslations();
   // One call for the whole screen: the panels share a period and a scope
   // resolution, and separate calls would each re-resolve the caller's team
   // membership and could disagree about the moment they describe.
@@ -60,8 +62,8 @@ export default async function ReportsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Reports & Analytics"
-        description={`Performance across volume, conversion and team production — ${dashboard.period.label}.`}
+        title={t("body.reportsTitle")}
+        description={t("body.reportsDesc", { label: dashboard.period.label })}
         actions={
           <>
             <PeriodPicker value={period} />

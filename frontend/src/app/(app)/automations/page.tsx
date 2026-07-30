@@ -14,6 +14,7 @@ import {
   listRuns,
   listWorkflows,
 } from "@/lib/api/automations";
+import { getTranslations } from "@/i18n/server";
 import { requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Workflows" };
@@ -29,10 +30,11 @@ export default async function AutomationsPage() {
   const session = await requireSession();
   const canManage = session.permissions.includes("automations.manage");
 
-  const [workflows, runs, registries] = await Promise.all([
+  const [workflows, runs, registries, t] = await Promise.all([
     listWorkflows(),
     listRuns({ limit: 15 }),
     getRegistries(),
+    getTranslations(),
   ]);
 
   const triggerLabel = (key: string | null) =>
@@ -41,8 +43,8 @@ export default async function AutomationsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Workflows"
-        description="Automations that react to what happens in your CRM."
+        title={t("body.automationsTitle")}
+        description={t("body.automationsDesc")}
         actions={
           canManage ? <NewWorkflowButton triggers={registries.triggers} /> : undefined
         }
@@ -53,8 +55,8 @@ export default async function AutomationsPage() {
           {workflows.length === 0 ? (
             <EmptyState
               icon={WorkflowIcon}
-              title="No workflows yet"
-              description="Create one to follow up on new leads, chase stalled deals, or file inbound enquiries automatically."
+              title={t("body.automationsEmptyTitle")}
+              description={t("body.automationsEmptyDesc")}
             />
           ) : (
             workflows.map((workflow) => (

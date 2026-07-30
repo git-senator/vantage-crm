@@ -711,6 +711,7 @@ const ptBR: Dictionary = {
     dashNoneOverdue: "nenhuma atrasada",
     dashRevenue: "Desempenho de receita",
     dashRevenueDesc: "Volume fechado frente ao funil aberto, em milhões.",
+    dashClosedVolume: "Volume fechado",
     dashAgenda: "Agenda de hoje",
     dashOpenCalendar: "Abrir agenda",
     dashTopDeals: "Negócios mais próximos de fechar",
@@ -788,8 +789,11 @@ const ptBR: Dictionary = {
     messagesEmptyTitle: "Ainda não há conversas",
     messagesEmptyDesc:
       "E-mails enviados de uma página de lead ou cliente aparecem aqui, e as respostas se agrupam automaticamente.",
+    conversationsCount: "{n} conversas",
     // reports
     reportsTitle: "Relatórios e Análises",
+    reportsDesc:
+      "Desempenho em volume, conversão e produção da equipe — {label}.",
     // automations
     automationsTitle: "Fluxos de trabalho",
     automationsDesc: "Automações que reagem ao que acontece no seu CRM.",

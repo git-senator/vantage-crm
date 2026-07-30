@@ -711,6 +711,7 @@ const ru: Dictionary = {
     dashNoneOverdue: "нет просроченных",
     dashRevenue: "Динамика выручки",
     dashRevenueDesc: "Закрытый объём против открытой воронки, в миллионах.",
+    dashClosedVolume: "Закрытый объём",
     dashAgenda: "Повестка на сегодня",
     dashOpenCalendar: "Открыть календарь",
     dashTopDeals: "Сделки ближе всего к закрытию",
@@ -788,8 +789,11 @@ const ru: Dictionary = {
     messagesEmptyTitle: "Пока нет переписок",
     messagesEmptyDesc:
       "Письма, отправленные со страницы лида или клиента, появятся здесь, а ответы автоматически соберутся в цепочку.",
+    conversationsCount: "{n} переписок",
     // reports
     reportsTitle: "Отчёты и аналитика",
+    reportsDesc:
+      "Показатели по объёму, конверсии и работе команды — {label}.",
     // automations
     automationsTitle: "Процессы",
     automationsDesc: "Автоматизации, реагирующие на события в вашей CRM.",

@@ -10,10 +10,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-const config = {
-  closed: { label: "Closed volume", color: "var(--chart-1)" },
-  pipeline: { label: "Open pipeline", color: "var(--chart-2)" },
-} satisfies ChartConfig;
+import { useTranslation } from "@/i18n/language-provider";
 
 export interface RevenuePoint {
   month: string;
@@ -29,6 +26,12 @@ export function RevenueChart({
   data: RevenuePoint[];
   className?: string;
 }) {
+  const { t } = useTranslation();
+  const config = {
+    closed: { label: t("body.dashClosedVolume"), color: "var(--chart-1)" },
+    pipeline: { label: t("body.dashOpenPipeline"), color: "var(--chart-2)" },
+  } satisfies ChartConfig;
+
   return (
     <ChartContainer config={config} className={className}>
       <AreaChart data={data} margin={{ left: -12, right: 8, top: 8 }}>

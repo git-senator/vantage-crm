@@ -743,6 +743,7 @@ const en = {
     dashNoneOverdue: "none overdue",
     dashRevenue: "Revenue performance",
     dashRevenueDesc: "Closed volume against open pipeline, in millions.",
+    dashClosedVolume: "Closed volume",
     dashAgenda: "Today's agenda",
     dashOpenCalendar: "Open calendar",
     dashTopDeals: "Deals closest to closing",
@@ -819,8 +820,11 @@ const en = {
     messagesEmptyTitle: "No conversations yet",
     messagesEmptyDesc:
       "Email sent from a lead or client page appears here, and replies thread back automatically.",
+    conversationsCount: "{n} conversations",
     // reports
     reportsTitle: "Reports & Analytics",
+    reportsDesc:
+      "Performance across volume, conversion and team production — {label}.",
     // automations
     automationsTitle: "Workflows",
     automationsDesc: "Automations that react to what happens in your CRM.",
