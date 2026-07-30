@@ -43,6 +43,10 @@ const en = {
     thisWeek: "This week",
     thisMonth: "This month",
     unknown: "Unknown",
+    timeJustNow: "just now",
+    timeMinutes: "{n}m ago",
+    timeHours: "{n}h ago",
+    timeDays: "{n}d ago",
   },
 
   // -------------------------------------------------------------- navigation
@@ -722,6 +726,140 @@ const en = {
   },
 
   // ---------------------------------------------------------------- language
+  // ------------------------------------------------- page bodies (per page)
+  body: {
+    // dashboard
+    dashWelcome: "Welcome back, {name}",
+    dashSubtitle: "Here's where your book of business stands right now.",
+    dashViewReports: "View reports",
+    dashOpenPipeline: "Open pipeline",
+    dashOpenDealsCount: "{n} open deals",
+    dashWeightedForecast: "Weighted forecast",
+    dashWonThisMonth: "{n} won this month",
+    dashOpenLeads: "Open leads",
+    dashLeadsTotal: "{n} total",
+    dashOpenTasks: "Open tasks",
+    dashOverdue: "{n} overdue",
+    dashNoneOverdue: "none overdue",
+    dashRevenue: "Revenue performance",
+    dashRevenueDesc: "Closed volume against open pipeline, in millions.",
+    dashAgenda: "Today's agenda",
+    dashOpenCalendar: "Open calendar",
+    dashTopDeals: "Deals closest to closing",
+    dashTopDealsDesc: "Ranked by contract value.",
+    dashAllDeals: "All deals",
+    dashConfidence: "Confidence",
+    dashHotLeads: "Hot leads",
+    dashHotLeadsDesc: "Scored 80 and above.",
+    dashNoHotLeads: "No hot leads right now.",
+    dashYourTasks: "Your open tasks",
+    dashAllTasks: "All tasks",
+    dashNothingDue: "Nothing due. You're clear.",
+    dashDue: "Due {date}",
+    dashNoDueDate: "No due date",
+    dashOverdueWord: "overdue",
+    dashRecentActivity: "Recent activity",
+    dashActivityDesc: "Your notes and logged activity.",
+    dashNothingLogged: "Nothing logged yet.",
+    dashNoted: "noted",
+    dashSystem: "System",
+    dashSaved: "Saved searches",
+    dashSavedDesc: "Pin a filtered view to reach it in one click.",
+    dashSavedEmpty: "No saved searches yet",
+    dashSavedEmptyDesc: "Save a filter from any list view and it will show up here.",
+    dashCreateSearch: "Create a search",
+
+    // leads
+    leadsTitle: "Leads",
+    leadsDesc: "Inbound and sourced prospects, scored and routed to an owner.",
+    newLead: "New lead",
+    newLeadDesc: "Capture a prospect and route it to an owner.",
+    // clients
+    clientsTitle: "Clients",
+    clientsDesc:
+      "Everyone you actively represent, plus the relationships worth reviving.",
+    newClient: "New client",
+    newClientDesc: "Add someone you represent, as a person or a company.",
+    // properties
+    propertiesTitle: "Properties",
+    propertiesDesc:
+      "Your brokerage's inventory — listed, pending and off-market.",
+    newListing: "New listing",
+    newListingDesc: "Add a property to the brokerage's inventory.",
+    // deals
+    dealsTitle: "Deals",
+    dealsDesc: "Drag a deal between stages to move it. Every move is recorded.",
+    dealsTableDesc: "Every transaction in flight, as a table.",
+    dealsEmptyTitle: "No deals in this pipeline yet",
+    dealsEmptyDesc:
+      "Deals you create will appear here, and can be dragged between stages.",
+    newDeal: "New deal",
+    newDealDesc: "Deals start in the default pipeline's first stage.",
+    // tasks
+    tasksTitle: "Tasks",
+    tasksDesc: "Follow-ups, paperwork and showing prep — grouped by status.",
+    tasksHintTeam: "across the team",
+    tasksHintProgress: "being worked now",
+    tasksHintBlocked: "waiting on something",
+    tasksHintDone: "done to date",
+    tasksOverdueBanner: "{n} of the tasks shown are overdue.",
+    tasksOpenLabel: "Open tasks",
+    tasksInProgressLabel: "In progress",
+    tasksBlockedLabel: "Blocked",
+    tasksCompletedLabel: "Completed",
+    newTask: "New task",
+    // calendar
+    calendarTitle: "Calendar",
+    calendarDesc: "Showings, closings and open houses across the whole team.",
+    calendarEmptyTitle: "Nothing scheduled",
+    calendarEmptyDesc:
+      "Showings and closings booked against a record appear here.",
+    // messages
+    messagesTitle: "Inbox",
+    messagesEmptyTitle: "No conversations yet",
+    messagesEmptyDesc:
+      "Email sent from a lead or client page appears here, and replies thread back automatically.",
+    // reports
+    reportsTitle: "Reports & Analytics",
+    // automations
+    automationsTitle: "Workflows",
+    automationsDesc: "Automations that react to what happens in your CRM.",
+    automationsEmptyTitle: "No workflows yet",
+    automationsEmptyDesc:
+      "Create one to follow up on new leads, chase stalled deals, or file inbound enquiries automatically.",
+    // notifications
+    notificationsTitle: "Notifications",
+    // ai
+    aiTitle: "AI Assistant",
+    aiDesc: "Ask questions about your pipeline in plain language.",
+    aiNoAccess: "You do not have access to the assistant",
+    aiNoAccessDesc: "Ask an administrator to grant you AI access.",
+    aiDisabled: "The assistant is not enabled",
+    aiDisabledDesc: "An administrator can turn the AI layer on for this workspace.",
+    // documents
+    documentsTitle: "Documents",
+    documentsDesc:
+      "Every file attached across your leads, clients, properties and deals.",
+    docAll: "All files",
+    docAvailable: "Available",
+    docPending: "Pending upload",
+    docQuarantined: "Quarantined",
+    docFailed: "Failed",
+    docTotal: "Total documents",
+    docTotalHint: "across every record",
+    docAvailableHint: "ready to download",
+    docNeedsAttention: "Needs attention",
+    docNeedsAttentionHint: "quarantined or failed",
+    docPendingHint: "not yet finalized",
+    docEmptyTitle: "No documents yet",
+    docEmptyDesc:
+      "Attach files from a lead, client, property or deal — they show up here.",
+    docEmptyFiltered: "No documents match this filter",
+    docEmptyFilteredDesc: "Try a different status filter.",
+    // shared
+    editRecordedDesc: "Changes are recorded in the audit log.",
+  },
+
   language: {
     switcher: "Language",
     selectLanguage: "Select language",

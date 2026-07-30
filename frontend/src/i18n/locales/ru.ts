@@ -40,6 +40,10 @@ const ru: Dictionary = {
     thisWeek: "На этой неделе",
     thisMonth: "В этом месяце",
     unknown: "Неизвестно",
+    timeJustNow: "только что",
+    timeMinutes: "{n} мин назад",
+    timeHours: "{n} ч назад",
+    timeDays: "{n} дн назад",
   },
 
   nav: {
@@ -689,6 +693,140 @@ const ru: Dictionary = {
     workEmail: "Рабочая почта",
     keepSignedIn: "Оставаться в системе 30 дней",
     serverUnreachable: "Не удалось связаться с сервером. Попробуйте снова.",
+  },
+
+  body: {
+    // dashboard
+    dashWelcome: "С возвращением, {name}",
+    dashSubtitle: "Вот как обстоят дела с вашими продажами прямо сейчас.",
+    dashViewReports: "Открыть отчёты",
+    dashOpenPipeline: "Открытая воронка",
+    dashOpenDealsCount: "{n} открытых сделок",
+    dashWeightedForecast: "Взвешенный прогноз",
+    dashWonThisMonth: "{n} выиграно за месяц",
+    dashOpenLeads: "Открытые лиды",
+    dashLeadsTotal: "всего {n}",
+    dashOpenTasks: "Открытые задачи",
+    dashOverdue: "{n} просрочено",
+    dashNoneOverdue: "нет просроченных",
+    dashRevenue: "Динамика выручки",
+    dashRevenueDesc: "Закрытый объём против открытой воронки, в миллионах.",
+    dashAgenda: "Повестка на сегодня",
+    dashOpenCalendar: "Открыть календарь",
+    dashTopDeals: "Сделки ближе всего к закрытию",
+    dashTopDealsDesc: "По сумме контракта.",
+    dashAllDeals: "Все сделки",
+    dashConfidence: "Уверенность",
+    dashHotLeads: "Горячие лиды",
+    dashHotLeadsDesc: "С оценкой 80 и выше.",
+    dashNoHotLeads: "Сейчас нет горячих лидов.",
+    dashYourTasks: "Ваши открытые задачи",
+    dashAllTasks: "Все задачи",
+    dashNothingDue: "Ничего не горит. Вы свободны.",
+    dashDue: "Срок {date}",
+    dashNoDueDate: "Без срока",
+    dashOverdueWord: "просрочено",
+    dashRecentActivity: "Недавняя активность",
+    dashActivityDesc: "Ваши заметки и записанная активность.",
+    dashNothingLogged: "Пока ничего не записано.",
+    dashNoted: "добавил заметку",
+    dashSystem: "Система",
+    dashSaved: "Сохранённые поиски",
+    dashSavedDesc: "Закрепите отфильтрованный вид, чтобы открывать его одним кликом.",
+    dashSavedEmpty: "Пока нет сохранённых поисков",
+    dashSavedEmptyDesc:
+      "Сохраните фильтр из любого списка — и он появится здесь.",
+    dashCreateSearch: "Создать поиск",
+
+    // leads
+    leadsTitle: "Лиды",
+    leadsDesc: "Входящие и найденные потенциальные клиенты, оценённые и назначенные ответственному.",
+    newLead: "Новый лид",
+    newLeadDesc: "Зафиксируйте потенциального клиента и назначьте ответственного.",
+    // clients
+    clientsTitle: "Клиенты",
+    clientsDesc:
+      "Все, кого вы активно представляете, плюс связи, которые стоит возобновить.",
+    newClient: "Новый клиент",
+    newClientDesc: "Добавьте того, кого вы представляете — человека или компанию.",
+    // properties
+    propertiesTitle: "Объекты",
+    propertiesDesc:
+      "Каталог вашего агентства — в продаже, в ожидании и снятые с продажи.",
+    newListing: "Новый объект",
+    newListingDesc: "Добавьте объект в каталог агентства.",
+    // deals
+    dealsTitle: "Сделки",
+    dealsDesc: "Перетащите сделку между этапами, чтобы переместить её. Каждое перемещение записывается.",
+    dealsTableDesc: "Все текущие сделки в виде таблицы.",
+    dealsEmptyTitle: "В этой воронке пока нет сделок",
+    dealsEmptyDesc:
+      "Созданные вами сделки появятся здесь, их можно перетаскивать между этапами.",
+    newDeal: "Новая сделка",
+    newDealDesc: "Сделки начинаются с первого этапа воронки по умолчанию.",
+    // tasks
+    tasksTitle: "Задачи",
+    tasksDesc: "Напоминания, документы и подготовка к показам — сгруппированы по статусу.",
+    tasksHintTeam: "по всей команде",
+    tasksHintProgress: "в работе сейчас",
+    tasksHintBlocked: "ждут чего-то",
+    tasksHintDone: "выполнено на данный момент",
+    tasksOverdueBanner: "{n} из показанных задач просрочены.",
+    tasksOpenLabel: "Открытые задачи",
+    tasksInProgressLabel: "В работе",
+    tasksBlockedLabel: "Заблокированные",
+    tasksCompletedLabel: "Завершённые",
+    newTask: "Новая задача",
+    // calendar
+    calendarTitle: "Календарь",
+    calendarDesc: "Показы, закрытия и дни открытых дверей по всей команде.",
+    calendarEmptyTitle: "Ничего не запланировано",
+    calendarEmptyDesc:
+      "Показы и закрытия, назначенные к записи, появятся здесь.",
+    // messages
+    messagesTitle: "Входящие",
+    messagesEmptyTitle: "Пока нет переписок",
+    messagesEmptyDesc:
+      "Письма, отправленные со страницы лида или клиента, появятся здесь, а ответы автоматически соберутся в цепочку.",
+    // reports
+    reportsTitle: "Отчёты и аналитика",
+    // automations
+    automationsTitle: "Процессы",
+    automationsDesc: "Автоматизации, реагирующие на события в вашей CRM.",
+    automationsEmptyTitle: "Пока нет процессов",
+    automationsEmptyDesc:
+      "Создайте процесс, чтобы автоматически вести новых лидов, подталкивать зависшие сделки или регистрировать входящие обращения.",
+    // notifications
+    notificationsTitle: "Уведомления",
+    // ai
+    aiTitle: "ИИ-ассистент",
+    aiDesc: "Задавайте вопросы о вашей воронке простым языком.",
+    aiNoAccess: "У вас нет доступа к ассистенту",
+    aiNoAccessDesc: "Попросите администратора выдать вам доступ к ИИ.",
+    aiDisabled: "Ассистент не включён",
+    aiDisabledDesc: "Администратор может включить ИИ для этого пространства.",
+    // documents
+    documentsTitle: "Документы",
+    documentsDesc:
+      "Все файлы, прикреплённые к вашим лидам, клиентам, объектам и сделкам.",
+    docAll: "Все файлы",
+    docAvailable: "Доступен",
+    docPending: "Ожидает загрузки",
+    docQuarantined: "На карантине",
+    docFailed: "Ошибка",
+    docTotal: "Всего документов",
+    docTotalHint: "по всем записям",
+    docAvailableHint: "готовы к скачиванию",
+    docNeedsAttention: "Требуют внимания",
+    docNeedsAttentionHint: "на карантине или с ошибкой",
+    docPendingHint: "ещё не завершены",
+    docEmptyTitle: "Пока нет документов",
+    docEmptyDesc:
+      "Прикрепляйте файлы к лиду, клиенту, объекту или сделке — они появятся здесь.",
+    docEmptyFiltered: "Нет документов по этому фильтру",
+    docEmptyFilteredDesc: "Попробуйте другой фильтр статуса.",
+    // shared
+    editRecordedDesc: "Изменения записываются в журнал аудита.",
   },
 
   language: {

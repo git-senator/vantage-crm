@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { getTypeCounts, listClients } from "@/lib/api/clients";
 import type { Client, ClientFilters } from "@/lib/api/types";
 import { formatNumber, formatPrice, titleize } from "@/lib/format";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Clients" };
@@ -95,6 +96,7 @@ export default async function ClientsPage({
 }) {
   const session = await requireSession();
   const params = await searchParams;
+  const t = await getTranslations();
 
   // Filters come from the URL, so a filtered view is shareable and the
   // filtering happens in the database rather than in the browser.
@@ -119,13 +121,13 @@ export default async function ClientsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Clients"
-        description="Everyone you actively represent, plus the relationships worth reviving."
+        title={t("body.clientsTitle")}
+        description={t("body.clientsDesc")}
         actions={
           canManage ? (
             <Button render={<Link href="/clients/new" />}>
               <Plus className="size-4" />
-              Add client
+              {t("body.newClient")}
             </Button>
           ) : null
         }
@@ -138,17 +140,15 @@ export default async function ClientsPage({
       {page.data.length === 0 ? (
         <EmptyState
           icon={Users}
-          title={isFiltered ? "No clients match those filters" : "No clients yet"}
+          title={isFiltered ? t("empty.noResults") : t("empty.noClients")}
           description={
-            isFiltered
-              ? "Try a different search term or clear the filters."
-              : "Clients you add, or convert from a lead, will appear here."
+            isFiltered ? t("empty.noResultsDesc") : t("empty.noClientsDesc")
           }
           action={
             canManage && !isFiltered ? (
               <Button render={<Link href="/clients/new" />}>
                 <Plus className="size-4" />
-                Add your first client
+                {t("body.newClient")}
               </Button>
             ) : null
           }

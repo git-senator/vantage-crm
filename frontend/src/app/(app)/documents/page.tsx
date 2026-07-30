@@ -8,18 +8,11 @@ import { DocumentTable } from "@/components/documents/document-table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Card } from "@/components/ui/card";
 import { getDocumentLibrary } from "@/lib/api/documents";
+import { getTranslations } from "@/i18n/server";
 import type { AttachmentStatus } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Documents" };
-
-const FILTERS: { value: AttachmentStatus | "all"; label: string }[] = [
-  { value: "all", label: "All files" },
-  { value: "available", label: "Available" },
-  { value: "pending_upload", label: "Pending upload" },
-  { value: "quarantined", label: "Quarantined" },
-  { value: "failed", label: "Failed" },
-];
 
 export default async function DocumentsPage({
   searchParams,
@@ -27,7 +20,16 @@ export default async function DocumentsPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const params = await searchParams;
+  const t = await getTranslations();
   const active = (params.status as AttachmentStatus | undefined) ?? undefined;
+
+  const FILTERS: { value: AttachmentStatus | "all"; label: string }[] = [
+    { value: "all", label: t("body.docAll") },
+    { value: "available", label: t("body.docAvailable") },
+    { value: "pending_upload", label: t("body.docPending") },
+    { value: "quarantined", label: t("body.docQuarantined") },
+    { value: "failed", label: t("body.docFailed") },
+  ];
 
   const library = await getDocumentLibrary({ status: active, limit: 100 });
   const { data, counts, total } = library;
@@ -37,17 +39,17 @@ export default async function DocumentsPage({
   const pending = counts.pending_upload ?? 0;
 
   const stats: Stat[] = [
-    { label: "Total documents", value: String(total), hint: "across every record", icon: FileText },
-    { label: "Available", value: String(available), hint: "ready to download", icon: FileCheck2 },
-    { label: "Needs attention", value: String(attention), hint: "quarantined or failed", icon: ShieldAlert },
-    { label: "Pending upload", value: String(pending), hint: "not yet finalized", icon: HardDrive },
+    { label: t("body.docTotal"), value: String(total), hint: t("body.docTotalHint"), icon: FileText },
+    { label: t("body.docAvailable"), value: String(available), hint: t("body.docAvailableHint"), icon: FileCheck2 },
+    { label: t("body.docNeedsAttention"), value: String(attention), hint: t("body.docNeedsAttentionHint"), icon: ShieldAlert },
+    { label: t("body.docPending"), value: String(pending), hint: t("body.docPendingHint"), icon: HardDrive },
   ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Documents"
-        description="Every file attached across your leads, clients, properties and deals."
+        title={t("body.documentsTitle")}
+        description={t("body.documentsDesc")}
       />
 
       <StatGrid stats={stats} />
@@ -81,11 +83,9 @@ export default async function DocumentsPage({
       ) : (
         <EmptyState
           icon={UploadCloud}
-          title={active ? "No documents match this filter" : "No documents yet"}
+          title={active ? t("body.docEmptyFiltered") : t("body.docEmptyTitle")}
           description={
-            active
-              ? "Try a different status filter."
-              : "Attach files from a lead, client, property or deal — they show up here."
+            active ? t("body.docEmptyFilteredDesc") : t("body.docEmptyDesc")
           }
         />
       )}

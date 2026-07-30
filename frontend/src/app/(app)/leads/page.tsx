@@ -20,6 +20,7 @@ import {
 import { listLeads } from "@/lib/api/leads";
 import type { LeadFilters } from "@/lib/api/types";
 import { formatPrice } from "@/lib/format";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Leads" };
@@ -44,6 +45,7 @@ export default async function LeadsPage({
 }) {
   const session = await requireSession();
   const params = await searchParams;
+  const t = await getTranslations();
 
   // Filters come from the URL, so a filtered view is shareable and the
   // filtering happens in the database rather than in the browser.
@@ -61,13 +63,13 @@ export default async function LeadsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Leads"
-        description="Inbound and sourced prospects, scored and routed to an owner."
+        title={t("body.leadsTitle")}
+        description={t("body.leadsDesc")}
         actions={
           canManage ? (
             <Button render={<Link href="/leads/new" />}>
               <Plus className="size-4" />
-              Add lead
+              {t("body.newLead")}
             </Button>
           ) : null
         }
@@ -78,17 +80,15 @@ export default async function LeadsPage({
       {page.data.length === 0 ? (
         <EmptyState
           icon={Target}
-          title={isFiltered ? "No leads match those filters" : "No leads yet"}
+          title={isFiltered ? t("empty.noResults") : t("empty.noLeads")}
           description={
-            isFiltered
-              ? "Try a different search term or clear the filters."
-              : "Leads you create or import will appear here."
+            isFiltered ? t("empty.noResultsDesc") : t("empty.noLeadsDesc")
           }
           action={
             canManage && !isFiltered ? (
               <Button render={<Link href="/leads/new" />}>
                 <Plus className="size-4" />
-                Add your first lead
+                {t("body.newLead")}
               </Button>
             ) : null
           }

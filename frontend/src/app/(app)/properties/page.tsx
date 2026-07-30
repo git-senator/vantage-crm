@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { getStatusCounts, listProperties } from "@/lib/api/properties";
 import type { PropertyFilters } from "@/lib/api/types";
 import { formatNumber, titleize } from "@/lib/format";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Properties" };
@@ -48,6 +49,7 @@ export default async function PropertiesPage({
 }) {
   const session = await requireSession();
   const params = await searchParams;
+  const t = await getTranslations();
 
   // Filters come from the URL, so a filtered view is shareable and the
   // filtering happens in the database rather than in the browser.
@@ -74,13 +76,13 @@ export default async function PropertiesPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Properties"
-        description="Your brokerage's inventory — listed, pending and off-market."
+        title={t("body.propertiesTitle")}
+        description={t("body.propertiesDesc")}
         actions={
           canManage ? (
             <Button render={<Link href="/properties/new" />}>
               <Plus className="size-4" />
-              New listing
+              {t("body.newListing")}
             </Button>
           ) : null
         }
@@ -93,19 +95,15 @@ export default async function PropertiesPage({
       {page.data.length === 0 ? (
         <EmptyState
           icon={Building2}
-          title={
-            isFiltered ? "No listings match those filters" : "No listings yet"
-          }
+          title={isFiltered ? t("empty.noResults") : t("empty.noProperties")}
           description={
-            isFiltered
-              ? "Try a different search term or clear the filters."
-              : "Listings you create will appear here."
+            isFiltered ? t("empty.noResultsDesc") : t("empty.noPropertiesDesc")
           }
           action={
             canManage && !isFiltered ? (
               <Button render={<Link href="/properties/new" />}>
                 <Plus className="size-4" />
-                Add your first listing
+                {t("body.newListing")}
               </Button>
             ) : null
           }

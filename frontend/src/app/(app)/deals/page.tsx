@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { getDealBoard, listPipelines } from "@/lib/api/deals";
 import type { DealBoard as Board } from "@/lib/api/types";
 import { formatPrice, formatNumber } from "@/lib/format";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Deals" };
@@ -54,6 +55,7 @@ export default async function DealsPage({
 }) {
   const session = await requireSession();
   const params = await searchParams;
+  const t = await getTranslations();
 
   const [pipelines, board] = await Promise.all([
     listPipelines(),
@@ -70,8 +72,8 @@ export default async function DealsPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Deals"
-        description="Drag a deal between stages to move it. Every move is recorded."
+        title={t("body.dealsTitle")}
+        description={t("body.dealsDesc")}
         actions={
           <>
             {pipelines.length > 1 && (
@@ -86,17 +88,17 @@ export default async function DealsPage({
                 render={<Link href={`/deals/pipelines/${board.pipeline_id}`} />}
               >
                 <Settings2 className="size-4" />
-                Pipeline
+                {t("pipelines.title")}
               </Button>
             )}
             <Button variant="outline" render={<Link href="/deals/table" />}>
               <Table2 className="size-4" />
-              Table view
+              {t("deals.table")}
             </Button>
             {canManage && (
               <Button render={<Link href="/deals/new" />}>
                 <Plus className="size-4" />
-                New deal
+                {t("body.newDeal")}
               </Button>
             )}
           </>
@@ -108,13 +110,13 @@ export default async function DealsPage({
       {totalDeals === 0 ? (
         <EmptyState
           icon={Handshake}
-          title="No deals in this pipeline yet"
-          description="Deals you create will appear here, and can be dragged between stages."
+          title={t("body.dealsEmptyTitle")}
+          description={t("body.dealsEmptyDesc")}
           action={
             canManage ? (
               <Button render={<Link href="/deals/new" />}>
                 <Plus className="size-4" />
-                Add your first deal
+                {t("body.newDeal")}
               </Button>
             ) : null
           }

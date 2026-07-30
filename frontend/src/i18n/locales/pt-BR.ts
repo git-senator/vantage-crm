@@ -40,6 +40,10 @@ const ptBR: Dictionary = {
     thisWeek: "Esta semana",
     thisMonth: "Este mês",
     unknown: "Desconhecido",
+    timeJustNow: "agora mesmo",
+    timeMinutes: "há {n}min",
+    timeHours: "há {n}h",
+    timeDays: "há {n}d",
   },
 
   nav: {
@@ -689,6 +693,140 @@ const ptBR: Dictionary = {
     workEmail: "E-mail corporativo",
     keepSignedIn: "Manter-me conectado por 30 dias",
     serverUnreachable: "Não foi possível conectar ao servidor. Tente novamente.",
+  },
+
+  body: {
+    // dashboard
+    dashWelcome: "Bem-vindo de volta, {name}",
+    dashSubtitle: "Aqui está a situação atual da sua carteira de negócios.",
+    dashViewReports: "Ver relatórios",
+    dashOpenPipeline: "Funil aberto",
+    dashOpenDealsCount: "{n} negócios abertos",
+    dashWeightedForecast: "Previsão ponderada",
+    dashWonThisMonth: "{n} ganhos neste mês",
+    dashOpenLeads: "Leads abertos",
+    dashLeadsTotal: "{n} no total",
+    dashOpenTasks: "Tarefas abertas",
+    dashOverdue: "{n} atrasadas",
+    dashNoneOverdue: "nenhuma atrasada",
+    dashRevenue: "Desempenho de receita",
+    dashRevenueDesc: "Volume fechado frente ao funil aberto, em milhões.",
+    dashAgenda: "Agenda de hoje",
+    dashOpenCalendar: "Abrir agenda",
+    dashTopDeals: "Negócios mais próximos de fechar",
+    dashTopDealsDesc: "Ordenados por valor de contrato.",
+    dashAllDeals: "Todos os negócios",
+    dashConfidence: "Confiança",
+    dashHotLeads: "Leads quentes",
+    dashHotLeadsDesc: "Pontuação 80 ou mais.",
+    dashNoHotLeads: "Nenhum lead quente no momento.",
+    dashYourTasks: "Suas tarefas abertas",
+    dashAllTasks: "Todas as tarefas",
+    dashNothingDue: "Nada pendente. Você está em dia.",
+    dashDue: "Vence {date}",
+    dashNoDueDate: "Sem data de vencimento",
+    dashOverdueWord: "atrasada",
+    dashRecentActivity: "Atividade recente",
+    dashActivityDesc: "Suas notas e atividades registradas.",
+    dashNothingLogged: "Nada registrado ainda.",
+    dashNoted: "anotou",
+    dashSystem: "Sistema",
+    dashSaved: "Buscas salvas",
+    dashSavedDesc: "Fixe uma visão filtrada para acessá-la em um clique.",
+    dashSavedEmpty: "Nenhuma busca salva ainda",
+    dashSavedEmptyDesc:
+      "Salve um filtro de qualquer lista e ele aparecerá aqui.",
+    dashCreateSearch: "Criar uma busca",
+
+    // leads
+    leadsTitle: "Leads",
+    leadsDesc: "Prospectos recebidos e prospectados, pontuados e atribuídos a um responsável.",
+    newLead: "Novo lead",
+    newLeadDesc: "Registre um prospecto e atribua-o a um responsável.",
+    // clients
+    clientsTitle: "Clientes",
+    clientsDesc:
+      "Todos que você representa ativamente, além dos relacionamentos que vale retomar.",
+    newClient: "Novo cliente",
+    newClientDesc: "Adicione alguém que você representa, pessoa ou empresa.",
+    // properties
+    propertiesTitle: "Imóveis",
+    propertiesDesc:
+      "O inventário da sua imobiliária — listados, pendentes e fora do mercado.",
+    newListing: "Novo imóvel",
+    newListingDesc: "Adicione um imóvel ao inventário da imobiliária.",
+    // deals
+    dealsTitle: "Negócios",
+    dealsDesc: "Arraste um negócio entre etapas para movê-lo. Cada movimento é registrado.",
+    dealsTableDesc: "Cada transação em andamento, em formato de tabela.",
+    dealsEmptyTitle: "Ainda não há negócios neste funil",
+    dealsEmptyDesc:
+      "Os negócios que você criar aparecerão aqui e poderão ser arrastados entre etapas.",
+    newDeal: "Novo negócio",
+    newDealDesc: "Os negócios começam na primeira etapa do funil padrão.",
+    // tasks
+    tasksTitle: "Tarefas",
+    tasksDesc: "Follow-ups, papelada e preparação de visitas — agrupados por status.",
+    tasksHintTeam: "em toda a equipe",
+    tasksHintProgress: "em andamento agora",
+    tasksHintBlocked: "aguardando algo",
+    tasksHintDone: "concluídas até agora",
+    tasksOverdueBanner: "{n} das tarefas exibidas estão atrasadas.",
+    tasksOpenLabel: "Tarefas abertas",
+    tasksInProgressLabel: "Em andamento",
+    tasksBlockedLabel: "Bloqueadas",
+    tasksCompletedLabel: "Concluídas",
+    newTask: "Nova tarefa",
+    // calendar
+    calendarTitle: "Agenda",
+    calendarDesc: "Visitas, fechamentos e casas abertas de toda a equipe.",
+    calendarEmptyTitle: "Nada agendado",
+    calendarEmptyDesc:
+      "Visitas e fechamentos marcados em um registro aparecem aqui.",
+    // messages
+    messagesTitle: "Caixa de entrada",
+    messagesEmptyTitle: "Ainda não há conversas",
+    messagesEmptyDesc:
+      "E-mails enviados de uma página de lead ou cliente aparecem aqui, e as respostas se agrupam automaticamente.",
+    // reports
+    reportsTitle: "Relatórios e Análises",
+    // automations
+    automationsTitle: "Fluxos de trabalho",
+    automationsDesc: "Automações que reagem ao que acontece no seu CRM.",
+    automationsEmptyTitle: "Ainda não há fluxos de trabalho",
+    automationsEmptyDesc:
+      "Crie um para dar seguimento a novos leads, cobrar negócios parados ou arquivar consultas recebidas automaticamente.",
+    // notifications
+    notificationsTitle: "Notificações",
+    // ai
+    aiTitle: "Assistente de IA",
+    aiDesc: "Faça perguntas sobre o seu funil em linguagem simples.",
+    aiNoAccess: "Você não tem acesso ao assistente",
+    aiNoAccessDesc: "Peça a um administrador para conceder acesso à IA.",
+    aiDisabled: "O assistente não está ativado",
+    aiDisabledDesc: "Um administrador pode ativar a camada de IA neste espaço.",
+    // documents
+    documentsTitle: "Documentos",
+    documentsDesc:
+      "Todos os arquivos anexados aos seus leads, clientes, imóveis e negócios.",
+    docAll: "Todos os arquivos",
+    docAvailable: "Disponível",
+    docPending: "Envio pendente",
+    docQuarantined: "Em quarentena",
+    docFailed: "Falhou",
+    docTotal: "Total de documentos",
+    docTotalHint: "em todos os registros",
+    docAvailableHint: "prontos para baixar",
+    docNeedsAttention: "Requer atenção",
+    docNeedsAttentionHint: "em quarentena ou com falha",
+    docPendingHint: "ainda não finalizados",
+    docEmptyTitle: "Ainda não há documentos",
+    docEmptyDesc:
+      "Anexe arquivos a um lead, cliente, imóvel ou negócio — eles aparecem aqui.",
+    docEmptyFiltered: "Nenhum documento corresponde a este filtro",
+    docEmptyFilteredDesc: "Tente um filtro de status diferente.",
+    // shared
+    editRecordedDesc: "As alterações são registradas no log de auditoria.",
   },
 
   language: {
