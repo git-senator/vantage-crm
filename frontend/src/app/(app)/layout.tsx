@@ -2,7 +2,7 @@ import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { fetchUnreadCount } from "@/lib/api/notifications";
-import { requireSession } from "@/lib/auth/session";
+import { hasPermission, requireSession } from "@/lib/auth/session";
 import type { SessionUser } from "@/types";
 
 /**
@@ -37,7 +37,10 @@ export default async function AppLayout({
 
   return (
     <SidebarProvider>
-      <AppSidebar user={user} />
+      <AppSidebar
+        user={user}
+        canManageUsers={hasPermission(session, "users.manage")}
+      />
       <SidebarInset className="min-w-0">
         <Topbar unreadCount={unreadCount} />
         <main className="flex-1 p-4 md:p-6">{children}</main>

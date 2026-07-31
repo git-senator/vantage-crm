@@ -16,7 +16,7 @@ import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/api/constants";
  */
 
 /** Reachable without a session. */
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/request-access", "/accept-invite"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(

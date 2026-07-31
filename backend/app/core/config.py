@@ -332,6 +332,18 @@ class Settings(BaseSettings):
     SMTP_STARTTLS: bool = True
     SMTP_TIMEOUT_SECONDS: float = 15.0
 
+    # ------------------------------------------------- access requests
+    #: Public base URL of the app, used to build absolute links in email
+    #: (e.g. the accept-invite link). No trailing slash. In production set this
+    #: to the real origin — a relative link in an email does not resolve.
+    PUBLIC_APP_URL: str = "http://localhost:3000"
+    #: Where a new "request access" submission is announced. Empty means the
+    #: request is still recorded and visible in-app, just not emailed to anyone.
+    #: A JSON list in the environment, e.g. ["owner@example.com"].
+    ACCESS_REQUEST_NOTIFY_EMAILS: list[str] = Field(default_factory=list)
+    #: How long an invitation link stays valid.
+    INVITE_TTL_HOURS: int = 72
+
     # -------------------------------------------------------- messaging
     #: Shared secret for the inbound-mail webhook's HMAC. Unset means inbound
     #: mail is refused outright — a default-open check on an unconfigured

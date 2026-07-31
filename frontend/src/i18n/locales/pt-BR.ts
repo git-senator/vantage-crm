@@ -68,6 +68,7 @@ const ptBR: Dictionary = {
     profile: "Perfil",
     settings: "Configurações",
     system: "Sistema",
+    requests: "Solicitações",
   },
 
   buttons: {
@@ -693,6 +694,60 @@ const ptBR: Dictionary = {
     workEmail: "E-mail corporativo",
     keepSignedIn: "Manter-me conectado por 30 dias",
     serverUnreachable: "Não foi possível conectar ao servidor. Tente novamente.",
+  },
+
+  // ------------------------------------------------------ access requests
+  access: {
+    // formulário de solicitação (público)
+    requestTitle: "Solicitar acesso",
+    requestSubtitle: "Conte quem você é e nós preparamos seu acesso.",
+    fullName: "Nome completo",
+    emailLabel: "E-mail de trabalho",
+    roleLabel: "Função que você deseja",
+    rolePlaceholder: "ex.: Agente, Corretor, Gerente",
+    messageLabel: "Mensagem (opcional)",
+    messagePlaceholder: "Algo que devemos saber?",
+    submit: "Enviar solicitação",
+    submitting: "Enviando…",
+    backToSignIn: "Voltar para o login",
+    submittedTitle: "Solicitação recebida",
+    submittedBody:
+      "Obrigado — se for aprovada, você receberá um e-mail com um link para definir sua senha.",
+    requestError: "Não foi possível enviar sua solicitação. Tente novamente.",
+
+    // aceitar convite (público)
+    loading: "Carregando…",
+    acceptTitle: "Defina sua senha",
+    acceptSubtitle: "Bem-vindo à {org}. Escolha uma senha para concluir a configuração de {email}.",
+    newPassword: "Nova senha",
+    confirmPassword: "Confirmar senha",
+    setPassword: "Definir senha e continuar",
+    settingPassword: "Salvando…",
+    passwordMismatch: "As senhas não coincidem.",
+    inviteInvalidTitle: "Link expirado",
+    inviteInvalidBody:
+      "Este convite é inválido ou expirou. Peça um novo ao administrador.",
+    acceptedTitle: "Tudo pronto",
+    acceptedBody: "Sua senha foi definida. Levando você para o login…",
+
+    // fila de revisão (admin)
+    queueTitle: "Solicitações de acesso",
+    queueSubtitle:
+      "Pessoas que pediram para entrar. Aprove para criar a conta e enviar um convite.",
+    empty: "Nenhuma solicitação de acesso no momento.",
+    statusPending: "Pendente",
+    statusApproved: "Aprovada",
+    statusRejected: "Recusada",
+    approve: "Conceder acesso",
+    reject: "Recusar",
+    approving: "Concedendo…",
+    chooseRole: "Função",
+    roleAdmin: "Administrador",
+    roleManager: "Gerente",
+    roleAgent: "Agente",
+    grantedToast: "Acesso concedido — convite enviado.",
+    rejectedToast: "Solicitação recusada.",
+    actionError: "Algo deu errado. Tente novamente.",
   },
 
   body: {

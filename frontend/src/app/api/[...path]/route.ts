@@ -54,6 +54,17 @@ function csrfIsValid(request: NextRequest): boolean {
     return true;
   }
 
+  // Public onboarding endpoints, called by a visitor with no session and so no
+  // CSRF token to present — like login. They carry no session cookie to abuse,
+  // which is what CSRF protects; both are rate-limited server-side instead.
+  // Submit the request form, and redeem an invitation link.
+  if (
+    path.endsWith("/access-requests") ||
+    (path.includes("/access-requests/invitations/") && path.endsWith("/accept"))
+  ) {
+    return true;
+  }
+
   if (!cookieToken || !headerToken) return false;
   return cookieToken === headerToken;
 }

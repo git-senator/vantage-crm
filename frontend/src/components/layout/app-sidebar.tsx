@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsUpDown, Plus, Settings, UserRound } from "lucide-react";
+import { ChevronsUpDown, Inbox, Plus, Settings, UserRound } from "lucide-react";
 
 import { SignOutItem } from "@/components/auth/sign-out-item";
 import { LanguageMenu } from "@/components/layout/language-menu";
@@ -40,7 +40,14 @@ import type { SessionUser } from "@/types";
  * layout resolves it from the session rather than a fixture; this component
  * does not change.
  */
-export function AppSidebar({ user }: { user: SessionUser }) {
+export function AppSidebar({
+  user,
+  canManageUsers = false,
+}: {
+  user: SessionUser;
+  /** Reveals the access-request queue. UX only — the route and API enforce it. */
+  canManageUsers?: boolean;
+}) {
   const pathname = usePathname();
   const { t } = useTranslation();
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
@@ -88,6 +95,28 @@ export function AppSidebar({ user }: { user: SessionUser }) {
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
+
+        {canManageUsers && (
+          <SidebarGroup>
+            <SidebarGroupLabel>{t("nav.system")}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={isActive("/requests")}
+                    tooltip={t("nav.requests")}
+                    render={
+                      <Link href="/requests">
+                        <Inbox />
+                        <span>{t("nav.requests")}</span>
+                      </Link>
+                    }
+                  />
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="gap-2">

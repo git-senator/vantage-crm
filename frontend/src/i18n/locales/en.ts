@@ -72,6 +72,7 @@ const en = {
     profile: "Profile",
     settings: "Settings",
     system: "System",
+    requests: "Requests",
   },
 
   // ------------------------------------------------------------------ buttons
@@ -723,6 +724,60 @@ const en = {
     workEmail: "Work email",
     keepSignedIn: "Keep me signed in for 30 days",
     serverUnreachable: "Unable to reach the server. Please try again.",
+  },
+
+  // ------------------------------------------------------ access requests
+  access: {
+    // request form (public)
+    requestTitle: "Request access",
+    requestSubtitle: "Tell us who you are and we'll get you set up.",
+    fullName: "Full name",
+    emailLabel: "Work email",
+    roleLabel: "Role you're requesting",
+    rolePlaceholder: "e.g. Agent, Broker, Manager",
+    messageLabel: "Message (optional)",
+    messagePlaceholder: "Anything we should know?",
+    submit: "Send request",
+    submitting: "Sending…",
+    backToSignIn: "Back to sign in",
+    submittedTitle: "Request received",
+    submittedBody:
+      "Thanks — if it's approved you'll get an email with a link to set your password.",
+    requestError: "Couldn't send your request. Please try again.",
+
+    // accept invitation (public)
+    loading: "Loading…",
+    acceptTitle: "Set your password",
+    acceptSubtitle: "Welcome to {org}. Choose a password to finish setting up {email}.",
+    newPassword: "New password",
+    confirmPassword: "Confirm password",
+    setPassword: "Set password & continue",
+    settingPassword: "Setting…",
+    passwordMismatch: "Passwords don't match.",
+    inviteInvalidTitle: "Link expired",
+    inviteInvalidBody:
+      "This invitation is invalid or has expired. Ask your administrator for a new one.",
+    acceptedTitle: "You're all set",
+    acceptedBody: "Your password is set. Taking you to sign in…",
+
+    // review queue (admin)
+    queueTitle: "Access requests",
+    queueSubtitle:
+      "People who asked to join. Approve to create their account and email them an invite.",
+    empty: "No access requests right now.",
+    statusPending: "Pending",
+    statusApproved: "Approved",
+    statusRejected: "Rejected",
+    approve: "Grant access",
+    reject: "Reject",
+    approving: "Granting…",
+    chooseRole: "Role",
+    roleAdmin: "Admin",
+    roleManager: "Manager",
+    roleAgent: "Agent",
+    grantedToast: "Access granted — invite sent.",
+    rejectedToast: "Request rejected.",
+    actionError: "Something went wrong. Please try again.",
   },
 
   // ---------------------------------------------------------------- language

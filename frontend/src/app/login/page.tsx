@@ -40,7 +40,7 @@ export default async function LoginPage() {
           <span className="text-sm text-muted-foreground">
             {t("auth.needAccount")}{" "}
             <Link
-              href="/dashboard"
+              href="/request-access"
               className="font-medium text-foreground underline-offset-4 hover:underline"
             >
               {t("auth.requestAccess")}

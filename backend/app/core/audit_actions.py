@@ -34,6 +34,14 @@ class AuditAction:
     USER_UPDATED: Final = "user.updated"
     USER_DEACTIVATED: Final = "user.deactivated"
 
+    # --- access requests & invitations ---
+    #: A prospective member approved from the public request queue, and the
+    #: invitation link they were sent. Admitting someone is a privilege-granting
+    #: act; the accept is when the account becomes usable.
+    ACCESS_REQUEST_APPROVED: Final = "access_request.approved"
+    ACCESS_REQUEST_REJECTED: Final = "access_request.rejected"
+    INVITATION_ACCEPTED: Final = "invitation.accepted"
+
     # --- authorization ---
     ROLE_ASSIGNED: Final = "role.assigned"
     ROLE_REVOKED: Final = "role.revoked"

@@ -68,6 +68,7 @@ const ru: Dictionary = {
     profile: "Профиль",
     settings: "Настройки",
     system: "Система",
+    requests: "Заявки",
   },
 
   buttons: {
@@ -693,6 +694,60 @@ const ru: Dictionary = {
     workEmail: "Рабочая почта",
     keepSignedIn: "Оставаться в системе 30 дней",
     serverUnreachable: "Не удалось связаться с сервером. Попробуйте снова.",
+  },
+
+  // ------------------------------------------------------ access requests
+  access: {
+    // форма запроса (публичная)
+    requestTitle: "Запросить доступ",
+    requestSubtitle: "Расскажите, кто вы, и мы всё настроим.",
+    fullName: "Имя и фамилия",
+    emailLabel: "Рабочая почта",
+    roleLabel: "Желаемая роль",
+    rolePlaceholder: "например, агент, брокер, менеджер",
+    messageLabel: "Сообщение (необязательно)",
+    messagePlaceholder: "Что нам стоит знать?",
+    submit: "Отправить запрос",
+    submitting: "Отправка…",
+    backToSignIn: "Вернуться ко входу",
+    submittedTitle: "Запрос получен",
+    submittedBody:
+      "Спасибо! Если запрос одобрят, вы получите письмо со ссылкой для установки пароля.",
+    requestError: "Не удалось отправить запрос. Попробуйте снова.",
+
+    // принятие приглашения (публичное)
+    loading: "Загрузка…",
+    acceptTitle: "Задайте пароль",
+    acceptSubtitle: "Добро пожаловать в {org}. Выберите пароль, чтобы завершить настройку {email}.",
+    newPassword: "Новый пароль",
+    confirmPassword: "Повторите пароль",
+    setPassword: "Задать пароль и продолжить",
+    settingPassword: "Сохранение…",
+    passwordMismatch: "Пароли не совпадают.",
+    inviteInvalidTitle: "Ссылка недействительна",
+    inviteInvalidBody:
+      "Это приглашение недействительно или истекло. Попросите администратора выслать новое.",
+    acceptedTitle: "Готово",
+    acceptedBody: "Пароль установлен. Перенаправляем вас на вход…",
+
+    // очередь заявок (админ)
+    queueTitle: "Заявки на доступ",
+    queueSubtitle:
+      "Люди, которые попросили доступ. Одобрите, чтобы создать аккаунт и отправить приглашение.",
+    empty: "Сейчас заявок нет.",
+    statusPending: "Ожидает",
+    statusApproved: "Одобрено",
+    statusRejected: "Отклонено",
+    approve: "Выдать доступ",
+    reject: "Отклонить",
+    approving: "Выдаём…",
+    chooseRole: "Роль",
+    roleAdmin: "Администратор",
+    roleManager: "Менеджер",
+    roleAgent: "Агент",
+    grantedToast: "Доступ выдан — приглашение отправлено.",
+    rejectedToast: "Заявка отклонена.",
+    actionError: "Что-то пошло не так. Попробуйте снова.",
   },
 
   body: {

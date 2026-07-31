@@ -114,6 +114,13 @@ PUBLIC_API_MUTATION = RateLimit("public_api_mutation", limit=120, window_seconds
 #: Unauthenticated traffic that is not login (health, static-ish endpoints).
 ANONYMOUS_GLOBAL = RateLimit("anonymous", limit=60, window_seconds=60)
 
+#: Public "request access" form, per IP. Tight: a genuine visitor submits once,
+#: so five an hour is generous while a script cannot flood the review queue.
+REQUEST_ACCESS_PER_IP = RateLimit("request_access_ip", limit=5, window_seconds=3600)
+#: Accepting an invitation (setting the password), per IP. Guards the token
+#: lookup against being ground through, though the token is unguessable anyway.
+INVITE_ACCEPT_PER_IP = RateLimit("invite_accept_ip", limit=10, window_seconds=900)
+
 
 async def check(limit: RateLimit, identifier: str) -> RateLimitResult:
     """Consume one unit against `limit` for `identifier`.

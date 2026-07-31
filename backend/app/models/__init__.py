@@ -6,6 +6,7 @@ absent from that metadata — autogenerate would then emit a migration that drop
 its table.
 """
 
+from app.models.access_request import AccessRequest
 from app.models.activity import Activity
 from app.models.ai import AiJob
 from app.models.ai_conversation import AiConversation, AiMessage
@@ -52,6 +53,7 @@ from app.models.integration import (
     IntegrationSubscription,
     IntegrationSyncRun,
 )
+from app.models.invitation import Invitation
 from app.models.job import JobFailure
 from app.models.lead import Lead
 from app.models.lead_score import LeadScore
@@ -111,6 +113,7 @@ from app.models.user import User
 from app.models.webhook import WebhookDelivery, WebhookEndpoint
 
 __all__ = [
+    "AccessRequest",
     "Activity",
     "AiConversation",
     "AiJob",
@@ -150,6 +153,7 @@ __all__ = [
     "IntegrationSubscription",
     "IntegrationSyncRun",
     "IntegrationVersion",
+    "Invitation",
     "Invoice",
     "JobFailure",
     "Lead",
