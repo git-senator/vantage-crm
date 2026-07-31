@@ -57,18 +57,18 @@ export const navigation: NavGroup[] = [
   {
     labelKey: "nav.groupPipeline",
     items: [
-      { titleKey: "nav.leads", href: "/leads", icon: Target, badge: "8" },
+      { titleKey: "nav.leads", href: "/leads", icon: Target },
       { titleKey: "nav.clients", href: "/clients", icon: Users },
       { titleKey: "nav.properties", href: "/properties", icon: Building2 },
-      { titleKey: "nav.deals", href: "/deals", icon: Handshake, badge: "10" },
+      { titleKey: "nav.deals", href: "/deals", icon: Handshake },
     ],
   },
   {
     labelKey: "nav.groupWork",
     items: [
       { titleKey: "nav.calendar", href: "/calendar", icon: CalendarDays },
-      { titleKey: "nav.tasks", href: "/tasks", icon: FileText, badge: "6" },
-      { titleKey: "nav.messages", href: "/messages", icon: MessageSquare, badge: "3" },
+      { titleKey: "nav.tasks", href: "/tasks", icon: FileText },
+      { titleKey: "nav.messages", href: "/messages", icon: MessageSquare },
       { titleKey: "nav.documents", href: "/documents", icon: FileText },
     ],
   },
@@ -83,7 +83,7 @@ export const navigation: NavGroup[] = [
 ];
 
 export const secondaryNavigation: NavItem[] = [
-  { titleKey: "nav.notifications", href: "/notifications", icon: Bell, badge: "3" },
+  { titleKey: "nav.notifications", href: "/notifications", icon: Bell },
   { titleKey: "nav.profile", href: "/profile", icon: CircleUser },
   { titleKey: "nav.settings", href: "/settings", icon: Settings },
   // Admin-only. Listed here rather than in the sidebar groups because it is an
