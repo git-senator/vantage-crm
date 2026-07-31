@@ -13,13 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslation } from "@/i18n/language-provider";
 
 const STAGES = ["new", "contacted", "qualified", "touring", "unqualified"];
-
-function label(value: string): string {
-  const spaced = value.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
 
 /**
  * Search and filter controls, driven through the URL.
@@ -32,6 +28,7 @@ export function LeadFilterBar() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const { t } = useTranslation();
   const [isPending, startTransition] = useTransition();
 
   const [search, setSearch] = useState(params.get("search") ?? "");
@@ -76,7 +73,7 @@ export function LeadFilterBar() {
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           )}
           <Input
-            placeholder="Search leads by name, email or location…"
+            placeholder={t("body.leadSearchPlaceholder")}
             className="pl-9"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -93,10 +90,10 @@ export function LeadFilterBar() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All stages</SelectItem>
+            <SelectItem value="all">{t("body.leadAllStages")}</SelectItem>
             {STAGES.map((option) => (
               <SelectItem key={option} value={option}>
-                {label(option)}
+                {t(`body.leadStage_${option}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -112,7 +109,7 @@ export function LeadFilterBar() {
             }}
           >
             <ListFilter className="size-4" />
-            Clear
+            {t("body.clear")}
           </Button>
         )}
       </div>

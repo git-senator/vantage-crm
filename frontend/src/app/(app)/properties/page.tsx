@@ -16,6 +16,7 @@ import { getStatusCounts, listProperties } from "@/lib/api/properties";
 import type { PropertyFilters } from "@/lib/api/types";
 import { formatNumber, titleize } from "@/lib/format";
 import { getTranslations } from "@/i18n/server";
+import type { TranslateFn } from "@/i18n/translate";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Properties" };
@@ -28,14 +29,14 @@ export const metadata: Metadata = { title: "Properties" };
  * endpoint, and view tracking is a later phase — so they are omitted rather
  * than mocked. A fabricated number on a dashboard is worse than an absent one.
  */
-function statsFrom(counts: Record<string, number>): Stat[] {
+function statsFrom(counts: Record<string, number>, t: TranslateFn): Stat[] {
   const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
   return [
-    { label: "Listings", value: formatNumber(total), icon: Building2 },
-    { label: "Active", value: formatNumber(counts.active ?? 0), icon: Tag },
-    { label: "Pending", value: formatNumber(counts.pending ?? 0), icon: Clock },
+    { label: t("body.propListings"), value: formatNumber(total), icon: Building2 },
+    { label: t("body.propActive"), value: formatNumber(counts.active ?? 0), icon: Tag },
+    { label: t("body.propPending"), value: formatNumber(counts.pending ?? 0), icon: Clock },
     {
-      label: "Sold",
+      label: t("body.propSold"),
       value: formatNumber(counts.sold ?? 0),
       icon: CheckCircle2,
     },
@@ -88,7 +89,7 @@ export default async function PropertiesPage({
         }
       />
 
-      <StatGrid stats={statsFrom(counts)} />
+      <StatGrid stats={statsFrom(counts, t)} />
 
       <PropertyFilterBar counts={counts} />
 
@@ -147,7 +148,7 @@ export default async function PropertiesPage({
                     {property.square_feet ? (
                       <span className="flex items-center gap-1.5">
                         <Ruler className="size-4" />
-                        {formatNumber(property.square_feet)} sqft
+                        {t("body.propSqft", { n: formatNumber(property.square_feet) })}
                       </span>
                     ) : null}
                   </div>
@@ -161,7 +162,7 @@ export default async function PropertiesPage({
                     />
                     {property.days_on_market !== null && (
                       <span className="text-xs text-muted-foreground">
-                        {property.days_on_market} days on market
+                        {t("body.propDaysOnMarket", { n: property.days_on_market })}
                       </span>
                     )}
                   </div>
@@ -188,7 +189,7 @@ export default async function PropertiesPage({
                     </div>
                   ) : (
                     <span className="text-xs text-muted-foreground">
-                      Unassigned
+                      {t("body.unassigned")}
                     </span>
                   )}
                   {property.mls_number && (
@@ -203,11 +204,7 @@ export default async function PropertiesPage({
 
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              Showing{" "}
-              <span className="font-medium text-foreground">
-                {page.data.length}
-              </span>{" "}
-              {page.data.length === 1 ? "listing" : "listings"}
+              {t("body.propShowing", { n: page.data.length })}
             </p>
             {/* Keyset pagination: the cursor is the last row seen, so a row
                 inserted mid-paging cannot shift the window. */}
@@ -224,7 +221,7 @@ export default async function PropertiesPage({
                   />
                 }
               >
-                Next page
+                {t("body.nextPage")}
               </Button>
             )}
           </div>

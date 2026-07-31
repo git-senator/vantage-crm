@@ -15,6 +15,9 @@ import {
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useTranslation } from "@/i18n/language-provider";
+import { LOCALE_META } from "@/i18n/config";
+import type { Locale } from "@/i18n/config";
 import { ClientApiError } from "@/lib/api/client";
 import {
   markAllNotificationsRead,
@@ -48,18 +51,23 @@ export const CATEGORY_META: Record<
   system: { icon: Bell, className: "bg-muted text-muted-foreground", label: "System" },
 };
 
-/** Relative time, computed on the client so it is right whenever it renders. */
-function relativeTime(iso: string): string {
+/**
+ * Relative time, localized via Intl so plurals and wording are correct in every
+ * language. `justNow` is the one phrase Intl renders awkwardly ("this minute"),
+ * so it is passed in from a translation.
+ */
+function relativeTime(iso: string, locale: Locale, justNow: string): string {
+  const bcp = LOCALE_META[locale].htmlLang;
   const then = new Date(iso).getTime();
   const minutes = Math.round((Date.now() - then) / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const rtf = new Intl.RelativeTimeFormat(bcp, { numeric: "auto" });
+  if (minutes < 1) return justNow;
+  if (minutes < 60) return rtf.format(-minutes, "minute");
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  if (hours < 24) return rtf.format(-hours, "hour");
   const days = Math.round(hours / 24);
-  if (days === 1) return "yesterday";
-  if (days < 30) return `${days} days ago`;
-  return new Date(iso).toLocaleDateString();
+  if (days < 30) return rtf.format(-days, "day");
+  return new Date(iso).toLocaleDateString(bcp);
 }
 
 /**
@@ -75,6 +83,7 @@ export function NotificationFeed({
   notifications: Notification[];
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,7 +100,7 @@ export function NotificationFeed({
       setError(
         caught instanceof ClientApiError
           ? caught.message
-          : "Something went wrong. Please try again.",
+          : t("body.genericError"),
       );
     } finally {
       setPending(false);
@@ -103,8 +112,8 @@ export function NotificationFeed({
       <EmptyState
         compact
         icon={CheckCheck}
-        title="You're all caught up"
-        description="New activity on your records will show up here."
+        title={t("body.notifCaughtUp")}
+        description={t("body.notifCaughtUpDesc")}
       />
     );
   }
@@ -126,18 +135,22 @@ export function NotificationFeed({
             onClick={() => run(markAllNotificationsRead)}
           >
             <CheckCheck className="size-4" />
-            Mark all read
+            {t("body.notifMarkAll")}
           </Button>
         </div>
       )}
 
       <NotificationGroup
-        title="New"
+        title={t("body.notifNew")}
         items={unread}
         pending={pending}
         onRead={(id) => run(() => markNotificationRead(id))}
       />
-      <NotificationGroup title="Earlier" items={earlier} pending={pending} />
+      <NotificationGroup
+        title={t("body.notifEarlier")}
+        items={earlier}
+        pending={pending}
+      />
     </div>
   );
 }
@@ -153,6 +166,7 @@ function NotificationGroup({
   pending: boolean;
   onRead?: (id: string) => void;
 }) {
+  const { t, locale } = useTranslation();
   if (items.length === 0) return null;
 
   return (
@@ -191,7 +205,7 @@ function NotificationGroup({
                   className="mt-1 text-[11px] text-muted-foreground"
                   suppressHydrationWarning
                 >
-                  {relativeTime(item.created_at)}
+                  {relativeTime(item.created_at, locale, t("body.notifJustNow"))}
                   {item.actor && ` · ${item.actor.full_name}`}
                 </p>
               </div>
@@ -202,7 +216,7 @@ function NotificationGroup({
                   disabled={pending}
                   onClick={() => onRead(item.id)}
                 >
-                  Mark read
+                  {t("body.notifMarkRead")}
                 </Button>
               )}
             </div>

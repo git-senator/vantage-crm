@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { createWorkflow } from "@/lib/api/automations-client";
 import type { RegistryEntry } from "@/lib/api/types";
 
@@ -21,6 +22,7 @@ import type { RegistryEntry } from "@/lib/api/types";
  */
 export function NewWorkflowButton({ triggers }: { triggers: RegistryEntry[] }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [trigger, setTrigger] = useState("");
@@ -31,7 +33,7 @@ export function NewWorkflowButton({ triggers }: { triggers: RegistryEntry[] }) {
     return (
       <Button onClick={() => setOpen(true)}>
         <Plus className="size-4" />
-        New workflow
+        {t("body.autoNew")}
       </Button>
     );
   }
@@ -48,19 +50,19 @@ export function NewWorkflowButton({ triggers }: { triggers: RegistryEntry[] }) {
     <Card className="w-full max-w-md space-y-3 p-4">
       <div className="space-y-1">
         <Label htmlFor="wf-name" className="text-xs">
-          Name
+          {t("body.autoName")}
         </Label>
         <Input
           id="wf-name"
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="Follow up on new leads"
+          placeholder={t("body.autoNamePlaceholder")}
           disabled={pending}
         />
       </div>
       <div className="space-y-1">
         <Label htmlFor="wf-trigger" className="text-xs">
-          When this happens
+          {t("body.autoWhenHappens")}
         </Label>
         <select
           id="wf-trigger"
@@ -69,7 +71,7 @@ export function NewWorkflowButton({ triggers }: { triggers: RegistryEntry[] }) {
           disabled={pending}
           onChange={(event) => setTrigger(event.target.value)}
         >
-          <option value="">Choose a trigger…</option>
+          <option value="">{t("body.autoChooseTrigger")}</option>
           {Object.entries(grouped).map(([category, entries]) => (
             <optgroup key={category} label={category}>
               {entries.map((entry) => (
@@ -90,7 +92,7 @@ export function NewWorkflowButton({ triggers }: { triggers: RegistryEntry[] }) {
 
       <div className="flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={() => setOpen(false)} disabled={pending}>
-          Cancel
+          {t("buttons.cancel")}
         </Button>
         <Button
           size="sm"
@@ -108,14 +110,14 @@ export function NewWorkflowButton({ triggers }: { triggers: RegistryEntry[] }) {
               setError(
                 caught instanceof ClientApiError
                   ? caught.message
-                  : "Could not create that workflow.",
+                  : t("body.autoCreateError"),
               );
               setPending(false);
             }
           }}
         >
           {pending && <Loader2 className="size-4 animate-spin" />}
-          Create
+          {t("buttons.create")}
         </Button>
       </div>
     </Card>

@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/table";
 import { getAdminOverview } from "@/lib/api/admin";
 import { formatNumber } from "@/lib/format";
+import { getLocale, getTranslations } from "@/i18n/server";
+import { LOCALE_META } from "@/i18n/config";
 
 export const metadata: Metadata = { title: "System" };
 
@@ -46,21 +48,26 @@ function formatBytes(bytes: number): string {
 }
 
 export default async function SystemPage() {
-  const overview = await getAdminOverview();
+  const [overview, t, locale] = await Promise.all([
+    getAdminOverview(),
+    getTranslations(),
+    getLocale(),
+  ]);
+  const bcp = LOCALE_META[locale].htmlLang;
   const { health, queue, jobs, storage, email, notifications, audit } = overview;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="System"
-        description="Queue, storage, delivery and audit activity for this workspace."
+        title={t("body.sysTitle")}
+        description={t("body.sysDesc")}
       />
 
       {/* ------------------------------------------------------- health */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Health
+            {t("body.sysHealth")}
             <Badge
               variant={health.status === "ok" ? "outline" : "destructive"}
               className="capitalize"
@@ -68,11 +75,7 @@ export default async function SystemPage() {
               {health.status}
             </Badge>
           </CardTitle>
-          <CardDescription>
-            Dependency reachability, plus whether the background work is actually
-            happening — a process can be perfectly ready while nothing has run
-            since Sunday.
-          </CardDescription>
+          <CardDescription>{t("body.sysHealthDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -97,12 +100,12 @@ export default async function SystemPage() {
             <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
               <div className="min-w-0 text-sm">
-                <p className="font-medium">Analytics history is behind</p>
+                <p className="font-medium">{t("body.sysSnapshotBehind")}</p>
                 <p className="text-muted-foreground">
-                  {health.snapshot.reason ?? "The nightly snapshot has not run."}{" "}
-                  Last recorded {health.snapshot.last_snapshot_date ?? "never"}.
-                  Dashboards still work — today is computed live — but charts
-                  will stop extending.
+                  {health.snapshot.reason ?? t("body.sysSnapshotDefault")}{" "}
+                  {t("body.sysSnapshotTail", {
+                    date: health.snapshot.last_snapshot_date ?? t("body.sysNever"),
+                  })}
                 </p>
               </div>
             </div>
@@ -116,36 +119,31 @@ export default async function SystemPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Database className="size-4" />
-              Queue
+              {t("body.sysQueue")}
             </CardTitle>
-            <CardDescription>
-              Depth is workspace-wide across the deployment; failures are yours.
-            </CardDescription>
+            <CardDescription>{t("body.sysQueueDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <Figure
-                label="Queued"
+                label={t("body.figQueued")}
                 value={queue.queued_jobs === null ? "—" : formatNumber(queue.queued_jobs)}
               />
               <Figure
-                label="Workers"
+                label={t("body.figWorkers")}
                 value={
                   queue.workers_seen === null ? "—" : formatNumber(queue.workers_seen)
                 }
                 warn={queue.workers_seen === 0}
               />
               <Figure
-                label="Open failures"
+                label={t("body.figOpenFailures")}
                 value={formatNumber(queue.open_failures)}
                 warn={queue.open_failures > 0}
               />
             </div>
             {queue.workers_seen === 0 && (queue.queued_jobs ?? 0) > 0 ? (
-              <p className="text-xs text-destructive">
-                Jobs are queued and no worker has checked in. Nothing is being
-                processed.
-              </p>
+              <p className="text-xs text-destructive">{t("body.sysNoWorker")}</p>
             ) : null}
           </CardContent>
         </Card>
@@ -155,31 +153,29 @@ export default async function SystemPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <HardDrive className="size-4" />
-              Storage
+              {t("body.sysStorage")}
             </CardTitle>
-            <CardDescription>
-              Attachments and report exports held for this workspace.
-            </CardDescription>
+            <CardDescription>{t("body.sysStorageDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-3 gap-3">
-            <Figure label="Files" value={formatNumber(storage.attachments)} />
-            <Figure label="Size" value={formatBytes(storage.attachment_bytes)} />
+            <Figure label={t("body.figFiles")} value={formatNumber(storage.attachments)} />
+            <Figure label={t("body.figSize")} value={formatBytes(storage.attachment_bytes)} />
             <Figure
-              label="Exports"
+              label={t("body.figExports")}
               value={`${formatNumber(storage.export_files)} · ${formatBytes(storage.export_bytes)}`}
             />
             <Figure
-              label="Stuck uploads"
+              label={t("body.figStuck")}
               value={formatNumber(storage.pending_upload)}
               warn={storage.pending_upload > 0}
             />
             <Figure
-              label="Quarantined"
+              label={t("body.figQuarantined")}
               value={formatNumber(storage.quarantined)}
               warn={storage.quarantined > 0}
             />
             <Figure
-              label="Unscanned"
+              label={t("body.figUnscanned")}
               value={formatNumber(storage.unscanned)}
               warn={storage.unscanned > 0}
             />
@@ -191,23 +187,23 @@ export default async function SystemPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Mail className="size-4" />
-              Email delivery
+              {t("body.sysEmail")}
             </CardTitle>
             <CardDescription>
-              Outbound only, over the last {email.window_hours} hours.
+              {t("body.sysEmailDesc", { hours: email.window_hours })}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-4 gap-3">
-              <Figure label="Sent" value={formatNumber(email.sent)} />
+              <Figure label={t("body.figSent")} value={formatNumber(email.sent)} />
               <Figure
-                label="Failed"
+                label={t("body.figFailed")}
                 value={formatNumber(email.failed)}
                 warn={email.failed > 0}
               />
-              <Figure label="Queued" value={formatNumber(email.queued)} />
+              <Figure label={t("body.figQueued")} value={formatNumber(email.queued)} />
               <Figure
-                label="Failure rate"
+                label={t("body.figFailureRate")}
                 // Null over no traffic — 0% would read as "all good" on a
                 // workspace whose email integration is switched off.
                 value={
@@ -237,16 +233,16 @@ export default async function SystemPage() {
         {/* ------------------------------------------ notifications */}
         <Card>
           <CardHeader>
-            <CardTitle>Notifications</CardTitle>
+            <CardTitle>{t("body.sysNotifications")}</CardTitle>
             <CardDescription>
-              Raised in the last {notifications.window_hours} hours.
+              {t("body.sysNotificationsDesc", { hours: notifications.window_hours })}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
-              <Figure label="Raised" value={formatNumber(notifications.total)} />
-              <Figure label="Unread" value={formatNumber(notifications.unread)} />
-              <Figure label="Emailed" value={formatNumber(notifications.emailed)} />
+              <Figure label={t("body.figRaised")} value={formatNumber(notifications.total)} />
+              <Figure label={t("body.figUnread")} value={formatNumber(notifications.unread)} />
+              <Figure label={t("body.figEmailed")} value={formatNumber(notifications.emailed)} />
             </div>
             {notifications.by_category.length ? (
               <div className="flex flex-wrap gap-2 border-t pt-3">
@@ -264,11 +260,8 @@ export default async function SystemPage() {
       {/* --------------------------------------------------- job failures */}
       <Card className="gap-0 overflow-hidden py-0">
         <CardHeader className="border-b py-4">
-          <CardTitle>Job failures</CardTitle>
-          <CardDescription>
-            Grouped by job — which one is broken, not forty copies of the same
-            dead letter.
-          </CardDescription>
+          <CardTitle>{t("body.sysJobFailures")}</CardTitle>
+          <CardDescription>{t("body.sysJobFailuresDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {jobs.length ? (
@@ -276,11 +269,11 @@ export default async function SystemPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="pl-4">Job</TableHead>
-                    <TableHead className="text-right">Failures</TableHead>
-                    <TableHead className="text-right">Attempts</TableHead>
-                    <TableHead className="text-right">Unresolved</TableHead>
-                    <TableHead className="pr-4 text-right">Last seen</TableHead>
+                    <TableHead className="pl-4">{t("body.colJob")}</TableHead>
+                    <TableHead className="text-right">{t("body.colFailures")}</TableHead>
+                    <TableHead className="text-right">{t("body.colAttempts")}</TableHead>
+                    <TableHead className="text-right">{t("body.colUnresolved")}</TableHead>
+                    <TableHead className="pr-4 text-right">{t("body.colLastSeen")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -299,7 +292,7 @@ export default async function SystemPage() {
                         {row.unresolved}
                       </TableCell>
                       <TableCell className="tabular pr-4 text-right text-muted-foreground">
-                        {new Date(row.last_failed_at).toLocaleString()}
+                        {new Date(row.last_failed_at).toLocaleString(bcp)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -311,8 +304,8 @@ export default async function SystemPage() {
               <EmptyState
                 icon={CheckCircle2}
                 compact
-                title="No failures"
-                description="Nothing has been dead-lettered in this window."
+                title={t("body.sysNoFailures")}
+                description={t("body.sysNoFailuresDesc")}
               />
             </div>
           )}
@@ -324,29 +317,27 @@ export default async function SystemPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ShieldAlert className="size-4" />
-            Audit activity
+            {t("body.sysAudit")}
           </CardTitle>
           <CardDescription>
-            Over the last {audit.window_hours} hours. Denials are the number
-            worth watching — a sustained stream from one actor is a
-            misconfigured role or somebody probing.
+            {t("body.sysAuditDesc", { hours: audit.window_hours })}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
-            <Figure label="Events" value={formatNumber(audit.total_events)} />
+            <Figure label={t("body.figEvents")} value={formatNumber(audit.total_events)} />
             <Figure
-              label="Denied"
+              label={t("body.figDenied")}
               value={formatNumber(audit.denied)}
               warn={audit.denied > 10}
             />
-            <Figure label="Exports" value={formatNumber(audit.exports)} />
+            <Figure label={t("body.figExports")} value={formatNumber(audit.exports)} />
           </div>
 
           <div className="grid gap-6 border-t pt-4 md:grid-cols-2">
             <div>
               <p className="mb-2 text-xs font-medium text-muted-foreground">
-                Most frequent actions
+                {t("body.sysTopActions")}
               </p>
               <div className="space-y-0">
                 {audit.by_action.slice(0, 8).map((row, index) => (
@@ -362,7 +353,7 @@ export default async function SystemPage() {
             </div>
             <div>
               <p className="mb-2 text-xs font-medium text-muted-foreground">
-                Most active accounts
+                {t("body.sysTopAccounts")}
               </p>
               <div className="space-y-0">
                 {audit.by_actor.slice(0, 8).map((row, index) => (

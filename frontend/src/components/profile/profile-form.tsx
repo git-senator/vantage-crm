@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { updateProfile } from "@/lib/api/profile-client";
 
 /**
@@ -26,6 +27,7 @@ export function ProfileForm({
   phone: string | null;
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [name, setName] = useState(fullName);
   const [title, setTitle] = useState(jobTitle ?? "");
   const [tel, setTel] = useState(phone ?? "");
@@ -40,7 +42,7 @@ export function ProfileForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim()) {
-      setError("Your name cannot be empty.");
+      setError(t("body.profNameEmpty"));
       return;
     }
     setPending(true);
@@ -51,13 +53,13 @@ export function ProfileForm({
         job_title: title.trim() || null,
         phone: tel.trim() || null,
       });
-      toast.success("Profile updated");
+      toast.success(t("body.profUpdated"));
       router.refresh();
     } catch (caught) {
       setError(
         caught instanceof ClientApiError
           ? caught.message
-          : "Could not save. Please try again.",
+          : t("body.profSaveError"),
       );
     } finally {
       setPending(false);
@@ -85,7 +87,7 @@ export function ProfileForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="full_name">Full name</Label>
+          <Label htmlFor="full_name">{t("body.profFullName")}</Label>
           <Input
             id="full_name"
             value={name}
@@ -95,18 +97,18 @@ export function ProfileForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="job_title">Job title</Label>
+          <Label htmlFor="job_title">{t("body.profJobTitle")}</Label>
           <Input
             id="job_title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Managing Broker"
+            placeholder={t("body.profJobPlaceholder")}
             maxLength={120}
             disabled={pending}
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="phone">Phone</Label>
+          <Label htmlFor="phone">{t("body.profPhone")}</Label>
           <Input
             id="phone"
             type="tel"
@@ -126,11 +128,11 @@ export function ProfileForm({
           onClick={reset}
           disabled={pending || !dirty}
         >
-          Cancel
+          {t("buttons.cancel")}
         </Button>
         <Button type="submit" disabled={pending || !dirty}>
           {pending && <Loader2 className="size-4 animate-spin" />}
-          Save changes
+          {t("body.profSaveChanges")}
         </Button>
       </div>
     </form>

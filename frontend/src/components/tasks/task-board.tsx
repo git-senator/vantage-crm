@@ -39,15 +39,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { completeTask, deleteTask, reopenTask } from "@/lib/api/tasks-client";
 import { cn } from "@/lib/utils";
 import type { Task, TaskStatus } from "@/lib/api/types";
 
-const COLUMNS: { status: TaskStatus; label: string; accent: string }[] = [
-  { status: "todo", label: "To do", accent: "bg-muted-foreground/40" },
-  { status: "in_progress", label: "In progress", accent: "bg-info" },
-  { status: "blocked", label: "Blocked", accent: "bg-destructive" },
-  { status: "done", label: "Done", accent: "bg-success" },
+const COLUMNS: { status: TaskStatus; accent: string }[] = [
+  { status: "todo", accent: "bg-muted-foreground/40" },
+  { status: "in_progress", accent: "bg-info" },
+  { status: "blocked", accent: "bg-destructive" },
+  { status: "done", accent: "bg-success" },
 ];
 
 const ENTITY_PATH: Record<string, string> = {
@@ -59,6 +60,7 @@ const ENTITY_PATH: Record<string, string> = {
 
 function DeleteTaskDialog({ task }: { task: Task }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,13 +71,13 @@ function DeleteTaskDialog({ task }: { task: Task }) {
     try {
       await deleteTask(task.id);
       setOpen(false);
-      toast.success("Task deleted");
+      toast.success(t("body.taskDeleted"));
       router.refresh();
     } catch (caught) {
       setError(
         caught instanceof ClientApiError
           ? caught.message
-          : "Unable to delete. Please try again.",
+          : t("body.taskDeleteError"),
       );
       setPending(false);
     }
@@ -91,14 +93,14 @@ function DeleteTaskDialog({ task }: { task: Task }) {
         }}
       >
         <Trash2 className="size-4" />
-        Delete
+        {t("buttons.delete")}
       </DropdownMenuItem>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete this task?</DialogTitle>
+          <DialogTitle>{t("body.taskDeleteTitle")}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          “{task.title}” will be removed. This cannot be undone from here.
+          {t("body.taskDeleteBody", { title: task.title })}
         </p>
         {error && (
           <div
@@ -111,11 +113,15 @@ function DeleteTaskDialog({ task }: { task: Task }) {
         )}
         <DialogFooter>
           <DialogClose
-            render={<Button variant="ghost" disabled={pending}>Cancel</Button>}
+            render={
+              <Button variant="ghost" disabled={pending}>
+                {t("buttons.cancel")}
+              </Button>
+            }
           />
           <Button variant="destructive" onClick={handleDelete} disabled={pending}>
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Delete task
+            {t("body.taskDeleteConfirm")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -125,6 +131,7 @@ function DeleteTaskDialog({ task }: { task: Task }) {
 
 function TaskCard({ task }: { task: Task }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [pending, setPending] = useState(false);
   const done = task.status === "done";
 
@@ -139,7 +146,7 @@ function TaskCard({ task }: { task: Task }) {
       router.refresh();
     } catch (caught) {
       toast.error(
-        caught instanceof ClientApiError ? caught.message : "Could not update task",
+        caught instanceof ClientApiError ? caught.message : t("body.taskUpdateError"),
       );
     } finally {
       setPending(false);
@@ -155,7 +162,11 @@ function TaskCard({ task }: { task: Task }) {
         checked={done}
         disabled={pending}
         onCheckedChange={toggleDone}
-        aria-label={done ? `Reopen "${task.title}"` : `Complete "${task.title}"`}
+        aria-label={
+          done
+            ? t("body.taskReopen", { title: task.title })
+            : t("body.taskComplete", { title: task.title })
+        }
       />
       <div className="min-w-0 flex-1">
         <p
@@ -201,7 +212,7 @@ function TaskCard({ task }: { task: Task }) {
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button variant="ghost" size="icon-sm" aria-label="Task actions">
+              <Button variant="ghost" size="icon-sm" aria-label={t("body.taskActions")}>
                 <MoreHorizontal className="size-4" />
               </Button>
             }
@@ -215,7 +226,7 @@ function TaskCard({ task }: { task: Task }) {
                   onSelect={(e) => e.preventDefault()}
                 >
                   <Pencil className="size-4" />
-                  Edit task
+                  {t("body.taskEdit")}
                 </DropdownMenuItem>
               }
             />
@@ -236,17 +247,20 @@ export function TaskBoard({
   /** Authoritative per-status totals; the board renders only a recent subset. */
   counts?: Record<string, number>;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
       {COLUMNS.map((column) => {
-        const columnTasks = tasks.filter((t) => t.status === column.status);
+        const columnTasks = tasks.filter((task) => task.status === column.status);
         const total = counts[column.status] ?? columnTasks.length;
 
         return (
           <Card key={column.status} className="gap-0 py-0">
             <CardHeader className="flex-row items-center gap-2 border-b px-4 py-3">
               <span className={cn("size-2 rounded-full", column.accent)} />
-              <CardTitle className="text-sm font-medium">{column.label}</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {t(`body.taskCol_${column.status}`)}
+              </CardTitle>
               <span className="tabular ml-auto rounded-full bg-muted px-1.5 text-xs text-muted-foreground">
                 {total}
               </span>
@@ -259,8 +273,8 @@ export function TaskBoard({
                 <EmptyState
                   compact
                   icon={CheckCircle2}
-                  title="Nothing here"
-                  description="Tasks in this state will appear in this column."
+                  title={t("body.taskEmptyTitle")}
+                  description={t("body.taskEmptyDesc")}
                   className="border-0"
                 />
               )}
@@ -272,7 +286,7 @@ export function TaskBoard({
                   trigger={
                     <button className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2.5 text-xs text-muted-foreground transition-colors hover:border-solid hover:bg-muted/50 hover:text-foreground">
                       <Plus className="size-3.5" />
-                      Add task
+                      {t("body.taskAdd")}
                     </button>
                   }
                 />

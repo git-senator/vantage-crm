@@ -7,41 +7,32 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listCalendarEvents } from "@/lib/api/calendar";
-import { getTranslations } from "@/i18n/server";
+import { getLocale, getTranslations } from "@/i18n/server";
+import { LOCALE_META } from "@/i18n/config";
 import type { CalendarEvent, CalendarEventType } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Calendar" };
 
-const TYPE_STYLES: Record<
-  CalendarEventType,
-  { chip: string; dot: string; label: string }
-> = {
-  showing: { chip: "bg-info/12 text-info", dot: "bg-info", label: "Showing" },
-  call: { chip: "bg-primary/10 text-primary", dot: "bg-primary", label: "Call" },
+// Visual styles only; the human-readable label is resolved through `t()` so it
+// follows the workspace language.
+const TYPE_STYLES: Record<CalendarEventType, { chip: string; dot: string }> = {
+  showing: { chip: "bg-info/12 text-info", dot: "bg-info" },
+  call: { chip: "bg-primary/10 text-primary", dot: "bg-primary" },
   meeting: {
     chip: "bg-muted text-muted-foreground",
     dot: "bg-muted-foreground/60",
-    label: "Meeting",
   },
-  closing: {
-    chip: "bg-success/12 text-success",
-    dot: "bg-success",
-    label: "Closing",
-  },
+  closing: { chip: "bg-success/12 text-success", dot: "bg-success" },
   open_house: {
     chip: "bg-warning/18 text-warning-foreground dark:bg-warning/20 dark:text-warning",
     dot: "bg-warning",
-    label: "Open house",
   },
   personal: {
     chip: "bg-muted text-muted-foreground",
     dot: "bg-muted-foreground/60",
-    label: "Personal",
   },
 };
-
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /**
  * A Monday-first grid covering the month, padded to whole weeks.
@@ -97,6 +88,17 @@ export default async function CalendarPage({
 }) {
   const { m } = await searchParams;
   const t = await getTranslations();
+  const bcp = LOCALE_META[await getLocale()].htmlLang;
+  // Weekday headers and the month label come from Intl in the active locale, so
+  // they read correctly in every language without a table of month names.
+  const weekdayFmt = new Intl.DateTimeFormat(bcp, {
+    weekday: "short",
+    timeZone: "UTC",
+  });
+  // 2024-01-01 was a Monday; format seven consecutive days for a Monday-first row.
+  const weekdays = Array.from({ length: 7 }, (_, i) =>
+    weekdayFmt.format(new Date(Date.UTC(2024, 0, 1 + i))),
+  );
   const now = new Date();
   const parsed = m?.match(/^(\d{4})-(\d{2})$/);
   const year = parsed ? Number(parsed[1]) : now.getFullYear();
@@ -111,7 +113,7 @@ export default async function CalendarPage({
   }
 
   const cells = buildMonthGrid(year, month);
-  const label = new Date(Date.UTC(year, month, 1)).toLocaleDateString(undefined, {
+  const label = new Date(Date.UTC(year, month, 1)).toLocaleDateString(bcp, {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
@@ -140,7 +142,7 @@ export default async function CalendarPage({
               <Button
                 variant="outline"
                 size="icon-sm"
-                aria-label="Previous month"
+                aria-label={t("body.calPrevMonth")}
                 render={<Link href={href(previous)} />}
               >
                 <ChevronLeft className="size-4" />
@@ -148,7 +150,7 @@ export default async function CalendarPage({
               <Button
                 variant="outline"
                 size="icon-sm"
-                aria-label="Next month"
+                aria-label={t("body.calNextMonth")}
                 render={<Link href={href(next)} />}
               >
                 <ChevronRight className="size-4" />
@@ -163,14 +165,14 @@ export default async function CalendarPage({
                   className="flex items-center gap-1.5 text-xs text-muted-foreground"
                 >
                   <span className={cn("size-2 rounded-full", style.dot)} />
-                  {style.label}
+                  {t(`body.calType_${type}`)}
                 </span>
               ))}
             </div>
           </div>
 
           <div className="grid grid-cols-7 border-b">
-            {WEEKDAYS.map((day) => (
+            {weekdays.map((day) => (
               <div
                 key={day}
                 className="p-2 text-center text-[11px] font-medium text-muted-foreground"
@@ -224,7 +226,7 @@ export default async function CalendarPage({
                     })}
                     {dayEvents.length > 3 && (
                       <p className="px-1 text-[10px] text-muted-foreground">
-                        +{dayEvents.length - 3} more
+                        {t("body.calMore", { n: dayEvents.length - 3 })}
                       </p>
                     )}
                   </div>
@@ -236,7 +238,7 @@ export default async function CalendarPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Coming up</CardTitle>
+            <CardTitle className="text-sm">{t("body.calComingUp")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {upcoming.length === 0 ? (
@@ -258,13 +260,14 @@ export default async function CalendarPage({
                       <p className="truncate text-sm font-medium">{event.title}</p>
                       <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
                         <Clock className="size-3" />
-                        {new Date(event.starts_at).toLocaleString(undefined, {
+                        {new Date(event.starts_at).toLocaleString(bcp, {
                           day: "numeric",
                           month: "short",
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
-                        {event.status === "tentative" && " · tentative"}
+                        {event.status === "tentative" &&
+                          ` · ${t("body.calTentative")}`}
                       </p>
                       {event.location && (
                         <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">

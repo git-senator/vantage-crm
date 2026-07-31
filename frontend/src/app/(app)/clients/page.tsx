@@ -23,6 +23,7 @@ import { getTypeCounts, listClients } from "@/lib/api/clients";
 import type { Client, ClientFilters } from "@/lib/api/types";
 import { formatNumber, formatPrice, titleize } from "@/lib/format";
 import { getTranslations } from "@/i18n/server";
+import type { TranslateFn } from "@/i18n/translate";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Clients" };
@@ -71,18 +72,18 @@ function asAvatarSubject(client: Client) {
  * a data source until Deals ships, and a fabricated figure on a dashboard is
  * worse than an absent one — so they are omitted rather than mocked.
  */
-function statsFrom(counts: Record<string, number>): Stat[] {
+function statsFrom(counts: Record<string, number>, t: TranslateFn): Stat[] {
   const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
   return [
-    { label: "Clients", value: formatNumber(total), icon: Users },
-    { label: "Buyers", value: formatNumber(counts.buyer ?? 0), icon: Target },
+    { label: t("body.clientsClients"), value: formatNumber(total), icon: Users },
+    { label: t("body.clientsBuyers"), value: formatNumber(counts.buyer ?? 0), icon: Target },
     {
-      label: "Sellers",
+      label: t("body.clientsSellers"),
       value: formatNumber(counts.seller ?? 0),
       icon: Building2,
     },
     {
-      label: "Investors",
+      label: t("body.clientsInvestors"),
       value: formatNumber(counts.investor ?? 0),
       icon: Handshake,
     },
@@ -133,7 +134,7 @@ export default async function ClientsPage({
         }
       />
 
-      <StatGrid stats={statsFrom(counts)} />
+      <StatGrid stats={statsFrom(counts, t)} />
 
       <ClientFilterBar counts={counts} />
 
@@ -172,7 +173,7 @@ export default async function ClientsPage({
                         {client.display_name}
                       </Link>
                       <p className="truncate text-sm text-muted-foreground">
-                        {client.email ?? client.phone ?? "No contact details"}
+                        {client.email ?? client.phone ?? t("body.clientNoContact")}
                       </p>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <StatusBadge status={client.status} />
@@ -189,7 +190,7 @@ export default async function ClientsPage({
                   <dl className="mt-5 grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-3 text-center">
                     <div>
                       <dt className="text-[11px] text-muted-foreground">
-                        Lifetime
+                        {t("body.clientLifetime")}
                       </dt>
                       <dd className="tabular mt-0.5 text-sm font-semibold">
                         {client.lifetime_value
@@ -199,7 +200,7 @@ export default async function ClientsPage({
                     </div>
                     <div className="border-l">
                       <dt className="text-[11px] text-muted-foreground">
-                        Client since
+                        {t("body.clientSince")}
                       </dt>
                       <dd className="mt-0.5 text-sm font-semibold">
                         {client.client_since ?? "—"}
@@ -230,7 +231,7 @@ export default async function ClientsPage({
                       </>
                     ) : (
                       <span className="text-xs text-muted-foreground">
-                        Unassigned
+                        {t("body.unassigned")}
                       </span>
                     )}
                   </div>
@@ -239,7 +240,7 @@ export default async function ClientsPage({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        aria-label={`Call ${client.display_name}`}
+                        aria-label={t("body.callName", { name: client.display_name })}
                         render={<a href={`tel:${client.phone}`} />}
                       >
                         <Phone className="size-4" />
@@ -249,7 +250,7 @@ export default async function ClientsPage({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        aria-label={`Email ${client.display_name}`}
+                        aria-label={t("body.emailName", { name: client.display_name })}
                         render={<a href={`mailto:${client.email}`} />}
                       >
                         <Mail className="size-4" />
@@ -263,11 +264,7 @@ export default async function ClientsPage({
 
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              Showing{" "}
-              <span className="font-medium text-foreground">
-                {page.data.length}
-              </span>{" "}
-              {page.data.length === 1 ? "client" : "clients"}
+              {t("body.clientShowing", { n: page.data.length })}
             </p>
             {/* Keyset pagination: the cursor is the last row seen, so a row
                 inserted mid-paging cannot shift the window. */}
@@ -284,7 +281,7 @@ export default async function ClientsPage({
                   />
                 }
               >
-                Next page
+                {t("body.nextPage")}
               </Button>
             )}
           </div>

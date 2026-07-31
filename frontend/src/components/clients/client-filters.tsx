@@ -14,14 +14,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useTranslation } from "@/i18n/language-provider";
 
 const TYPES = ["buyer", "seller", "investor", "landlord", "tenant", "other"];
 const STATUSES = ["active", "under_contract", "dormant", "past"];
-
-function label(value: string): string {
-  const spaced = value.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
 
 /**
  * Search and filter controls, driven through the URL.
@@ -42,6 +38,7 @@ export function ClientFilterBar({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const { t } = useTranslation();
   const [isPending, startTransition] = useTransition();
 
   const [search, setSearch] = useState(params.get("search") ?? "");
@@ -87,10 +84,10 @@ export function ClientFilterBar({
         onValueChange={(value) => apply({ type: value === "all" ? null : value })}
       >
         <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="all">{t("body.tabAll")}</TabsTrigger>
           {TYPES.map((option) => (
             <TabsTrigger key={option} value={option}>
-              {label(option)}
+              {t(`body.clientType_${option}`)}
               {counts?.[option] ? (
                 <span className="ml-1.5 text-xs text-muted-foreground tabular">
                   {counts[option]}
@@ -109,7 +106,7 @@ export function ClientFilterBar({
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           )}
           <Input
-            placeholder="Search clients by name, company, email or phone…"
+            placeholder={t("body.clientSearchPlaceholder")}
             className="pl-9"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -126,10 +123,10 @@ export function ClientFilterBar({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="all">{t("body.clientAllStatuses")}</SelectItem>
             {STATUSES.map((option) => (
               <SelectItem key={option} value={option}>
-                {label(option)}
+                {t(`body.clientStatus_${option}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -145,7 +142,7 @@ export function ClientFilterBar({
             }}
           >
             <ListFilter className="size-4" />
-            Clear
+            {t("body.clear")}
           </Button>
         )}
       </div>

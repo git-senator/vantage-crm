@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslation } from "@/i18n/language-provider";
 import {
   createConversation,
   deleteConversation,
@@ -43,11 +44,11 @@ import { cn } from "@/lib/utils";
  * the animation cannot change or lose a character of it.
  */
 
-const SUGGESTIONS = [
-  "Which five leads should I call first this morning, and why?",
-  "Summarise the state of my pipeline this week.",
-  "Draft a follow-up to a client after a second showing.",
-  "What deals are most at risk of slipping this month?",
+const SUGGESTION_KEYS = [
+  "body.aiSuggest1",
+  "body.aiSuggest2",
+  "body.aiSuggest3",
+  "body.aiSuggest4",
 ];
 
 type PendingMessage = AiMessage & { pending?: boolean };
@@ -91,6 +92,7 @@ export function AssistantChat({
   budget: AiBudget;
   model: string;
 }) {
+  const { t } = useTranslation();
   const [conversations, setConversations] =
     useState<AiConversation[]>(initialConversations);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -149,7 +151,7 @@ export function AssistantChat({
       const detail = await getConversation(id);
       setMessages(detail.messages);
     } catch {
-      toast.error("Could not open that conversation.");
+      toast.error(t("body.aiOpenError"));
     } finally {
       setLoading(false);
     }
@@ -205,7 +207,7 @@ export function AssistantChat({
         current.filter((m) => m.id !== optimistic.id).concat(optimistic),
       );
       toast.error(
-        error instanceof Error ? error.message : "The assistant could not reply.",
+        error instanceof Error ? error.message : t("body.aiReplyError"),
       );
     } finally {
       setSending(false);
@@ -218,19 +220,19 @@ export function AssistantChat({
       setConversations((current) => current.filter((c) => c.id !== id));
       if (activeId === id) startNew();
     } catch {
-      toast.error("Could not delete that conversation.");
+      toast.error(t("body.aiDeleteError"));
     }
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="AI Assistant"
-        description={`Ask about your pipeline in plain language. Model: ${model}.`}
+        title={t("body.aiTitle")}
+        description={t("body.aiChatDesc", { model })}
         actions={
           <Button onClick={startNew} variant="outline">
             <Plus className="size-4" />
-            New chat
+            {t("body.aiNewChat")}
           </Button>
         }
       />
@@ -246,24 +248,25 @@ export function AssistantChat({
               <div className="flex h-full flex-col items-center justify-center gap-5 text-center">
                 <BrandMark className="size-11" />
                 <div className="max-w-md space-y-1">
-                  <p className="text-sm font-medium">How can I help?</p>
+                  <p className="text-sm font-medium">{t("body.aiHowHelp")}</p>
                   <p className="text-xs text-muted-foreground">
-                    I work from your CRM data, within what you can see. I can
-                    summarise, prioritise and draft — I can&apos;t change records
-                    or send anything.
+                    {t("body.aiIntro")}
                   </p>
                 </div>
                 <div className="grid w-full max-w-md gap-2">
-                  {SUGGESTIONS.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => submit(suggestion)}
-                      className="rounded-lg border px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
+                  {SUGGESTION_KEYS.map((key) => {
+                    const suggestion = t(key);
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => submit(suggestion)}
+                        className="rounded-lg border px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted"
+                      >
+                        {suggestion}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}
@@ -346,7 +349,7 @@ export function AssistantChat({
                     submit(draft);
                   }
                 }}
-                placeholder="Ask about a lead, a deal, your pipeline…"
+                placeholder={t("body.aiInputPlaceholder")}
                 rows={1}
                 className="max-h-40 min-h-[42px] resize-none"
                 disabled={busy}
@@ -366,8 +369,7 @@ export function AssistantChat({
             </form>
             {budget.exhausted ? (
               <p className="mt-2 text-xs text-destructive">
-                This workspace has reached its monthly AI budget. It resets at the
-                start of next month.
+                {t("body.aiBudgetExhausted")}
               </p>
             ) : null}
           </div>
@@ -376,11 +378,11 @@ export function AssistantChat({
         {/* ------------------------------------------------ history */}
         <div className="space-y-3">
           <p className="px-1 text-xs font-medium text-muted-foreground">
-            Recent chats
+            {t("body.aiRecentChats")}
           </p>
           {conversations.length === 0 ? (
             <p className="px-1 text-xs text-muted-foreground">
-              Your conversations will appear here.
+              {t("body.aiNoConversations")}
             </p>
           ) : (
             <div className="space-y-1">
@@ -400,13 +402,13 @@ export function AssistantChat({
                     className="min-w-0 flex-1 truncate px-3 py-2 text-left"
                   >
                     <Sparkles className="mr-1.5 inline size-3 text-muted-foreground" />
-                    {conversation.title ?? "New chat"}
+                    {conversation.title ?? t("body.aiNewChat")}
                   </button>
                   <button
                     type="button"
                     onClick={() => remove(conversation.id)}
                     className="mr-1 shrink-0 rounded p-1.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                    aria-label="Delete conversation"
+                    aria-label={t("body.aiDeleteConversation")}
                   >
                     <Trash2 className="size-3.5" />
                   </button>

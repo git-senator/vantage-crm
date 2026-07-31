@@ -14,7 +14,8 @@ import {
   listRuns,
   listWorkflows,
 } from "@/lib/api/automations";
-import { getTranslations } from "@/i18n/server";
+import { getLocale, getTranslations } from "@/i18n/server";
+import { LOCALE_META } from "@/i18n/config";
 import { requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Workflows" };
@@ -30,12 +31,14 @@ export default async function AutomationsPage() {
   const session = await requireSession();
   const canManage = session.permissions.includes("automations.manage");
 
-  const [workflows, runs, registries, t] = await Promise.all([
+  const [workflows, runs, registries, t, locale] = await Promise.all([
     listWorkflows(),
     listRuns({ limit: 15 }),
     getRegistries(),
     getTranslations(),
+    getLocale(),
   ]);
+  const bcp = LOCALE_META[locale].htmlLang;
 
   const triggerLabel = (key: string | null) =>
     registries.triggers.find((entry) => entry.key === key)?.label ?? key ?? "—";
@@ -70,7 +73,7 @@ export default async function AutomationsPage() {
                       {workflow.name}
                     </Link>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      When: {triggerLabel(workflow.trigger_type)}
+                      {t("body.autoWhen", { trigger: triggerLabel(workflow.trigger_type) })}
                     </p>
                     {workflow.description && (
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -79,7 +82,7 @@ export default async function AutomationsPage() {
                     )}
                   </div>
                   {workflow.published_version_id === null && (
-                    <Badge variant="outline">Draft only</Badge>
+                    <Badge variant="outline">{t("body.autoDraftOnly")}</Badge>
                   )}
                   <WorkflowToggle
                     workflowId={workflow.id}
@@ -94,12 +97,12 @@ export default async function AutomationsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Recent runs</CardTitle>
+            <CardTitle className="text-sm">{t("body.autoRecentRuns")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {runs.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nothing has run yet.
+                {t("body.autoNothingRun")}
               </p>
             ) : (
               runs.map((run) => (
@@ -110,7 +113,7 @@ export default async function AutomationsPage() {
                 >
                   <RunStatusBadge status={run.status} />
                   <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                    {new Date(run.created_at).toLocaleString()}
+                    {new Date(run.created_at).toLocaleString(bcp)}
                   </span>
                 </Link>
               ))

@@ -9,25 +9,27 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { getTranslations } from "@/i18n/server";
 import { requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
   const me = await requireSession();
+  const t = await getTranslations();
   const avatar = {
     id: me.id,
     name: me.full_name,
     initials: me.initials,
-    role: me.job_title ?? "Member",
+    role: me.job_title ?? t("body.roleMember"),
     hue: me.avatar_hue,
   };
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Profile"
-        description="Your account details and how you appear to teammates."
+        title={t("body.profTitle")}
+        description={t("body.profDesc")}
       />
 
       {/* ---------------------------------------------------------- hero */}
@@ -48,7 +50,7 @@ export default async function ProfilePage() {
                 <StatusBadge status={me.status} />
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                {me.job_title ?? "Member"} · {me.organization.name}
+                {me.job_title ?? t("body.roleMember")} · {me.organization.name}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1.5">
@@ -75,7 +77,7 @@ export default async function ProfilePage() {
         {/* ------------------------------------------------ editable details */}
         <Card>
           <CardHeader>
-            <CardTitle>Personal details</CardTitle>
+            <CardTitle>{t("body.profPersonal")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ProfileForm
@@ -90,23 +92,23 @@ export default async function ProfilePage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Account</CardTitle>
+              <CardTitle className="text-sm">{t("body.profAccount")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Email</span>
+                <span className="text-muted-foreground">{t("body.profEmail")}</span>
                 <span className="truncate font-medium">{me.email}</span>
               </div>
               <Separator />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Roles</span>
+                <span className="text-muted-foreground">{t("body.profRoles")}</span>
                 <span className="font-medium capitalize">
                   {me.roles.length ? me.roles.join(", ") : "—"}
                 </span>
               </div>
               <Separator />
               <div className="flex items-center justify-between gap-2">
-                <span className="text-muted-foreground">Workspace</span>
+                <span className="text-muted-foreground">{t("body.profWorkspace")}</span>
                 <span className="truncate font-medium">
                   {me.organization.name}
                 </span>
@@ -116,7 +118,7 @@ export default async function ProfilePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Security</CardTitle>
+              <CardTitle className="text-sm">{t("body.profSecurity")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2.5 text-sm">
@@ -126,9 +128,9 @@ export default async function ProfilePage() {
                   <ShieldAlert className="size-4 text-warning" />
                 )}
                 <span>
-                  Two-factor authentication is{" "}
+                  {t("body.prof2fa")}{" "}
                   <span className="font-medium">
-                    {me.mfa_enabled ? "on" : "off"}
+                    {me.mfa_enabled ? t("body.prof2faOn") : t("body.prof2faOff")}
                   </span>
                 </span>
               </div>
@@ -138,7 +140,7 @@ export default async function ProfilePage() {
                 className="w-full"
                 render={<Link href="/settings" />}
               >
-                Manage security
+                {t("body.profManageSecurity")}
               </Button>
             </CardContent>
           </Card>

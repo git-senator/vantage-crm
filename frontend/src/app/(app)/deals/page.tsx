@@ -12,6 +12,7 @@ import { getDealBoard, listPipelines } from "@/lib/api/deals";
 import type { DealBoard as Board } from "@/lib/api/types";
 import { formatPrice, formatNumber } from "@/lib/format";
 import { getTranslations } from "@/i18n/server";
+import type { TranslateFn } from "@/i18n/translate";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Deals" };
@@ -24,7 +25,7 @@ export const metadata: Metadata = { title: "Deals" };
  * "win rate this quarter" is absent — that needs a time-bounded query against
  * stage history, which is Phase 4 reporting rather than a board header.
  */
-function statsFrom(board: Board): Stat[] {
+function statsFrom(board: Board, t: TranslateFn): Stat[] {
   const all = board.columns.flatMap((column) => column.deals);
   const open = all.filter((deal) => deal.status === "open");
   const won = all.filter((deal) => deal.status === "won");
@@ -37,14 +38,14 @@ function statsFrom(board: Board): Stat[] {
   const wonValue = won.reduce((sum, deal) => sum + Number(deal.value ?? 0), 0);
 
   return [
-    { label: "Open deals", value: formatNumber(open.length), icon: Handshake },
-    { label: "Open value", value: openValue > 0 ? formatPrice(openValue) : "—" },
+    { label: t("body.dealsOpenDeals"), value: formatNumber(open.length), icon: Handshake },
+    { label: t("body.dealsOpenValue"), value: openValue > 0 ? formatPrice(openValue) : "—" },
     {
-      label: "Weighted",
+      label: t("body.dealsWeighted"),
       value: weighted > 0 ? formatPrice(weighted) : "—",
-      hint: "value x probability",
+      hint: t("body.dealsWeightedHint"),
     },
-    { label: "Won", value: wonValue > 0 ? formatPrice(wonValue) : "—" },
+    { label: t("body.dealsWon"), value: wonValue > 0 ? formatPrice(wonValue) : "—" },
   ];
 }
 
@@ -105,7 +106,7 @@ export default async function DealsPage({
         }
       />
 
-      <StatGrid stats={statsFrom(board)} />
+      <StatGrid stats={statsFrom(board, t)} />
 
       {totalDeals === 0 ? (
         <EmptyState

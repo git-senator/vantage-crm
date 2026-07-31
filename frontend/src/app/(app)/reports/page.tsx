@@ -63,33 +63,33 @@ export default async function ReportsPage({
     <div className="space-y-6">
       <PageHeader
         title={t("body.reportsTitle")}
-        description={t("body.reportsDesc", { label: dashboard.period.label })}
+        description={t("body.reportsDesc", { label: t(`body.period_${period}`) })}
         actions={
           <>
             <PeriodPicker value={period} />
             <Button variant="outline" render={<Link href="/reports/builder" />}>
               <FileSpreadsheet className="size-4" />
-              Build a report
+              {t("body.repBuildReport")}
             </Button>
             <Button variant="outline">
               <Share2 className="size-4" />
-              Share
+              {t("body.repShare")}
             </Button>
           </>
         }
       />
 
-      <MetricGrid metrics={dashboard.metrics} />
+      <MetricGrid metrics={dashboard.metrics} t={t} />
 
-      {dashboard.forecast ? <ForecastPanel forecast={dashboard.forecast} /> : null}
+      {dashboard.forecast ? (
+        <ForecastPanel forecast={dashboard.forecast} t={t} />
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Leads by source</CardTitle>
-            <CardDescription>
-              Where this period&apos;s leads came from.
-            </CardDescription>
+            <CardTitle>{t("body.repLeadsBySource")}</CardTitle>
+            <CardDescription>{t("body.repLeadsBySourceDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {dashboard.sources.length ? (
@@ -104,8 +104,8 @@ export default async function ReportsPage({
               <EmptyState
                 icon={Users}
                 compact
-                title="No leads yet"
-                description="Sources appear once leads are created in this period."
+                title={t("body.repNoLeads")}
+                description={t("body.repNoLeadsDesc")}
               />
             )}
           </CardContent>
@@ -113,8 +113,8 @@ export default async function ReportsPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Pipeline by stage</CardTitle>
-            <CardDescription>Open deals sitting in each stage.</CardDescription>
+            <CardTitle>{t("body.repPipelineByStage")}</CardTitle>
+            <CardDescription>{t("body.repPipelineByStageDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {dashboard.stages.length ? (
@@ -128,8 +128,8 @@ export default async function ReportsPage({
               <EmptyState
                 icon={Target}
                 compact
-                title="No open deals"
-                description="Stages appear once there are deals in the pipeline."
+                title={t("body.repNoOpenDeals")}
+                description={t("body.repNoOpenDealsDesc")}
               />
             )}
           </CardContent>
@@ -137,10 +137,8 @@ export default async function ReportsPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Why deals were lost</CardTitle>
-            <CardDescription>
-              Reasons recorded on closed-lost deals.
-            </CardDescription>
+            <CardTitle>{t("body.repWhyLost")}</CardTitle>
+            <CardDescription>{t("body.repWhyLostDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             {dashboard.reasons.length ? (
@@ -155,8 +153,8 @@ export default async function ReportsPage({
               <EmptyState
                 icon={Home}
                 compact
-                title="Nothing lost"
-                description="No deals closed as lost in this period."
+                title={t("body.repNothingLost")}
+                description={t("body.repNothingLostDesc")}
               />
             )}
           </CardContent>
@@ -167,11 +165,8 @@ export default async function ReportsPage({
         {/* --------------------------------------------- leaderboard */}
         <Card className="gap-0 overflow-hidden py-0">
           <CardHeader className="border-b py-4">
-            <CardTitle>Agent leaderboard</CardTitle>
-            <CardDescription>
-              Ranked by closed revenue. Everyone appears, including a quiet
-              period.
-            </CardDescription>
+            <CardTitle>{t("body.repLeaderboard")}</CardTitle>
+            <CardDescription>{t("body.repLeaderboardDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {dashboard.agents.length ? (
@@ -180,10 +175,10 @@ export default async function ReportsPage({
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="w-10 pl-4">#</TableHead>
-                      <TableHead>Agent</TableHead>
-                      <TableHead className="min-w-[180px]">Revenue</TableHead>
-                      <TableHead className="text-right">Deals won</TableHead>
-                      <TableHead className="pr-4 text-right">Converted</TableHead>
+                      <TableHead>{t("body.repColAgent")}</TableHead>
+                      <TableHead className="min-w-[180px]">{t("body.repColRevenue")}</TableHead>
+                      <TableHead className="text-right">{t("body.repColDealsWon")}</TableHead>
+                      <TableHead className="pr-4 text-right">{t("body.repColConverted")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -229,8 +224,8 @@ export default async function ReportsPage({
                 <EmptyState
                   icon={Target}
                   compact
-                  title="No production yet"
-                  description="The leaderboard fills in as deals close."
+                  title={t("body.repNoProduction")}
+                  description={t("body.repNoProductionDesc")}
                 />
               </div>
             )}
@@ -240,10 +235,8 @@ export default async function ReportsPage({
         {/* ----------------------------------------------- velocity */}
         <Card>
           <CardHeader>
-            <CardTitle>Stage velocity</CardTitle>
-            <CardDescription>
-              Mean time in each stage, from recorded transitions.
-            </CardDescription>
+            <CardTitle>{t("body.repVelocity")}</CardTitle>
+            <CardDescription>{t("body.repVelocityDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-0">
             {dashboard.velocity.length ? (
@@ -257,7 +250,7 @@ export default async function ReportsPage({
                   </span>
                   <div className="flex shrink-0 items-baseline gap-3">
                     <span className="tabular text-xs text-muted-foreground">
-                      {row.transitions} moved
+                      {t("body.repMoved", { n: row.transitions })}
                     </span>
                     <span className="tabular text-sm font-semibold">
                       {Number(row.mean_days).toFixed(1)}d
@@ -269,8 +262,8 @@ export default async function ReportsPage({
               <EmptyState
                 icon={Activity}
                 compact
-                title="No transitions yet"
-                description="Velocity is measured from deals moving between stages."
+                title={t("body.repNoTransitions")}
+                description={t("body.repNoTransitionsDesc")}
               />
             )}
           </CardContent>

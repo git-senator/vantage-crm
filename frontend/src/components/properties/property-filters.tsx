@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { titleize } from "@/lib/format";
+import { useTranslation } from "@/i18n/language-provider";
 
 const STATUSES = ["active", "pending", "sold", "off_market", "coming_soon"];
 const TYPES = [
@@ -27,17 +27,14 @@ const TYPES = [
 ];
 
 /**
- * Price bands, as (label, min, max) rather than free numeric inputs.
- *
- * The prototype offered exactly these bands and they match how agents actually
- * filter. Kept as discrete options so the query stays index-friendly and there
- * is no "min above max" state to validate in the UI.
+ * Price bands. Labels are resolved through `t()` at render; the money figures
+ * inside them stay literal.
  */
 const PRICE_BANDS = [
-  { value: "any", label: "Any price", min: undefined, max: undefined },
-  { value: "under-1m", label: "Under $1M", min: undefined, max: "1000000" },
-  { value: "1m-2m", label: "$1M – $2M", min: "1000000", max: "2000000" },
-  { value: "over-2m", label: "Over $2M", min: "2000000", max: undefined },
+  { value: "any", min: undefined, max: undefined },
+  { value: "under-1m", min: undefined, max: "1000000" },
+  { value: "1m-2m", min: "1000000", max: "2000000" },
+  { value: "over-2m", min: "2000000", max: undefined },
 ] as const;
 
 /** Which band the current URL represents, so the Select stays in sync. */
@@ -67,6 +64,7 @@ export function PropertyFilterBar({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const { t } = useTranslation();
   const [isPending, startTransition] = useTransition();
 
   const [search, setSearch] = useState(params.get("search") ?? "");
@@ -119,10 +117,10 @@ export function PropertyFilterBar({
         }
       >
         <TabsList>
-          <TabsTrigger value="all">All</TabsTrigger>
+          <TabsTrigger value="all">{t("body.tabAll")}</TabsTrigger>
           {STATUSES.map((option) => (
             <TabsTrigger key={option} value={option}>
-              {titleize(option)}
+              {t(`body.propStatus_${option}`)}
               {counts?.[option] ? (
                 <span className="tabular ml-1.5 text-xs text-muted-foreground">
                   {counts[option]}
@@ -141,7 +139,7 @@ export function PropertyFilterBar({
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           )}
           <Input
-            placeholder="Search by address, MLS ID or neighbourhood…"
+            placeholder={t("body.propSearchPlaceholder")}
             className="pl-9"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -158,10 +156,10 @@ export function PropertyFilterBar({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="any">Any type</SelectItem>
+            <SelectItem value="any">{t("body.propAnyType")}</SelectItem>
             {TYPES.map((option) => (
               <SelectItem key={option} value={option}>
-                {titleize(option)}
+                {t(`body.propType_${option}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -185,7 +183,7 @@ export function PropertyFilterBar({
           <SelectContent>
             {PRICE_BANDS.map((entry) => (
               <SelectItem key={entry.value} value={entry.value}>
-                {entry.label}
+                {t(`body.priceBand_${entry.value}`)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -207,7 +205,7 @@ export function PropertyFilterBar({
             }}
           >
             <ListFilter className="size-4" />
-            Clear
+            {t("body.clear")}
           </Button>
         )}
       </div>

@@ -1,4 +1,5 @@
 import { StatGrid, type Stat } from "@/components/shared/stat-card";
+import type { TranslateFn } from "@/i18n/translate";
 import type { Metric } from "@/lib/api/types";
 import {
   formatMetric,
@@ -18,14 +19,24 @@ import {
  * A metric with a `null` value renders as "—". That is the caller having no
  * grant on the underlying entity, not a zero, and the two must not look alike.
  */
-export function MetricGrid({ metrics }: { metrics: Metric[] }) {
+export function MetricGrid({
+  metrics,
+  t,
+}: {
+  metrics: Metric[];
+  t: TranslateFn;
+}) {
   if (!metrics.length) return null;
 
   const stats: Stat[] = metrics.map((metric) => ({
+    // Label is server-provided (the metric registry); see note in reports page.
     label: metric.label,
     value: formatMetric(metric),
     delta: metricDelta(metric),
-    hint: metric.value === null ? "Not visible to you" : "vs. previous period",
+    hint:
+      metric.value === null
+        ? t("body.repNotVisible")
+        : t("body.repVsPrevious"),
     invertDelta: invertDelta(metric),
     icon: metricIcon(metric.key),
   }));

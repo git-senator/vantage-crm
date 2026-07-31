@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { saveNotificationPreferences } from "@/lib/api/notifications-client";
-import { CATEGORY_META } from "@/components/notifications/notification-feed";
 import type { NotificationPreference } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,7 @@ export function NotificationPreferenceForm({
 }: {
   preferences: NotificationPreference[];
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState(preferences);
   const [pending, setPending] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -61,7 +62,7 @@ export function NotificationPreferenceForm({
       setError(
         caught instanceof ClientApiError
           ? caught.message
-          : "Could not save your preferences.",
+          : t("body.notifSaveError"),
       );
     } finally {
       setPending(false);
@@ -71,27 +72,25 @@ export function NotificationPreferenceForm({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-end gap-6 text-[11px] text-muted-foreground">
-        <span className="w-8 text-center">In app</span>
-        <span className="w-8 text-center">Email</span>
+        <span className="w-8 text-center">{t("body.notifInApp")}</span>
+        <span className="w-8 text-center">{t("body.notifEmail")}</span>
       </div>
 
       {draft.map((row, index) => {
-        const meta = CATEGORY_META[row.category] ?? CATEGORY_META.system;
+        const label = t(`body.notifCat_${row.category}`);
         return (
           <div
             key={row.category}
             className={cn("flex items-center gap-3 py-2", index > 0 && "border-t")}
           >
-            <Label className="min-w-0 flex-1 text-sm font-normal">
-              {meta.label}
-            </Label>
+            <Label className="min-w-0 flex-1 text-sm font-normal">{label}</Label>
             <span className="flex w-8 justify-center">
               <Switch
                 checked={row.in_app}
                 onCheckedChange={(value) =>
                   toggle(row.category, "in_app", Boolean(value))
                 }
-                aria-label={`In app: ${meta.label}`}
+                aria-label={`${t("body.notifInApp")}: ${label}`}
               />
             </span>
             <span className="flex w-8 justify-center">
@@ -100,7 +99,7 @@ export function NotificationPreferenceForm({
                 onCheckedChange={(value) =>
                   toggle(row.category, "email", Boolean(value))
                 }
-                aria-label={`Email: ${meta.label}`}
+                aria-label={`${t("body.notifEmail")}: ${label}`}
               />
             </span>
           </div>
@@ -115,11 +114,11 @@ export function NotificationPreferenceForm({
 
       <div className="flex items-center justify-between gap-2 pt-1">
         <span className="text-[11px] text-muted-foreground">
-          {saved && !dirty ? "Saved." : "Muting hides the badge, not the history."}
+          {saved && !dirty ? t("body.notifSavedMsg") : t("body.notifMutingHint")}
         </span>
         <Button size="sm" onClick={save} disabled={pending || !dirty}>
           {pending && <Loader2 className="size-4 animate-spin" />}
-          Save
+          {t("buttons.save")}
         </Button>
       </div>
     </div>
