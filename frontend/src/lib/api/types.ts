@@ -745,6 +745,12 @@ export type MessageStatus =
   | "failed"
   | "received";
 
+export interface MessageMedia {
+  kind: "image" | "file";
+  url: string;
+  name: string | null;
+}
+
 export interface ConversationMessage {
   id: string;
   conversation_id: string;
@@ -765,6 +771,8 @@ export interface ConversationMessage {
   /** The message rendered into each team language (RU/PT/EN). Empty when not
    *  translated; the UI then falls back to `body_text`. */
   translations: Record<string, string>;
+  /** Photos and files that arrived with the message on the channel. */
+  media: MessageMedia[];
   sender: OwnerSummary | null;
   sent_at: string | null;
   read_at: string | null;

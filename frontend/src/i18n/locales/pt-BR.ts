@@ -1321,6 +1321,7 @@ const ptBR: Dictionary = {
     msgUnfiled: "Sem vínculo",
     msgTranslatedFrom: "Traduzido de {lang}",
     msgShowOriginal: "ver original",
+    msgFile: "Arquivo",
     msgDeliveryFailed: "Falha no envio",
     msgSending: "Enviando…",
     msgSubject: "Assunto",

@@ -38,6 +38,7 @@ from app.schemas.conversation import (
     ConversationUpdate,
     InboundEmailPayload,
     InboundResult,
+    MessageMedia,
     MessageRead,
     MessageSend,
 )
@@ -85,6 +86,20 @@ def _to_message(message: Message) -> MessageRead:
         for k, v in raw_translations.items()
         if isinstance(v, str) and v
     } if isinstance(raw_translations, dict) else {}
+    raw_media = meta.get("media")
+    media = (
+        [
+            MessageMedia(
+                kind=item.get("kind", "file"),
+                url=str(item["url"]),
+                name=item.get("name"),
+            )
+            for item in raw_media
+            if isinstance(item, dict) and item.get("url")
+        ]
+        if isinstance(raw_media, list)
+        else []
+    )
     return MessageRead(
         id=message.id,
         conversation_id=message.conversation_id,
@@ -97,6 +112,7 @@ def _to_message(message: Message) -> MessageRead:
         body_html=message.body_html,
         lang=(meta.get("lang") if isinstance(meta.get("lang"), str) else None),
         translations=translations,
+        media=media,
         sender=_person(message.sender),
         sent_at=message.sent_at,
         read_at=message.read_at,

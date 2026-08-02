@@ -517,6 +517,7 @@ class InboundMessageService:
         subject: str | None,
         lang: str | None,
         translations: dict[str, str],
+        media: list[dict[str, str]] | None = None,
     ) -> tuple[Message, bool, bool]:
         """Ingest an omnichannel message and attach its seamless translation.
 
@@ -546,7 +547,7 @@ class InboundMessageService:
         )
         message, created = await self.ingest_channel_message(inbound)
 
-        if created and (lang or translations):
+        if created and (lang or translations or media):
             enriched = dict(message.metadata_ or {})
             if lang:
                 enriched["lang"] = lang
@@ -557,6 +558,8 @@ class InboundMessageService:
             }
             if filtered:
                 enriched["translations"] = filtered
+            if media:
+                enriched["media"] = media
             message.metadata_ = enriched
             await self.session.flush()
 

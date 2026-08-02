@@ -1321,6 +1321,7 @@ const ru: Dictionary = {
     msgUnfiled: "Без привязки",
     msgTranslatedFrom: "Переведено с {lang}",
     msgShowOriginal: "показать оригинал",
+    msgFile: "Файл",
     msgDeliveryFailed: "Ошибка доставки",
     msgSending: "Отправка…",
     msgSubject: "Тема",

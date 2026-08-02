@@ -1352,6 +1352,7 @@ const en = {
     msgUnfiled: "Unfiled",
     msgTranslatedFrom: "Translated from {lang}",
     msgShowOriginal: "show original",
+    msgFile: "File",
     msgDeliveryFailed: "Delivery failed",
     msgSending: "Sending…",
     msgSubject: "Subject",

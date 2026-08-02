@@ -55,6 +55,7 @@ async def ingest_inbound(
         subject=payload.subject,
         lang=payload.lang,
         translations=payload.translations,
+        media=[item.model_dump() for item in payload.media],
     )
     return InboundChannelResult(
         conversation_id=message.conversation_id,

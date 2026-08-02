@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Globe, Inbox, Mail, MessageCircle, Send } from "lucide-react";
+import { Globe, Inbox, Mail, MessageCircle, Paperclip, Send } from "lucide-react";
 
 import { AutopilotToggle } from "@/components/messages/autopilot-toggle";
 import { MarkReadOnView } from "@/components/messages/mark-read-button";
@@ -252,7 +252,43 @@ function MessageBubble({
         {/* Plain text only. `body_html` arrived from outside and the API does
             not sanitise it — rendering it here would be a stored-XSS hole with
             somebody's inbox as the delivery mechanism. */}
-        <p className="text-sm whitespace-pre-wrap">{display}</p>
+        {display && <p className="text-sm whitespace-pre-wrap">{display}</p>}
+        {message.media?.length > 0 && (
+          <div className="mt-2 flex flex-col gap-2">
+            {message.media.map((item, i) =>
+              item.kind === "image" ? (
+                <a
+                  key={i}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {/* Channel media is external; a plain img keeps it simple and
+                      the app's own CSP governs what loads. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={item.url}
+                    alt={item.name ?? ""}
+                    className="max-h-52 w-auto max-w-full rounded-md border"
+                  />
+                </a>
+              ) : (
+                <a
+                  key={i}
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <Paperclip className="size-3.5 shrink-0" />
+                  <span className="truncate">
+                    {item.name ?? t("body.msgFile")}
+                  </span>
+                </a>
+              ),
+            )}
+          </div>
+        )}
         {isTranslated && (
           <details className="mt-1.5 group">
             <summary className="cursor-pointer list-none text-[10px] text-muted-foreground/80 hover:text-foreground">

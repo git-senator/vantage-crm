@@ -22,6 +22,19 @@ class MessageSender(BaseModel):
     avatar_hue: int
 
 
+class MessageMedia(BaseModel):
+    """A media item attached to a message — a photo or a file from a channel.
+
+    URL-referenced rather than inlined: channels hand over a link (or a media id
+    the connector resolves to one), and the inbox renders an image inline or a
+    file as a download. `kind` drives which, so the client never sniffs a URL.
+    """
+
+    kind: Literal["image", "file"] = "file"
+    url: str = Field(min_length=1, max_length=2000)
+    name: str | None = Field(default=None, max_length=300)
+
+
 class MessageRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -42,6 +55,9 @@ class MessageRead(BaseModel):
     #: the client then falls back to `body_text`.
     lang: str | None = None
     translations: dict[str, str] = Field(default_factory=dict)
+    #: Photos and files that came in on the channel, stored on the message
+    #: metadata by the ingest agent. Empty for a plain text message.
+    media: list[MessageMedia] = Field(default_factory=list)
     sender: MessageSender | None
     sent_at: datetime | None
     read_at: datetime | None
@@ -184,6 +200,8 @@ class InboundChannelMessage(BaseModel):
     lang: str | None = Field(default=None, max_length=10)
     #: The body rendered into each team language, keyed by locale.
     translations: dict[str, str] = Field(default_factory=dict)
+    #: Photos and files that arrived with the message on the channel.
+    media: list[MessageMedia] = Field(default_factory=list)
 
     @field_validator("channel")
     @classmethod
