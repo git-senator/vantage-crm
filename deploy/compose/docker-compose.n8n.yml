@@ -1,0 +1,33 @@
+# n8n orchestrator (AI lead automation) — additive overlay.
+#
+# Runs alongside the CRM on the same compose network (vantage_default) so it
+# reaches the API at http://api:8000 internally, and is fronted by the existing
+# Caddy at n8n.${DOMAIN} with automatic HTTPS. Nothing here touches the CRM
+# services. Bring up ONLY n8n:
+#
+#   docker compose -f docker-compose.yml \
+#     -f deploy/compose/docker-compose.prod.yml \
+#     -f deploy/compose/docker-compose.n8n.yml --env-file .env up -d n8n
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    environment:
+      N8N_HOST: n8n.${DOMAIN:?set DOMAIN}
+      N8N_PROTOCOL: https
+      N8N_PORT: "5678"
+      WEBHOOK_URL: https://n8n.${DOMAIN}/
+      N8N_EDITOR_BASE_URL: https://n8n.${DOMAIN}/
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      TZ: America/Sao_Paulo
+      N8N_SECURE_COOKIE: "true"
+      N8N_PROXY_HOPS: "1"
+      N8N_RUNNERS_ENABLED: "true"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    expose:
+      - "5678"
+
+volumes:
+  n8n_data:

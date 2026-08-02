@@ -25,3 +25,8 @@ files.{$DOMAIN} {
 		max_size 60MB
 	}
 }
+
+n8n.{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy n8n:5678
+}
