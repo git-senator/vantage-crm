@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from app.api.public.v1 import (
     activities,
     clients,
+    conversations,
     deals,
     leads,
     properties,
@@ -22,4 +23,5 @@ public_v1_router.include_router(properties.router)
 public_v1_router.include_router(deals.router)
 public_v1_router.include_router(activities.router)
 public_v1_router.include_router(tasks.router)
+public_v1_router.include_router(conversations.router)
 public_v1_router.include_router(webhooks.router)

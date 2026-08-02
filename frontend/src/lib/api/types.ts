@@ -727,7 +727,16 @@ export interface UnreadCount {
 
 // --- Conversations & messages (Phase 3.4) ---
 
-export type MessageChannel = "email" | "whatsapp" | "sms";
+export type MessageChannel =
+  | "email"
+  | "whatsapp"
+  | "sms"
+  | "website"
+  | "telegram"
+  | "instagram"
+  | "facebook"
+  | "google"
+  | "youtube";
 export type MessageDirection = "inbound" | "outbound";
 export type MessageStatus =
   | "queued"
@@ -777,6 +786,7 @@ export interface Conversation {
   last_message_preview: string | null;
   unread_count: number;
   is_pinned: boolean;
+  autopilot: boolean;
   created_at: string;
   updated_at: string;
 }

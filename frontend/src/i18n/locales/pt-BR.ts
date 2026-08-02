@@ -1206,6 +1206,11 @@ const ptBR: Dictionary = {
     autoSteps: "Passos",
     autoNoStepsYet: "Esta execução ainda não executou nenhum passo.",
     autoBackToBoard: "Voltar ao quadro",
+    // autopilot / takeover
+    apilotOn: "Piloto automático",
+    apilotManual: "Manual",
+    apilotTakeOver: "Assumir controle",
+    apilotHandBack: "Voltar ao piloto automático",
     // form placeholders
     lfLocationPlaceholder: "Noe Valley, SF",
     lfTagsPlaceholder: "Pré-aprovado, Mudando-se",

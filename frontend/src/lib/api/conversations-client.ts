@@ -34,10 +34,26 @@ export async function markConversationRead(
 
 export async function fileConversation(
   id: string,
-  input: { entity_type?: string | null; entity_id?: string | null; is_pinned?: boolean },
+  input: {
+    entity_type?: string | null;
+    entity_id?: string | null;
+    is_pinned?: boolean;
+    autopilot?: boolean;
+  },
 ): Promise<Conversation> {
   return apiRequest<Conversation>(`/conversations/${id}`, {
     method: "PATCH",
     body: input,
   });
+}
+
+/**
+ * Take a thread off the AI agent (or hand it back). "Перехват управления":
+ * with autopilot off the agent stays silent and the manager answers by hand.
+ */
+export async function setConversationAutopilot(
+  id: string,
+  autopilot: boolean,
+): Promise<Conversation> {
+  return fileConversation(id, { autopilot });
 }

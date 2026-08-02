@@ -71,6 +71,7 @@ def _to_conversation(conversation: Conversation) -> ConversationRead:
         last_message_preview=conversation.last_message_preview,
         unread_count=conversation.unread_count,
         is_pinned=conversation.is_pinned,
+        autopilot=conversation.autopilot,
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
     )

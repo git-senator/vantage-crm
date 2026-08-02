@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Channel = Literal["email", "whatsapp", "sms"]
 ConversationEntityType = Literal["lead", "client", "deal"]
@@ -64,6 +64,7 @@ class ConversationRead(BaseModel):
     last_message_preview: str | None
     unread_count: int
     is_pinned: bool
+    autopilot: bool
     created_at: datetime
     updated_at: datetime
 
@@ -100,11 +101,13 @@ class MessageSend(BaseModel):
 
 
 class ConversationUpdate(BaseModel):
-    """The two things a person changes about a thread by hand."""
+    """What a person changes about a thread by hand — filing, pinning, and
+    taking a conversation off (or handing it back to) the AI agent."""
 
     entity_type: ConversationEntityType | None = None
     entity_id: UUID | None = None
     is_pinned: bool | None = None
+    autopilot: bool | None = None
 
 
 class InboundEmailPayload(BaseModel):
@@ -141,3 +144,105 @@ class InboundResult(BaseModel):
     """
 
     status: Literal["accepted", "duplicate"]
+
+
+#: Channels the omnichannel inbound endpoint accepts. Mirrors the
+#: `ck_conversations_channel` DB constraint — the source of truth is the column,
+#: this is the door's copy so a bad channel is a 422 rather than a 500 at flush.
+INBOUND_CHANNELS = frozenset(
+    {
+        "email",
+        "whatsapp",
+        "website",
+        "telegram",
+        "instagram",
+        "facebook",
+        "google",
+        "youtube",
+    }
+)
+
+
+class InboundChannelMessage(BaseModel):
+    """An inbound client message on any channel, as the AI orchestrator posts it.
+
+    Unlike `InboundEmailPayload` this carries the seamless-translation payload:
+    the orchestrator has already run the message through the model to detect its
+    language and render it into each team language, so the CRM stores rather than
+    recomputes. `translations` is keyed by locale (`ru` / `pt` / `en`); the inbox
+    picks the viewer's own and falls back to the original body.
+    """
+
+    channel: str = Field(min_length=2, max_length=20)
+    from_address: str = Field(min_length=1, max_length=320)
+    from_name: str | None = Field(default=None, max_length=200)
+    to_address: str | None = Field(default=None, max_length=320)
+    subject: str | None = Field(default=None, max_length=500)
+    body_text: str = Field(min_length=1, max_length=500_000)
+    provider_message_id: str | None = Field(default=None, max_length=255)
+    #: Detected source language of the message, e.g. "ru" / "pt" / "en".
+    lang: str | None = Field(default=None, max_length=10)
+    #: The body rendered into each team language, keyed by locale.
+    translations: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("channel")
+    @classmethod
+    def _known_channel(cls, value: str) -> str:
+        candidate = value.strip().lower()
+        if candidate not in INBOUND_CHANNELS:
+            raise ValueError(
+                f"channel must be one of {sorted(INBOUND_CHANNELS)}"
+            )
+        return candidate
+
+
+class InboundChannelResult(BaseModel):
+    """What the orchestrator gets back.
+
+    Unlike the email webhook's `InboundResult`, this endpoint authenticates a
+    trusted machine principal scoped to one organization — not an anonymous
+    signature — so returning the conversation id is not a contact-enumeration
+    oracle. The orchestrator needs it to thread its own follow-ups.
+    """
+
+    conversation_id: UUID
+    message_id: UUID
+    created: bool
+    #: Whether the AI agent should answer this thread. False once a manager has
+    #: taken it over — the orchestrator reads this to decide whether to reply.
+    autopilot: bool
+
+
+class InboundAiReply(BaseModel):
+    """An AI-authored reply the orchestrator files back into a thread.
+
+    `to_address` is the client's address — the same identity the inbound message
+    carried — because the reply is filed into that person's existing thread. The
+    body is in the client's language; the CRM translates it for the inbox.
+    """
+
+    channel: str = Field(min_length=2, max_length=20)
+    to_address: str = Field(min_length=1, max_length=320)
+    body_text: str = Field(min_length=1, max_length=100_000)
+
+    @field_validator("channel")
+    @classmethod
+    def _known_channel(cls, value: str) -> str:
+        candidate = value.strip().lower()
+        if candidate not in INBOUND_CHANNELS:
+            raise ValueError(
+                f"channel must be one of {sorted(INBOUND_CHANNELS)}"
+            )
+        return candidate
+
+
+class AiReplyResult(BaseModel):
+    """Outcome of an AI reply attempt.
+
+    `status` is `stored` when the reply was filed, `manual` when a manager has
+    taken the thread over (the agent must stay silent), or `no_conversation`
+    when the reply outran the inbound that would have created the thread.
+    """
+
+    status: Literal["stored", "manual", "no_conversation"]
+    message_id: UUID | None = None

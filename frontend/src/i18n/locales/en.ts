@@ -1237,6 +1237,11 @@ const en = {
     autoSteps: "Steps",
     autoNoStepsYet: "This run has not executed a step yet.",
     autoBackToBoard: "Back to board",
+    // autopilot / takeover
+    apilotOn: "Autopilot",
+    apilotManual: "Manual",
+    apilotTakeOver: "Take over",
+    apilotHandBack: "Back to autopilot",
     // form placeholders
     lfLocationPlaceholder: "Noe Valley, SF",
     lfTagsPlaceholder: "Pre-approved, Relocating",

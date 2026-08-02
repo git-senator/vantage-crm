@@ -1206,6 +1206,11 @@ const ru: Dictionary = {
     autoSteps: "Шаги",
     autoNoStepsYet: "Этот запуск ещё не выполнил ни одного шага.",
     autoBackToBoard: "Назад к доске",
+    // autopilot / takeover
+    apilotOn: "Автопилот",
+    apilotManual: "Ручное управление",
+    apilotTakeOver: "Перехват управления",
+    apilotHandBack: "Вернуть автопилоту",
     // form placeholders
     lfLocationPlaceholder: "Ноэ-Вэлли, Сан-Франциско",
     lfTagsPlaceholder: "Предодобрен, Переезжает",

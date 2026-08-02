@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Inbox, Mail, MessageCircle } from "lucide-react";
+import { Globe, Inbox, Mail, MessageCircle, Send } from "lucide-react";
 
+import { AutopilotToggle } from "@/components/messages/autopilot-toggle";
 import { MarkReadOnView } from "@/components/messages/mark-read-button";
 import { MessageComposer } from "@/components/messages/message-composer";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -20,6 +21,12 @@ const CHANNEL_ICON = {
   email: Mail,
   sms: MessageCircle,
   whatsapp: MessageCircle,
+  website: Globe,
+  telegram: Send,
+  instagram: MessageCircle,
+  facebook: MessageCircle,
+  google: Globe,
+  youtube: MessageCircle,
 } as const;
 
 /**
@@ -195,6 +202,10 @@ function ThreadHeader({
           {conversation.external_id}
         </p>
       </div>
+      <AutopilotToggle
+        conversationId={conversation.id}
+        autopilot={conversation.autopilot}
+      />
       {conversation.entity_type ? (
         <Badge variant="secondary">
           {t("body.msgFiledOn", { entity: conversation.entity_type })}

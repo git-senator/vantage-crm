@@ -23,7 +23,7 @@ leaving it unfiled — and unfiled is visible and fixable.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,6 +55,7 @@ from app.services.messaging.threading import (
 )
 from app.services.notification_center import NotificationCenter
 from app.services.rbac import AuthorizationContext, RbacService
+from app.services.translation import TranslationService
 from app.workers.queue import JobName, enqueue
 
 logger = get_logger(__name__)
@@ -140,6 +141,18 @@ class ConversationService:
         if not address:
             raise ConflictError("A recipient address is required.")
 
+        # Translate before any DB write so the provider call does not hold the
+        # transaction open, and so a translation failure is a quiet degrade — the
+        # message still sends — rather than a rolled-back send. Same metadata
+        # shape as an inbound message, so the inbox renders both directions
+        # identically: each viewer reads the thread in their own language.
+        lang, translations = await TranslationService().translate(payload.body_text)
+        message_metadata: dict[str, object] = {}
+        if lang:
+            message_metadata["lang"] = lang
+        if translations:
+            message_metadata["translations"] = translations
+
         conversation = await self._find_or_create(
             channel=payload.channel,
             external_id=address,
@@ -178,6 +191,7 @@ class ConversationService:
                 if parent is not None
                 else []
             ),
+            metadata_=message_metadata,
         )
         self.session.add(message)
         await self.session.flush()
@@ -242,6 +256,12 @@ class ConversationService:
 
         if "is_pinned" in updates:
             conversation.is_pinned = bool(updates["is_pinned"])
+
+        if "autopilot" in updates:
+            # Takeover, or handing it back. The AI agent reads this before it
+            # posts a reply, so flipping it off is what makes the agent fall
+            # silent on this thread — "перехват управления".
+            conversation.autopilot = bool(updates["autopilot"])
 
         await self.session.flush()
         return conversation
@@ -479,6 +499,133 @@ class InboundMessageService:
             },
         )
         return message, True
+
+    #: Team languages the inbox renders into. A translation for anything else
+    #: is dropped rather than stored — the UI has no locale to show it under, and
+    #: keeping it would be dead weight on every message row.
+    _TEAM_LANGS = frozenset({"ru", "pt", "en"})
+
+    async def ingest_translated(
+        self,
+        *,
+        channel: str,
+        from_address: str,
+        from_name: str | None,
+        to_address: str | None,
+        body_text: str,
+        provider_message_id: str | None,
+        subject: str | None,
+        lang: str | None,
+        translations: dict[str, str],
+    ) -> tuple[Message, bool, bool]:
+        """Ingest an omnichannel message and attach its seamless translation.
+
+        The message is filed through the one ingestion pipeline every channel
+        shares; the translation is layered on top as metadata the inbox reads at
+        render time. Enrichment happens only for a freshly-created message — a
+        provider replay must not rewrite what was already filed, exactly as the
+        dedupe in `ingest_channel_message` guarantees for the body.
+
+        The orchestrator did the translating (it is already an AI pipeline and
+        knows the client's language), so this stores rather than recomputes —
+        the CRM stays free of an AI dependency in its inbound hot path.
+        """
+        inbound = InboundMessage(
+            channel=channel,
+            from_address=from_address,
+            from_name=from_name,
+            # Social channels have no "to" the way email does; a stable synthetic
+            # address keeps the column populated without inventing an identity.
+            to_address=to_address or f"inbound@{channel}",
+            body_text=body_text,
+            # Without a provider id every post is its own message — the right
+            # default for a channel that does not hand us a stable one, since the
+            # alternative is collapsing distinct messages into one thread entry.
+            provider_message_id=provider_message_id or f"orchestrator:{uuid4()}",
+            subject=subject,
+        )
+        message, created = await self.ingest_channel_message(inbound)
+
+        if created and (lang or translations):
+            enriched = dict(message.metadata_ or {})
+            if lang:
+                enriched["lang"] = lang
+            filtered = {
+                locale: text
+                for locale, text in translations.items()
+                if locale in self._TEAM_LANGS
+            }
+            if filtered:
+                enriched["translations"] = filtered
+            message.metadata_ = enriched
+            await self.session.flush()
+
+        # The orchestrator reads `autopilot` off the reply to decide whether the
+        # AI agent should answer or a manager has taken this thread over.
+        conversation = await self.session.get(Conversation, message.conversation_id)
+        autopilot = bool(conversation.autopilot) if conversation is not None else True
+        return message, created, autopilot
+
+    async def post_ai_reply(
+        self,
+        *,
+        channel: str,
+        to_address: str,
+        body_text: str,
+    ) -> tuple[Message | None, str]:
+        """File an AI-authored reply into an existing thread. Returns (msg, status).
+
+        The autopilot gate lives here, at the single point every AI reply passes
+        through: if the manager has taken the thread over (`autopilot` false) the
+        reply is refused with `"manual"` and nothing is written, so takeover is
+        enforced by the data and not merely by the orchestrator remembering to
+        check. `"no_conversation"` means the reply arrived before the inbound
+        that would have created the thread — a race, not a state to write into.
+
+        The reply text is the client's language (the agent wrote it that way);
+        it is translated into the team languages for the inbox, exactly as an
+        outbound human message is.
+        """
+        adapter = build_channel(channel)
+        address = adapter.normalise_address(to_address)
+        conversation = await self.conversations.find_by_identity(
+            self.organization_id, channel=channel, external_id=address
+        )
+        if conversation is None:
+            return None, "no_conversation"
+        if not conversation.autopilot:
+            return None, "manual"
+
+        lang, translations = await TranslationService().translate(body_text)
+        metadata: dict[str, object] = {}
+        if lang:
+            metadata["lang"] = lang
+        if translations:
+            metadata["translations"] = translations
+
+        now = datetime.now(UTC)
+        message = Message(
+            organization_id=self.organization_id,
+            conversation_id=conversation.id,
+            direction="outbound",
+            # 'sent' rather than 'queued': locally there is no channel to deliver
+            # through, and the record must satisfy the direction/status check
+            # (outbound is anything but 'received'). Real delivery is the VPS step.
+            status="sent",
+            sender_id=None,
+            from_address="ai-agent",
+            to_address=address,
+            body_text=body_text,
+            sent_at=now,
+            metadata_=metadata,
+        )
+        self.session.add(message)
+        await self.session.flush()
+
+        conversation.last_message_at = now
+        conversation.last_message_preview = _preview(body_text)
+        await self.session.flush()
+        return message, "stored"
 
     async def _match_record(
         self, channel: str, address: str

@@ -122,11 +122,19 @@ class Conversation(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         postgresql.BOOLEAN, nullable=False, default=False, server_default="false"
     )
 
+    #: Whether the AI agent answers this thread 24/7. A manager takes over by
+    #: flipping this off, after which the agent stays silent. On by default: a
+    #: new conversation is the agent's until a person decides otherwise.
+    autopilot: Mapped[bool] = mapped_column(
+        postgresql.BOOLEAN, nullable=False, default=True, server_default="true"
+    )
+
     owner: Mapped[User | None] = relationship(foreign_keys=[owner_id], lazy="joined")
 
     __table_args__ = (
         CheckConstraint(
-            "channel IN ('email', 'whatsapp', 'sms')",
+            "channel IN ('email', 'whatsapp', 'sms', 'website', 'telegram', "
+            "'instagram', 'facebook', 'google', 'youtube')",
             name="ck_conversations_channel",
         ),
         CheckConstraint(
