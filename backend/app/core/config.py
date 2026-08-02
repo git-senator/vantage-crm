@@ -415,6 +415,18 @@ class Settings(BaseSettings):
     #: that stops one runaway request, distinct from the tenant-month ceiling.
     AI_MAX_OUTPUT_TOKENS: int = 1024
 
+    # ------------------------------------------------- google calendar
+    # The AI agent books property viewings into a Google Calendar. Auth is a
+    # service account whose JSON key is carried base64-encoded in one env var —
+    # a single line that travels the same way local and on the VPS, with no file
+    # to mount. Empty (the default) leaves booking off; a present key turns it on.
+    GOOGLE_CALENDAR_SA_B64: str = ""
+    #: The calendar to write events to — the owner's address, or a dedicated
+    #: calendar id, shared with the service account with "make changes to events".
+    GOOGLE_CALENDAR_ID: str = ""
+    #: IANA timezone the agent interprets viewing times in (the brokerage's).
+    GOOGLE_CALENDAR_TZ: str = "America/Sao_Paulo"
+
     # ---------------------------------------------------- billing
     # Phase 7.5. The provider is swappable; business logic depends on
     # BillingProvider, never on Stripe. `manual` is the default and calls no

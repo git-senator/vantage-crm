@@ -21,6 +21,8 @@ from fastapi import APIRouter, Depends, status
 from app.api.public.v1.dependencies import MachinePrincipal, require_scope
 from app.schemas.conversation import (
     AiReplyResult,
+    BookViewingRequest,
+    BookViewingResult,
     InboundAiReply,
     InboundChannelMessage,
     InboundChannelResult,
@@ -88,4 +90,35 @@ async def ai_reply(
     return AiReplyResult(
         status=outcome,  # type: ignore[arg-type]
         message_id=message.id if message is not None else None,
+    )
+
+
+@router.post(
+    "/schedule",
+    response_model=BookViewingResult,
+    status_code=status.HTTP_201_CREATED,
+    summary="Book a property viewing into Google Calendar",
+)
+async def schedule_viewing(
+    payload: BookViewingRequest,
+    principal: Annotated[
+        MachinePrincipal, Depends(require_scope("contacts.manage"))
+    ],
+) -> BookViewingResult:
+    service = InboundMessageService(
+        principal.session, principal.auth.organization_id
+    )
+    outcome, event = await service.book_viewing(
+        channel=payload.channel,
+        to_address=payload.to_address,
+        summary=payload.summary,
+        start=payload.start,
+        duration_minutes=payload.duration_minutes,
+        description=payload.description,
+    )
+    return BookViewingResult(
+        status=outcome,  # type: ignore[arg-type]
+        event_id=event.id if event is not None else None,
+        html_link=event.html_link if event is not None else None,
+        start=event.start if event is not None else None,
     )

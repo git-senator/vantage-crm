@@ -254,6 +254,49 @@ class InboundAiReply(BaseModel):
         return candidate
 
 
+class BookViewingRequest(BaseModel):
+    """A viewing the AI agent books once a client settles on a time.
+
+    `start` is a local datetime (`YYYY-MM-DDTHH:MM:SS`) in the brokerage's
+    timezone — the agent extracts it in local terms and the calendar layer does
+    not re-zone it. `to_address` links the booking to the client's thread so the
+    marker lands in the right inbox.
+    """
+
+    channel: str = Field(min_length=2, max_length=20)
+    to_address: str = Field(min_length=1, max_length=320)
+    summary: str = Field(default="", max_length=300)
+    #: Empty when the agent found no concrete time in the message — the booking
+    #: is then skipped rather than rejected, so the orchestrator can call this
+    #: unconditionally and let the CRM decide there is nothing to book.
+    start: str | None = Field(default=None, max_length=40)
+    duration_minutes: int = Field(default=30, ge=5, le=480)
+    description: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("channel")
+    @classmethod
+    def _known_channel(cls, value: str) -> str:
+        candidate = value.strip().lower()
+        if candidate not in INBOUND_CHANNELS:
+            raise ValueError(
+                f"channel must be one of {sorted(INBOUND_CHANNELS)}"
+            )
+        return candidate
+
+
+class BookViewingResult(BaseModel):
+    """Outcome of a booking attempt.
+
+    `booked` with a link on success; `manual` when a manager has the thread;
+    `disabled` when no calendar is configured; `failed` when Google refused.
+    """
+
+    status: Literal["booked", "skipped", "manual", "disabled", "failed"]
+    event_id: str | None = None
+    html_link: str | None = None
+    start: str | None = None
+
+
 class AiReplyResult(BaseModel):
     """Outcome of an AI reply attempt.
 

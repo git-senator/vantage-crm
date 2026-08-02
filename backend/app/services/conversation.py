@@ -53,6 +53,11 @@ from app.services.messaging.threading import (
     normalise_message_id,
     parse_references,
 )
+from app.services.google_calendar import (
+    BookedEvent,
+    CalendarError,
+    GoogleCalendarService,
+)
 from app.services.notification_center import NotificationCenter
 from app.services.rbac import AuthorizationContext, RbacService
 from app.services.translation import TranslationService
@@ -629,6 +634,72 @@ class InboundMessageService:
         conversation.last_message_preview = _preview(body_text)
         await self.session.flush()
         return message, "stored"
+
+    async def book_viewing(
+        self,
+        *,
+        channel: str,
+        to_address: str,
+        summary: str,
+        start: str | None,
+        duration_minutes: int,
+        description: str | None,
+    ) -> tuple[str, BookedEvent | None]:
+        """Book a viewing into Google Calendar. Returns (status, event).
+
+        `"skipped"` when no concrete time was found (nothing to book),
+        `"disabled"` when no calendar is configured, `"manual"` when a manager
+        has taken the thread over (the agent does not book behind their back),
+        `"failed"` when Google refused, `"booked"` on success. On success a short
+        marker message is filed into the thread so the booking is visible in the
+        inbox, not only in the calendar.
+        """
+        if not (start and start.strip()):
+            return "skipped", None
+
+        calendar = GoogleCalendarService()
+        if not calendar.enabled:
+            return "disabled", None
+
+        adapter = build_channel(channel)
+        address = adapter.normalise_address(to_address)
+        conversation = await self.conversations.find_by_identity(
+            self.organization_id, channel=channel, external_id=address
+        )
+        if conversation is not None and not conversation.autopilot:
+            return "manual", None
+
+        try:
+            event = await calendar.create_event(
+                summary=summary,
+                start_iso=start,
+                duration_minutes=duration_minutes,
+                description=description,
+            )
+        except CalendarError:
+            logger.warning("viewing_booking_failed", exc_info=True)
+            return "failed", None
+
+        if conversation is not None:
+            now = datetime.now(UTC)
+            marker = Message(
+                organization_id=self.organization_id,
+                conversation_id=conversation.id,
+                direction="outbound",
+                status="sent",
+                sender_id=None,
+                from_address="ai-agent",
+                to_address=address,
+                body_text=f"\U0001f4c5 {summary} — {event.start}",
+                sent_at=now,
+                metadata_={"event_link": event.html_link, "event_id": event.id},
+            )
+            self.session.add(marker)
+            conversation.last_message_at = now
+            conversation.last_message_preview = _preview(marker.body_text)
+            await self.session.flush()
+
+        return "booked", event
 
     async def _match_record(
         self, channel: str, address: str
