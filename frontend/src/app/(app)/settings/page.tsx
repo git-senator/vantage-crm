@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
-import { Globe, KeyRound, Sparkles, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { CalendarClock, CheckCircle2 } from "lucide-react";
 
-import { IntegrationDialog } from "@/components/settings/integration-dialog";
 import { LanguageCard } from "@/components/settings/language-card";
 import { MfaCard } from "@/components/settings/mfa-card";
+import { SecurityActions } from "@/components/settings/security-actions";
 import { SettingsNav } from "@/components/settings/settings-nav";
+import { TeamMembers } from "@/components/settings/team-members";
+import { WorkspaceSettingsForm } from "@/components/settings/workspace-settings-form";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,45 +19,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { getTranslations } from "@/i18n/server";
-import { team } from "@/lib/mock-data";
 import { getMfaStatus } from "@/lib/api/mfa";
-import { cn } from "@/lib/utils";
+import {
+  getIntegrations,
+  getOrganization,
+  listMembers,
+} from "@/lib/api/organization";
+import { getTranslations } from "@/i18n/server";
+import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Settings" };
 
-const members = [
-  { member: team.avery, access: "Owner", status: "active" },
-  { member: team.marcus, access: "Admin", status: "active" },
-  { member: team.priya, access: "Member", status: "active" },
-  { member: team.jonah, access: "Member", status: "active" },
-  { member: team.sofia, access: "Member", status: "active" },
-  { member: team.dmitri, access: "Limited", status: "dormant" },
-];
-
 export default async function SettingsPage() {
-  const [mfa, t] = await Promise.all([getMfaStatus(), getTranslations()]);
+  const session = await requireSession();
+  const [organization, members, integrations, mfa, t] = await Promise.all([
+    getOrganization(),
+    listMembers(),
+    getIntegrations(),
+    getMfaStatus(),
+    getTranslations(),
+  ]);
 
-  const integrations = [
-    { name: "MLS / Bay Area Real Estate Information Services", detail: t("settings.detailMls"), connected: true },
-    { name: "DocuSign", detail: t("settings.detailDocusign"), connected: true },
-    { name: "Google Calendar", detail: t("settings.detailGoogleCalendar"), connected: true },
-    { name: "Zillow Premier Agent", detail: t("settings.detailZillow"), connected: true },
-    { name: "Mailchimp", detail: t("settings.detailMailchimp"), connected: false },
-    { name: "QuickBooks", detail: t("settings.detailQuickbooks"), connected: false },
-  ];
+  const canManageRoles = hasPermission(session, "roles.manage");
+  const canManageUsers = hasPermission(session, "users.manage");
 
   return (
     <div className="space-y-6">
@@ -65,308 +51,85 @@ export default async function SettingsPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        {/* ----------------------------------------------------- section nav */}
         <SettingsNav />
 
         <div className="min-w-0 space-y-6">
-          {/* ------------------------------------------ language & region */}
+          {/* ---------------------------------------- language & region */}
           <div id="language" className="scroll-mt-20">
             <LanguageCard />
           </div>
 
-          {/* ------------------------------------------------------ general */}
-          <Card id="general" className="scroll-mt-20">
-            <CardHeader>
-              <CardTitle>{t("settings.workspaceDetails")}</CardTitle>
-              <CardDescription>
-                {t("settings.workspaceDetailsDesc")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="org">{t("settings.brokerageName")}</Label>
-                  <Input id="org" defaultValue="Vantage Realty Group" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="license">
-                    {t("settings.brokerageLicense")}
-                  </Label>
-                  <Input id="license" defaultValue="CA DRE #02114876" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">{t("settings.timezone")}</Label>
-                  <Select defaultValue="Pacific Time (US & Canada)">
-                    <SelectTrigger id="timezone">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Pacific Time (US & Canada)">
-                        {t("body.tzPacific")}
-                      </SelectItem>
-                      <SelectItem value="Mountain Time">
-                        {t("body.tzMountain")}
-                      </SelectItem>
-                      <SelectItem value="Central Time">
-                        {t("body.tzCentral")}
-                      </SelectItem>
-                      <SelectItem value="Eastern Time">
-                        {t("body.tzEastern")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="currency">{t("settings.currency")}</Label>
-                  <Select defaultValue="USD ($)">
-                    <SelectTrigger id="currency">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD ($)">USD ($)</SelectItem>
-                      <SelectItem value="CAD ($)">CAD ($)</SelectItem>
-                      <SelectItem value="EUR (€)">EUR (€)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+          {/* --------------------------- workspace details + AI prefs */}
+          <WorkspaceSettingsForm organization={organization} />
 
-              <Separator />
-
-              <div className="space-y-4">
-                {[
-                  { label: t("settings.weekendNotifications"), detail: t("settings.weekendNotificationsDetail"), on: false },
-                  { label: t("settings.autoAssign"), detail: t("settings.autoAssignDetail"), on: true },
-                  { label: t("settings.dealApproval"), detail: t("settings.dealApprovalDetail"), on: true },
-                ].map((row) => (
-                  <div key={row.label} className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <Label className="text-sm">{row.label}</Label>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {row.detail}
-                      </p>
-                    </div>
-                    <Switch defaultChecked={row.on} aria-label={row.label} />
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost">{t("buttons.cancel")}</Button>
-                <Button>{t("buttons.saveChanges")}</Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* --------------------------------------------------------- AI */}
-          <Card id="ai" className="scroll-mt-20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="size-4 text-primary" />
-                {t("settings.aiPreferences")}
-              </CardTitle>
-              <CardDescription>
-                {t("settings.aiPreferencesDesc")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <div className="flex items-baseline justify-between">
-                  <Label>{t("settings.leadScoreThreshold")}</Label>
-                  <span className="tabular text-sm font-medium">80</span>
-                </div>
-                <Slider defaultValue={[80]} max={100} step={5} />
-                <p className="text-sm text-muted-foreground">
-                  {t("settings.leadScoreThresholdHint")}
-                </p>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label htmlFor="tone">{t("settings.draftingTone")}</Label>
-                <Select defaultValue="Professional">
-                  <SelectTrigger id="tone" className="sm:w-64">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Professional">
-                      {t("settings.toneProfessional")}
-                    </SelectItem>
-                    <SelectItem value="Warm and conversational">
-                      {t("settings.toneWarm")}
-                    </SelectItem>
-                    <SelectItem value="Concise">
-                      {t("settings.toneConcise")}
-                    </SelectItem>
-                    <SelectItem value="Formal">
-                      {t("settings.toneFormal")}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-4">
-                {[
-                  { label: t("settings.suggestReplies"), detail: t("settings.suggestRepliesDetail"), on: true },
-                  { label: t("settings.dailyBriefing"), detail: t("settings.dailyBriefingDetail"), on: true },
-                  { label: t("settings.autoSummarize"), detail: t("settings.autoSummarizeDetail"), on: false },
-                ].map((row) => (
-                  <div key={row.label} className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <Label className="text-sm">{row.label}</Label>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        {row.detail}
-                      </p>
-                    </div>
-                    <Switch defaultChecked={row.on} aria-label={row.label} />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* ------------------------------------------------------- team */}
+          {/* ---------------------------------------------------- team */}
           <Card id="team" className="scroll-mt-20 gap-0 overflow-hidden py-0">
             <CardHeader className="border-b py-4">
               <CardTitle>{t("settings.teamRoles")}</CardTitle>
               <CardDescription>
-                {t("settings.seatsUsed", { used: 6, total: 25 })}
+                {t("settings.seatsUsed", { used: members.length, total: 25 })}
               </CardDescription>
-              <CardAction>
-                <Button size="sm">{t("settings.inviteMember")}</Button>
-              </CardAction>
+              {canManageUsers && (
+                <CardAction>
+                  <Button size="sm" render={<Link href="/requests" />}>
+                    {t("settings.inviteMember")}
+                  </Button>
+                </CardAction>
+              )}
             </CardHeader>
             <CardContent className="p-0">
-              {members.map((row, index) => (
-                <div
-                  key={row.member.id}
-                  className={cn(
-                    "flex items-center gap-3 px-5 py-3",
-                    index > 0 && "border-t",
-                  )}
-                >
-                  <UserAvatar user={row.member} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {row.member.name}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {row.member.role}
-                    </p>
-                  </div>
-                  <StatusBadge status={row.status} />
-                  <Select defaultValue={row.access}>
-                    <SelectTrigger size="sm" className="w-[110px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Owner">
-                        {t("settings.accessOwner")}
-                      </SelectItem>
-                      <SelectItem value="Admin">
-                        {t("settings.accessAdmin")}
-                      </SelectItem>
-                      <SelectItem value="Member">
-                        {t("settings.accessMember")}
-                      </SelectItem>
-                      <SelectItem value="Limited">
-                        {t("settings.accessLimited")}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
+              <TeamMembers members={members} canManage={canManageRoles} />
             </CardContent>
           </Card>
 
-          {/* ----------------------------------------------- integrations */}
+          {/* -------------------------------------------- integrations */}
           <Card id="integrations" className="scroll-mt-20">
             <CardHeader>
               <CardTitle>{t("settings.integrations")}</CardTitle>
-              <CardDescription>
-                {t("settings.integrationsDesc")}
-              </CardDescription>
+              <CardDescription>{t("settings.integrationsRealDesc")}</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-3 sm:grid-cols-2">
-              {integrations.map((integration) => (
-                <div
-                  key={integration.name}
-                  className="flex items-start gap-3 rounded-lg border p-3.5"
-                >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-                    <Globe className="size-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-snug font-medium">
-                      {integration.name}
-                    </p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {integration.detail}
-                    </p>
-                  </div>
-                  <IntegrationDialog
-                    name={integration.name}
-                    detail={integration.detail}
-                    connected={integration.connected}
-                  />
+            <CardContent className="space-y-3">
+              <div className="flex items-start gap-3 rounded-lg border p-3.5">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                  <CalendarClock className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-snug font-medium">
+                    {t("settings.calGoogleName")}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {integrations.calendar_connected
+                      ? t("settings.calConnectedDetail", {
+                          id: integrations.calendar_id ?? "",
+                        })
+                      : t("settings.calNotConfigured")}
+                  </p>
                 </div>
-              ))}
+                <StatusBadge
+                  status={
+                    integrations.calendar_connected ? "available" : "pending_upload"
+                  }
+                  label={
+                    integrations.calendar_connected
+                      ? t("settings.integrationConnected")
+                      : t("settings.integrationNotConnected")
+                  }
+                />
+              </div>
+
+              {/* Honest about what's live vs coming with the channels rollout. */}
+              <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CheckCircle2 className="size-3.5 shrink-0 text-success" />
+                {t("settings.calChannelsNote")}
+              </p>
             </CardContent>
           </Card>
 
-          {/* --------------------------------------------------- security */}
-          {/* MFA is live since Phase 3.7. */}
-          <div id="security" className="scroll-mt-20">
+          {/* ------------------------------------------------ security */}
+          <div id="security" className="scroll-mt-20 space-y-6">
             <MfaCard status={mfa} />
+            <SecurityActions />
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("settings.security")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { icon: KeyRound, label: t("settings.passwordLabel"), detail: t("settings.passwordDetail"), action: t("buttons.change") },
-                { icon: Globe, label: t("settings.activeSessions"), detail: t("settings.activeSessionsDetail"), action: t("buttons.review") },
-              ].map((row, index) => (
-                <div
-                  key={row.label}
-                  className={cn(
-                    "flex items-center gap-3",
-                    index > 0 && "border-t pt-4",
-                  )}
-                >
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-                    <row.icon className="size-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{row.label}</p>
-                    <p className="text-xs text-muted-foreground">{row.detail}</p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    {row.action}
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* ------------------------------------------------ danger zone */}
-          <Card className="border-destructive/40">
-            <CardHeader>
-              <CardTitle className="text-destructive">
-                {t("settings.dangerZone")}
-              </CardTitle>
-              <CardDescription>{t("settings.dangerZoneDesc")}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="destructive">
-                <Trash2 className="size-4" />
-                {t("settings.deleteWorkspace")}
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

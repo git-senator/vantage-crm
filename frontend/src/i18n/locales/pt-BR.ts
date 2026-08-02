@@ -597,6 +597,29 @@ const ptBR: Dictionary = {
     integrationManageTitle: "Gerenciar {name}",
     integrationConnected: "Conectado",
     integrationNotConnected: "Não conectado",
+    settingsSaved: "Configurações salvas",
+    roleOwner: "Proprietário",
+    roleAdmin: "Administrador",
+    roleManager: "Gerente",
+    roleAgent: "Corretor",
+    integrationsRealDesc:
+      "Serviços conectados que alimentam dados no seu espaço.",
+    calGoogleName: "Google Agenda",
+    calConnectedDetail: "Conectado — {id}",
+    calNotConfigured:
+      "Não configurado. Adicione uma chave de conta de serviço para agendar visitas.",
+    calChannelsNote:
+      "Canais de mensagens (WhatsApp, Telegram, Instagram) são conectados pelas automações de IA.",
+    changePassword: "Alterar senha",
+    changePasswordDesc:
+      "Você sairá de todas as sessões e precisará entrar novamente.",
+    currentPassword: "Senha atual",
+    newPassword: "Nova senha",
+    confirmPassword: "Confirmar nova senha",
+    pwMismatch: "As novas senhas não coincidem.",
+    pwChanged: "Senha alterada. Entre novamente.",
+    sessionsRevoked: "Saiu de todas as sessões.",
+    signOutEverywhere: "Sair de todos os dispositivos",
     integrationApiKey: "Chave de API",
     integrationNote:
       "A sincronização é ativada assim que as credenciais do provedor forem configuradas na instalação.",
@@ -1080,6 +1103,7 @@ const ptBR: Dictionary = {
     tzMountain: "Horário das Montanhas",
     tzCentral: "Horário Central",
     tzEastern: "Horário do Leste",
+    tzSaoPaulo: "São Paulo (BRT)",
     // command palette (cmd)
     cmdPalette: "Paleta de comandos",
     cmdSearchRun: "Busque um comando para executar…",

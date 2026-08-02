@@ -625,6 +625,29 @@ const en = {
     integrationManageTitle: "Manage {name}",
     integrationConnected: "Connected",
     integrationNotConnected: "Not connected",
+    settingsSaved: "Settings saved",
+    roleOwner: "Owner",
+    roleAdmin: "Admin",
+    roleManager: "Manager",
+    roleAgent: "Agent",
+    integrationsRealDesc:
+      "Connected services that feed data into your workspace.",
+    calGoogleName: "Google Calendar",
+    calConnectedDetail: "Connected — {id}",
+    calNotConfigured:
+      "Not configured. Add a service-account key to book viewings.",
+    calChannelsNote:
+      "Messaging channels (WhatsApp, Telegram, Instagram) are wired through the AI automations.",
+    changePassword: "Change password",
+    changePasswordDesc:
+      "You'll be signed out of all sessions and need to sign in again.",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmPassword: "Confirm new password",
+    pwMismatch: "The new passwords do not match.",
+    pwChanged: "Password changed. Please sign in again.",
+    sessionsRevoked: "Signed out of all sessions.",
+    signOutEverywhere: "Sign out everywhere",
     integrationApiKey: "API key",
     integrationNote:
       "Live sync turns on once the provider's credentials are configured during setup.",
@@ -1111,6 +1134,7 @@ const en = {
     tzMountain: "Mountain Time",
     tzCentral: "Central Time",
     tzEastern: "Eastern Time",
+    tzSaoPaulo: "São Paulo (BRT)",
     // command palette (cmd)
     cmdPalette: "Command Palette",
     cmdSearchRun: "Search for a command to run…",

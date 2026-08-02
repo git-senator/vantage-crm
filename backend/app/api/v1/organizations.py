@@ -8,7 +8,10 @@ IDOR surface that RLS would then have to catch — better not to offer it.
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 
 from app.api.v1.dependencies import (
     CurrentUser,
@@ -17,9 +20,12 @@ from app.api.v1.dependencies import (
     verify_csrf,
 )
 from app.core.audit_actions import AuditAction
+from app.core.config import get_settings
 from app.core.exceptions import NotFoundError
+from app.models.rbac import Role, UserRole
 from app.repositories.organization import OrganizationRepository
 from app.schemas.organization import (
+    IntegrationsStatus,
     OrganizationMember,
     OrganizationRead,
     OrganizationUpdate,
@@ -27,6 +33,24 @@ from app.schemas.organization import (
 from app.services.audit import AuditService, build_diff
 
 router = APIRouter()
+
+
+@router.get("/current/integrations", response_model=IntegrationsStatus)
+async def get_integrations(
+    _organization_id: OrganizationId,
+    _user: CurrentUser,
+) -> IntegrationsStatus:
+    """Which real integrations are wired, so Settings shows the truth.
+
+    Deployment-level config (not per-org yet): the calendar is connected when a
+    service-account key and a calendar id are both present in the environment.
+    """
+    s = get_settings()
+    return IntegrationsStatus(
+        calendar_connected=bool(s.GOOGLE_CALENDAR_SA_B64 and s.GOOGLE_CALENDAR_ID),
+        calendar_id=s.GOOGLE_CALENDAR_ID or None,
+        calendar_timezone=s.GOOGLE_CALENDAR_TZ or None,
+    )
 
 
 @router.get("/current", response_model=OrganizationRead)
@@ -89,7 +113,36 @@ async def list_members(
     session: TenantSessionDep,
     _user: CurrentUser,
 ) -> list[OrganizationMember]:
-    """Members of the caller's workspace."""
+    """Members of the caller's workspace, each with the roles they hold."""
     repository = OrganizationRepository(session)
     members = await repository.list_members(organization_id)
-    return [OrganizationMember.model_validate(member) for member in members]
+
+    # One query for every membership's role, folded into a per-user list — the
+    # alternative (a relationship load per member) is N+1 over a page that is
+    # already the whole workspace.
+    rows = (
+        await session.execute(
+            select(UserRole.user_id, Role.key)
+            .join(Role, Role.id == UserRole.role_id)
+            .where(UserRole.organization_id == organization_id)
+        )
+    ).all()
+    roles_by_user: dict[UUID, list[str]] = {}
+    for user_id, role_key in rows:
+        roles_by_user.setdefault(user_id, []).append(role_key)
+
+    return [
+        OrganizationMember(
+            id=member.id,
+            email=member.email,
+            full_name=member.full_name,
+            initials=member.initials,
+            job_title=member.job_title,
+            avatar_hue=member.avatar_hue,
+            status=member.status,
+            roles=roles_by_user.get(member.id, []),
+            last_login_at=member.last_login_at,
+            created_at=member.created_at,
+        )
+        for member in members
+    ]

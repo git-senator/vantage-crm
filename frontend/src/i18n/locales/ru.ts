@@ -597,6 +597,29 @@ const ru: Dictionary = {
     integrationManageTitle: "Управление {name}",
     integrationConnected: "Подключено",
     integrationNotConnected: "Не подключено",
+    settingsSaved: "Настройки сохранены",
+    roleOwner: "Владелец",
+    roleAdmin: "Администратор",
+    roleManager: "Менеджер",
+    roleAgent: "Агент",
+    integrationsRealDesc:
+      "Подключённые сервисы, поставляющие данные в пространство.",
+    calGoogleName: "Google Календарь",
+    calConnectedDetail: "Подключён — {id}",
+    calNotConfigured:
+      "Не настроен. Добавьте ключ сервисного аккаунта, чтобы записывать просмотры.",
+    calChannelsNote:
+      "Каналы сообщений (WhatsApp, Telegram, Instagram) подключаются через AI-автоматизации.",
+    changePassword: "Изменить пароль",
+    changePasswordDesc:
+      "Вы выйдете из всех сеансов, потребуется войти заново.",
+    currentPassword: "Текущий пароль",
+    newPassword: "Новый пароль",
+    confirmPassword: "Подтвердите новый пароль",
+    pwMismatch: "Новые пароли не совпадают.",
+    pwChanged: "Пароль изменён. Войдите снова.",
+    sessionsRevoked: "Выход из всех сеансов выполнен.",
+    signOutEverywhere: "Выйти везде",
     integrationApiKey: "API-ключ",
     integrationNote:
       "Синхронизация включится, как только при настройке будут заданы учётные данные провайдера.",
@@ -1080,6 +1103,7 @@ const ru: Dictionary = {
     tzMountain: "Горное время",
     tzCentral: "Центральное время",
     tzEastern: "Восточное время",
+    tzSaoPaulo: "Сан-Паулу (BRT)",
     // command palette (cmd)
     cmdPalette: "Командная палитра",
     cmdSearchRun: "Найдите команду для запуска…",

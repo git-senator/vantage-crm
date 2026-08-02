@@ -8,7 +8,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 class OrganizationRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -32,6 +31,14 @@ class OrganizationUpdate(BaseModel):
     settings: dict[str, Any] | None = None
 
 
+class IntegrationsStatus(BaseModel):
+    """Which real integrations are configured, for the Settings page."""
+
+    calendar_connected: bool
+    calendar_id: str | None = None
+    calendar_timezone: str | None = None
+
+
 class OrganizationMember(BaseModel):
     """A user as seen from the organization's member list."""
 
@@ -44,5 +51,8 @@ class OrganizationMember(BaseModel):
     job_title: str | None
     avatar_hue: int
     status: str
+    #: Role keys the member holds in this workspace (owner/admin/…). Empty for a
+    #: member who has been invited but not yet granted a role.
+    roles: list[str] = Field(default_factory=list)
     last_login_at: datetime | None
     created_at: datetime

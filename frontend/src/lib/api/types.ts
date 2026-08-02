@@ -15,6 +15,51 @@ export interface OrganizationSummary {
   slug: string;
 }
 
+/** The workspace settings the CRM persists on `organizations.settings` (JSONB).
+ *  Every field is optional — a fresh workspace has an empty object and the UI
+ *  falls back to sensible defaults. */
+export interface WorkspaceSettings {
+  license?: string;
+  timezone?: string;
+  currency?: string;
+  weekend_notifications?: boolean;
+  auto_assign?: boolean;
+  deal_approval?: boolean;
+  ai_lead_score_threshold?: number;
+  ai_drafting_tone?: string;
+  ai_suggest_replies?: boolean;
+  ai_daily_briefing?: boolean;
+  ai_auto_summarize?: boolean;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  settings: WorkspaceSettings;
+  created_at: string;
+}
+
+export interface IntegrationsStatus {
+  calendar_connected: boolean;
+  calendar_id: string | null;
+  calendar_timezone: string | null;
+}
+
+export interface OrganizationMember {
+  id: string;
+  email: string;
+  full_name: string;
+  initials: string;
+  job_title: string | null;
+  avatar_hue: number;
+  status: string;
+  roles: string[];
+  last_login_at: string | null;
+  created_at: string;
+}
+
 export interface UserProfile {
   id: string;
   email: string;
