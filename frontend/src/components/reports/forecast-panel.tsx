@@ -10,6 +10,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import type { TranslateFn } from "@/i18n/translate";
 import type { ForecastResponse } from "@/lib/api/types";
+import { stageLabel } from "@/lib/i18n-labels";
 import { formatMoney } from "@/lib/metrics";
 
 /**
@@ -96,7 +97,9 @@ export function ForecastPanel({
                 key={row.label}
                 className={`flex items-center justify-between gap-3 py-2 ${index > 0 ? "border-t" : ""}`}
               >
-                <span className="min-w-0 truncate text-sm">{row.label}</span>
+                <span className="min-w-0 truncate text-sm">
+                  {stageLabel(t, row.label)}
+                </span>
                 <span className="tabular shrink-0 text-sm font-medium">
                   {formatMoney(row.weighted)}
                 </span>

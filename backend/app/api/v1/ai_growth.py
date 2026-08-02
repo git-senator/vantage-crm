@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Cookie, Depends, Query
 
 from app.api.v1.dependencies import Authorization, CurrentUser, TenantSessionDep
 from app.core.exceptions import RateLimitedError, ServiceUnavailableError
@@ -46,6 +46,10 @@ def get_period(
 
 PeriodDep = Annotated[Period, Depends(get_period)]
 
+#: The caller's UI language, from the same cookie the frontend writes. Drives the
+#: language of the generated growth prose; absent/unknown falls back to English.
+LocaleDep = Annotated[str | None, Cookie(alias="vg_locale")]
+
 
 @router.get("/growth", response_model=GrowthHealthRead)
 async def growth_health(
@@ -53,6 +57,7 @@ async def growth_health(
     auth: Authorization,
     _user: CurrentUser,
     period: PeriodDep,
+    locale: LocaleDep = None,
 ) -> GrowthHealthRead:
     """The workspace's explainable growth score for the window.
 
@@ -63,7 +68,7 @@ async def growth_health(
     """
     result = await GrowthIntelligenceService(session, auth).score(period=period)
     await session.commit()
-    return to_growth_read(result, period)
+    return to_growth_read(result, period, locale or "en")
 
 
 @router.get("/growth/briefing", response_model=GrowthBriefingResponse)
@@ -72,6 +77,7 @@ async def growth_briefing(
     auth: Authorization,
     user: CurrentUser,
     period: PeriodDep,
+    locale: LocaleDep = None,
 ) -> GrowthBriefingResponse:
     """The growth read plus a grounded AI briefing. Requires `reports.view` and
     `ai.use`. The model explains the numbers; it does not produce them."""
@@ -86,5 +92,5 @@ async def growth_briefing(
         raise ServiceUnavailableError(str(exc)) from exc
     await session.commit()
     return GrowthBriefingResponse(
-        growth=to_growth_read(result, period), narrative=narrative
+        growth=to_growth_read(result, period, locale or "en"), narrative=narrative
     )

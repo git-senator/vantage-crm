@@ -174,10 +174,10 @@ class TestGrowthEngine:
             StageSnapshot("Offer", 3, Decimal("900000"), 34.0),
         )
         result = score_growth(_features(pipeline_stages=stages))
-        assert any("Revenue" in s for s in result.revenue_signals)
+        assert any("Revenue" in s.text for s in result.revenue_signals)
         # Offer holds the most value and is the slowest → flagged the bottleneck.
-        assert any("Offer" in i for i in result.pipeline_insights)
-        assert any("bottleneck" in i for i in result.pipeline_insights)
+        assert any("Offer" in i.text for i in result.pipeline_insights)
+        assert any("bottleneck" in i.text for i in result.pipeline_insights)
 
     def test_every_signal_and_recommendation_carries_a_reason(self) -> None:
         result = score_growth(

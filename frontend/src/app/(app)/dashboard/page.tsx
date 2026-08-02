@@ -42,6 +42,7 @@ import { requireSession } from "@/lib/auth/session";
 import type { SeriesPoint } from "@/lib/api/types";
 import { getSeries } from "@/lib/api/analytics";
 import { getTranslations } from "@/i18n/server";
+import type { TranslateFn } from "@/i18n/translate";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -80,16 +81,16 @@ function formatClock(iso: string): string {
   });
 }
 
-/** "just now", "3h ago", "2d ago", else a date. */
-function relativeTime(iso: string): string {
+/** "just now", "3h ago", "2d ago", else a date — localized. */
+function relativeTime(iso: string, t: TranslateFn): string {
   const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "just now";
+  if (seconds < 60) return t("body.dashJustNow");
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60) return t("body.dashMinutesAgo", { n: minutes });
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t("body.dashHoursAgo", { n: hours });
   const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return t("body.dashDaysAgo", { n: days });
   return new Date(iso).toLocaleDateString();
 }
 
@@ -285,13 +286,15 @@ export default async function DashboardPage() {
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {deal.client.display_name}
                       {deal.expected_close_date
-                        ? ` · closes ${deal.expected_close_date}`
+                        ? ` · ${t("body.dashCloses", { date: deal.expected_close_date })}`
                         : ""}
                     </p>
                   </div>
                   <div className="hidden w-32 shrink-0 sm:block">
                     <div className="mb-1 flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Confidence</span>
+                      <span className="text-muted-foreground">
+                        {t("body.dashConfidence")}
+                      </span>
                       <span className="tabular font-medium">
                         {deal.probability}%
                       </span>
@@ -378,10 +381,14 @@ export default async function DashboardPage() {
                     <p className="truncate text-sm">{task.title}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {task.due_at
-                        ? `Due ${new Date(task.due_at).toLocaleDateString()}`
-                        : "No due date"}
+                        ? t("body.dashDue", {
+                            date: new Date(task.due_at).toLocaleDateString(),
+                          })
+                        : t("body.dashNoDueDate")}
                       {task.is_overdue && (
-                        <span className="ml-1.5 text-destructive">overdue</span>
+                        <span className="ml-1.5 text-destructive">
+                          {t("body.dashOverdueWord")}
+                        </span>
                       )}
                     </p>
                   </div>
@@ -411,17 +418,18 @@ export default async function DashboardPage() {
                     <div className="min-w-0 flex-1 text-sm">
                       <p className="leading-snug">
                         <span className="font-medium">
-                          {item.actor?.full_name.split(" ")[0] ?? "System"}
+                          {item.actor?.full_name.split(" ")[0] ??
+                            t("body.dashSystem")}
                         </span>{" "}
                         <span className="text-muted-foreground">
-                          {item.kind === "note" ? "noted" : item.type}
+                          {item.kind === "note" ? t("body.dashNoted") : item.type}
                         </span>{" "}
                         <span className="font-medium">
                           {item.title ?? ""}
                         </span>
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {relativeTime(item.timestamp)}
+                        {relativeTime(item.timestamp, t)}
                       </p>
                     </div>
                   </li>

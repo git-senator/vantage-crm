@@ -73,6 +73,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# A translation catalog: the "ambiguous" characters are Cyrillic on purpose, and
+# some localized templates run past the line length.
+"app/ai/growth_i18n.py" = ["RUF001", "RUF002", "RUF003", "E501"]
 "tests/**" = ["S105", "S106"]           # hardcoded test credentials are fine
 "alembic/versions/*" = ["E501", "N999", "S608"]  # generated migrations; SQL is
                                                   # built from module constants,

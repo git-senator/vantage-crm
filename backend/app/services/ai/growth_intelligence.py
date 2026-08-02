@@ -244,8 +244,8 @@ def _breakdown(result: GrowthHealth) -> dict:  # type: ignore[type-arg]
             {"key": s.key, "label": s.label, "points": s.points, "reason": s.reason}
             for s in result.signals
         ],
-        "revenue_signals": result.revenue_signals,
-        "pipeline_insights": result.pipeline_insights,
+        "revenue_signals": [s.text for s in result.revenue_signals],
+        "pipeline_insights": [s.text for s in result.pipeline_insights],
         "risks": [
             {"key": r.key, "label": r.label, "detail": r.detail} for r in result.risks
         ],
@@ -267,10 +267,10 @@ def _render_analysis(result: GrowthHealth, period: Period) -> str:
     lines += [f"- {s.reason} ({s.points:+d})" for s in result.signals]
     if result.revenue_signals:
         lines.append("Revenue:")
-        lines += [f"- {s}" for s in result.revenue_signals]
+        lines += [f"- {s.text}" for s in result.revenue_signals]
     if result.pipeline_insights:
         lines.append("Pipeline:")
-        lines += [f"- {s}" for s in result.pipeline_insights]
+        lines += [f"- {s.text}" for s in result.pipeline_insights]
     if result.risks:
         lines.append("Risks:")
         lines += [f"- {r.label}: {r.detail}" for r in result.risks]

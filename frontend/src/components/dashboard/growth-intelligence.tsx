@@ -23,6 +23,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { getBriefing, getGrowth } from "@/lib/api/growth-intelligence-client";
 import type { GrowthHealthDetail } from "@/lib/api/types";
+import { useTranslation } from "@/i18n/language-provider";
 import { cn } from "@/lib/utils";
 
 /**
@@ -41,6 +42,7 @@ const BAND_TONE: Record<string, string> = {
 };
 
 export function GrowthIntelligence() {
+  const { t } = useTranslation();
   const [growth, setGrowth] = useState<GrowthHealthDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [narrative, setNarrative] = useState<string | null>(null);
@@ -50,11 +52,13 @@ export function GrowthIntelligence() {
     let active = true;
     getGrowth()
       .then((result) => active && setGrowth(result))
-      .catch(() => active && toast.error("Could not analyse growth."))
+      .catch(() => active && toast.error(t("growth.couldNotAnalyse")))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
+    // t is stable for a render; re-running on locale change would refetch needlessly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function generate() {
@@ -65,7 +69,7 @@ export function GrowthIntelligence() {
       setNarrative(result.narrative);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not generate briefing.",
+        error instanceof Error ? error.message : t("growth.couldNotBrief"),
       );
     } finally {
       setGenerating(false);
@@ -78,7 +82,7 @@ export function GrowthIntelligence() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Sparkles className="size-4 text-primary" />
-            Business health
+            {t("growth.businessHealth")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -97,11 +101,10 @@ export function GrowthIntelligence() {
       <CardHeader className="border-b py-4">
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="size-4 text-primary" />
-          Business health
+          {t("growth.businessHealth")}
         </CardTitle>
         <CardDescription>
-          Computed from your analytics for {growth.period_label} — the score is
-          the sum of the reasons below it.
+          {t("growth.computedDesc", { period: growth.period_label })}
         </CardDescription>
         <CardAction>
           <Button
@@ -115,7 +118,7 @@ export function GrowthIntelligence() {
             ) : (
               <Sparkles className="size-4" />
             )}
-            Generate briefing
+            {t("growth.generateBriefing")}
           </Button>
         </CardAction>
       </CardHeader>
@@ -124,7 +127,9 @@ export function GrowthIntelligence() {
         <div className="space-y-3 bg-card p-5">
           <div className="flex items-center gap-2">
             <Gauge className="size-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Growth score</span>
+            <span className="text-xs text-muted-foreground">
+              {t("growth.growthScore")}
+            </span>
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-semibold tabular">
@@ -132,11 +137,11 @@ export function GrowthIntelligence() {
             </span>
             <span
               className={cn(
-                "text-xs font-medium capitalize",
+                "text-xs font-medium",
                 BAND_TONE[growth.band],
               )}
             >
-              {growth.band.replace("_", " ")}
+              {t(`growth.band_${growth.band}`)}
             </span>
           </div>
           <Progress value={growth.score} className="h-1.5" />
@@ -172,7 +177,7 @@ export function GrowthIntelligence() {
           <div className="flex items-center gap-2">
             <TrendingUp className="size-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">
-              Revenue &amp; pipeline
+              {t("growth.revenuePipeline")}
             </span>
           </div>
           {[...growth.revenue_signals, ...growth.pipeline_insights]
@@ -191,7 +196,7 @@ export function GrowthIntelligence() {
               <div className="flex items-center gap-2">
                 <Sparkles className="size-4 text-primary" />
                 <span className="text-xs text-muted-foreground">
-                  AI briefing
+                  {t("growth.aiBriefing")}
                 </span>
               </div>
               <p className="whitespace-pre-wrap text-xs leading-relaxed">
@@ -203,12 +208,12 @@ export function GrowthIntelligence() {
               <div className="flex items-center gap-2">
                 <AlertTriangle className="size-4 text-muted-foreground" />
                 <span className="text-xs text-muted-foreground">
-                  Priorities
+                  {t("growth.priorities")}
                 </span>
               </div>
               {growth.risks.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
-                  No risks flagged this period.
+                  {t("growth.noRisks")}
                 </p>
               ) : (
                 growth.risks.slice(0, 3).map((risk) => (

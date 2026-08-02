@@ -32,6 +32,7 @@ import {
 import { getDashboard } from "@/lib/api/analytics";
 import type { PeriodName } from "@/lib/api/types";
 import { getTranslations } from "@/i18n/server";
+import { stageLabel } from "@/lib/i18n-labels";
 import { formatMoney } from "@/lib/metrics";
 
 export const metadata: Metadata = { title: "Reports & Analytics" };
@@ -120,7 +121,7 @@ export default async function ReportsPage({
             {dashboard.stages.length ? (
               <ConversionFunnel
                 data={dashboard.stages.map((stage) => ({
-                  stage: stage.stage_name,
+                  stage: stageLabel(t, stage.stage_name),
                   value: stage.deal_count,
                 }))}
               />
@@ -246,7 +247,7 @@ export default async function ReportsPage({
                   className={`flex items-center justify-between gap-3 py-3 ${index > 0 ? "border-t" : ""}`}
                 >
                   <span className="min-w-0 truncate text-sm">
-                    {row.stage_name}
+                    {stageLabel(t, row.stage_name)}
                   </span>
                   <div className="flex shrink-0 items-baseline gap-3">
                     <span className="tabular text-xs text-muted-foreground">

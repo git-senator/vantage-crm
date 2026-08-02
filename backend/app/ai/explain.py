@@ -18,7 +18,13 @@ stay pure and the API layer that renders them has one shape to serialise.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+#: Optional localization hooks carried by the explainability records. Engines
+#: whose prose is generated (growth intelligence) fill an `i18n_key` and its
+#: parameters so the API boundary can render the record in the caller's locale;
+#: the per-record engines leave them empty and their English `reason`/`detail`
+#: text is used as-is. The default is always English text, never a blank.
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +36,9 @@ class ScoredSignal:
     label: str
     points: int
     reason: str
+    #: Localization key + params for `reason`; empty when the reason is final text.
+    i18n_key: str = ""
+    i18n_params: dict = field(default_factory=dict)  # type: ignore[type-arg]
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +46,10 @@ class RiskFlag:
     key: str
     label: str
     detail: str
+    #: Localization keys for `label` and `detail`, and params for `detail`.
+    label_key: str = ""
+    detail_key: str = ""
+    i18n_params: dict = field(default_factory=dict)  # type: ignore[type-arg]
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +64,9 @@ class Recommendation:
     reason: str
     #: high / medium / low — how much the next action wants attention now.
     priority: str
+    #: Localization keys for `action` and `reason`; empty when final text.
+    action_key: str = ""
+    reason_key: str = ""
 
 
 __all__ = ["MissingField", "Recommendation", "RiskFlag", "ScoredSignal"]

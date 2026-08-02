@@ -827,6 +827,7 @@ const en = {
     dashTopDeals: "Deals closest to closing",
     dashTopDealsDesc: "Ranked by contract value.",
     dashAllDeals: "All deals",
+    dashCloses: "closes {date}",
     dashConfidence: "Confidence",
     dashHotLeads: "Hot leads",
     dashHotLeadsDesc: "Scored 80 and above.",
@@ -842,6 +843,10 @@ const en = {
     dashNothingLogged: "Nothing logged yet.",
     dashNoted: "noted",
     dashSystem: "System",
+    dashJustNow: "just now",
+    dashMinutesAgo: "{n}m ago",
+    dashHoursAgo: "{n}h ago",
+    dashDaysAgo: "{n}d ago",
     dashSaved: "Saved searches",
     dashSavedDesc: "Pin a filtered view to reach it in one click.",
     dashSavedEmpty: "No saved searches yet",
@@ -1596,6 +1601,64 @@ const en = {
     docEmptyFilteredDesc: "Try a different status filter.",
     // shared
     editRecordedDesc: "Changes are recorded in the audit log.",
+  },
+
+  // Metric registry labels — keyed by the API's stable metric key, so a
+  // server-provided label is translated rather than shown in English.
+  metrics: {
+    leads_created: "Leads created",
+    leads_converted: "Leads converted",
+    leads_open: "Open leads",
+    lead_conversion_rate: "Lead conversion rate",
+    deals_created: "Deals opened",
+    deals_won: "Deals won",
+    deals_lost: "Deals lost",
+    revenue_won: "Revenue won",
+    commission_earned: "Commission earned",
+    pipeline_open_value: "Open pipeline",
+    pipeline_weighted_value: "Weighted pipeline",
+    win_rate: "Win rate",
+    average_deal_value: "Average deal size",
+    sales_cycle_days: "Sales cycle",
+    listings_active: "Active listings",
+    listings_sold: "Listings sold",
+    average_days_on_market: "Days on market",
+    tasks_completed: "Tasks completed",
+    tasks_overdue: "Overdue tasks",
+    activities_logged: "Activities logged",
+    clients_created: "Clients added",
+  },
+
+  // Default pipeline stage names — keyed by stage key; custom stages keep
+  // their own name.
+  stages: {
+    qualification: "Qualification",
+    showing: "Showing",
+    offer: "Offer submitted",
+    under_contract: "Under contract",
+    closing: "Closing",
+    closed_won: "Closed won",
+    closed_lost: "Closed lost",
+  },
+
+  // Growth-intelligence panel (dashboard). The reason prose is localized by the
+  // backend; these are the static labels and the score bands.
+  growth: {
+    businessHealth: "Business health",
+    computedDesc:
+      "Computed from your analytics for {period} — the score is the sum of the reasons below it.",
+    generateBriefing: "Generate briefing",
+    growthScore: "Growth score",
+    revenuePipeline: "Revenue & pipeline",
+    priorities: "Priorities",
+    aiBriefing: "AI briefing",
+    noRisks: "No risks flagged this period.",
+    couldNotAnalyse: "Could not analyse growth.",
+    couldNotBrief: "Could not generate briefing.",
+    band_thriving: "Thriving",
+    band_steady: "Steady",
+    band_at_risk: "At risk",
+    band_struggling: "Struggling",
   },
 
   language: {

@@ -1,6 +1,7 @@
 import { StatGrid, type Stat } from "@/components/shared/stat-card";
 import type { TranslateFn } from "@/i18n/translate";
 import type { Metric } from "@/lib/api/types";
+import { metricLabel } from "@/lib/i18n-labels";
 import {
   formatMetric,
   invertDelta,
@@ -29,8 +30,9 @@ export function MetricGrid({
   if (!metrics.length) return null;
 
   const stats: Stat[] = metrics.map((metric) => ({
-    // Label is server-provided (the metric registry); see note in reports page.
-    label: metric.label,
+    // Label is server-provided (the metric registry) but translated by its
+    // stable key, falling back to the server text; see note in reports page.
+    label: metricLabel(t, metric.key, metric.label),
     value: formatMetric(metric),
     delta: metricDelta(metric),
     hint:
