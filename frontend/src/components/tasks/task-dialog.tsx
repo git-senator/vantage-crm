@@ -31,17 +31,14 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { createTask, updateTask } from "@/lib/api/tasks-client";
 import type { Task, TaskPriority, TaskStatus } from "@/lib/api/types";
 
 type OpenStatus = Exclude<TaskStatus, "done">;
 
 const PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];
-const OPEN_STATES: { value: OpenStatus; label: string }[] = [
-  { value: "todo", label: "To do" },
-  { value: "in_progress", label: "In progress" },
-  { value: "blocked", label: "Blocked" },
-];
+const OPEN_STATES: OpenStatus[] = ["todo", "in_progress", "blocked"];
 
 /** ISO → the `datetime-local` input's `YYYY-MM-DDTHH:mm`, in the viewer's zone. */
 function toLocalInput(iso: string | null): string {
@@ -71,6 +68,7 @@ export function TaskDialog({
   trigger: ReactNode;
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +95,7 @@ export function TaskDialog({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!title.trim()) {
-      setError("A title is required.");
+      setError(t("body.tdTitleRequired"));
       return;
     }
     setPending(true);
@@ -116,7 +114,7 @@ export function TaskDialog({
         if (status !== "todo") {
           await updateTask(created.id, { status });
         }
-        toast.success("Task created");
+        toast.success(t("body.tdCreated"));
       } else if (task) {
         await updateTask(task.id, {
           title: title.trim(),
@@ -125,7 +123,7 @@ export function TaskDialog({
           status,
           due_at: due,
         });
-        toast.success("Task updated");
+        toast.success(t("body.tdUpdated"));
       }
       setOpen(false);
       router.refresh();
@@ -133,7 +131,7 @@ export function TaskDialog({
       setError(
         caught instanceof ClientApiError
           ? caught.message
-          : "Something went wrong. Please try again.",
+          : t("body.genericError"),
       );
       setPending(false);
     }
@@ -151,7 +149,7 @@ export function TaskDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "New task" : "Edit task"}
+            {mode === "create" ? t("body.tdNewTask") : t("body.taskEdit")}
           </DialogTitle>
         </DialogHeader>
 
@@ -167,12 +165,12 @@ export function TaskDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="task-title">Title</Label>
+            <Label htmlFor="task-title">{t("body.tdTitle")}</Label>
             <Input
               id="task-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Follow up with the buyer"
+              placeholder={t("body.tdTitlePlaceholder")}
               maxLength={200}
               autoFocus
               disabled={pending}
@@ -180,12 +178,12 @@ export function TaskDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="task-desc">Description</Label>
+            <Label htmlFor="task-desc">{t("body.tdDescription")}</Label>
             <Textarea
               id="task-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Anything worth remembering about this task…"
+              placeholder={t("body.tdDescPlaceholder")}
               rows={3}
               disabled={pending}
             />
@@ -193,7 +191,7 @@ export function TaskDialog({
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label>Priority</Label>
+              <Label>{t("body.dfPriority")}</Label>
               <Select
                 value={priority}
                 onValueChange={(v) => v && setPriority(v as TaskPriority)}
@@ -203,8 +201,8 @@ export function TaskDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {PRIORITIES.map((p) => (
-                    <SelectItem key={p} value={p} className="capitalize">
-                      {p}
+                    <SelectItem key={p} value={p}>
+                      {t(`body.dfPriority_${p}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -212,7 +210,7 @@ export function TaskDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label>{t("body.formStatus")}</Label>
               <Select
                 value={status}
                 onValueChange={(v) => v && setStatus(v as OpenStatus)}
@@ -222,8 +220,8 @@ export function TaskDialog({
                 </SelectTrigger>
                 <SelectContent>
                   {OPEN_STATES.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
+                    <SelectItem key={s} value={s}>
+                      {t(`body.taskCol_${s}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -231,7 +229,7 @@ export function TaskDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="task-due">Due</Label>
+              <Label htmlFor="task-due">{t("body.tdDue")}</Label>
               <Input
                 id="task-due"
                 type="datetime-local"
@@ -246,13 +244,13 @@ export function TaskDialog({
             <DialogClose
               render={
                 <Button type="button" variant="ghost" disabled={pending}>
-                  Cancel
+                  {t("buttons.cancel")}
                 </Button>
               }
             />
             <Button type="submit" disabled={pending}>
               {pending && <Loader2 className="size-4 animate-spin" />}
-              {mode === "create" ? "Create task" : "Save changes"}
+              {mode === "create" ? t("body.tdCreate") : t("body.profSaveChanges")}
             </Button>
           </DialogFooter>
         </form>

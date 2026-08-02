@@ -15,20 +15,22 @@ import { DealIntelligence } from "@/components/deals/deal-intelligence";
 import { getDeal, getDealHistory, getPipeline } from "@/lib/api/deals";
 import { ApiError } from "@/lib/api/server";
 import { RecordActivity } from "@/components/shared/record-activity";
+import { getTranslations } from "@/i18n/server";
+import type { TranslateFn } from "@/i18n/translate";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 import { formatCurrency, titleize } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Deal" };
 
-/** "3 days", "4 hours", "12 minutes" — enough precision for a cycle time. */
-function humaniseDuration(seconds: number | null): string {
+/** "3 d", "4 h", "12 min" — enough precision for a cycle time. */
+function humaniseDuration(seconds: number | null, t: TranslateFn): string {
   if (seconds === null) return "—";
   const days = Math.floor(seconds / 86_400);
-  if (days >= 1) return `${days} ${days === 1 ? "day" : "days"}`;
+  if (days >= 1) return t("body.dvDurDays", { n: days });
   const hours = Math.floor(seconds / 3_600);
-  if (hours >= 1) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  if (hours >= 1) return t("body.dvDurHours", { n: hours });
   const minutes = Math.max(1, Math.floor(seconds / 60));
-  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+  return t("body.dvDurMinutes", { n: minutes });
 }
 
 export default async function DealDetailPage({
@@ -38,6 +40,7 @@ export default async function DealDetailPage({
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const t = await getTranslations();
 
   let deal;
   try {
@@ -67,7 +70,7 @@ export default async function DealDetailPage({
         render={<Link href="/deals" />}
       >
         <ArrowLeft className="size-4" />
-        All deals
+        {t("body.dvBackDeals")}
       </Button>
 
       <PageHeader
@@ -82,7 +85,7 @@ export default async function DealDetailPage({
                 render={<Link href={`/deals/${deal.id}/edit`} />}
               >
                 <Pencil className="size-4" />
-                Edit
+                {t("buttons.edit")}
               </Button>
               <DeleteDealButton dealId={deal.id} dealTitle={deal.title} />
             </>
@@ -94,15 +97,15 @@ export default async function DealDetailPage({
         <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Financials</CardTitle>
+              <CardTitle>{t("body.dvFinancials")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-0">
-              <Detail label="Deal value">
+              <Detail label={t("body.dfValue")}>
                 <span className="tabular font-medium">
                   {deal.value ? formatCurrency(Number(deal.value)) : "—"}
                 </span>
               </Detail>
-              <Detail label="Commission">
+              <Detail label={t("body.dvCommission")}>
                 <span className="tabular">
                   {deal.commission_amount
                     ? formatCurrency(Number(deal.commission_amount))
@@ -114,21 +117,23 @@ export default async function DealDetailPage({
                   )}
                 </span>
               </Detail>
-              <Detail label="Weighted value">
+              <Detail label={t("body.dvWeightedValue")}>
                 <span className="tabular">
                   {deal.weighted_value
                     ? formatCurrency(Number(deal.weighted_value))
                     : "—"}
                   <span className="ml-1.5 text-muted-foreground">
-                    at {deal.probability}%
+                    {t("body.dvAtPercent", { p: deal.probability })}
                   </span>
                 </span>
               </Detail>
-              <Detail label="Expected close">
+              <Detail label={t("body.dfExpectedClose")}>
                 {deal.expected_close_date ?? "—"}
               </Detail>
               {deal.actual_close_date && (
-                <Detail label="Actual close">{deal.actual_close_date}</Detail>
+                <Detail label={t("body.dvActualClose")}>
+                  {deal.actual_close_date}
+                </Detail>
               )}
             </CardContent>
           </Card>
@@ -136,7 +141,7 @@ export default async function DealDetailPage({
           {deal.lost_reason && (
             <Card>
               <CardHeader>
-                <CardTitle>Why it was lost</CardTitle>
+                <CardTitle>{t("body.dvWhyLost")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -152,13 +157,13 @@ export default async function DealDetailPage({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <History className="size-4" />
-                Stage history
+                {t("body.dvStageHistory")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {history.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No transitions recorded yet.
+                  {t("body.dvNoTransitions")}
                 </p>
               ) : (
                 <ol className="space-y-0">
@@ -185,7 +190,7 @@ export default async function DealDetailPage({
                                   {entry.to_stage.name}
                                 </span>
                                 <span className="ml-1.5 text-muted-foreground">
-                                  (created)
+                                  {t("body.dvCreatedTag")}
                                 </span>
                               </>
                             )}
@@ -202,7 +207,9 @@ export default async function DealDetailPage({
                           </p>
                           {entry.duration_seconds !== null && (
                             <p className="tabular text-xs text-muted-foreground">
-                              {humaniseDuration(entry.duration_seconds)} in stage
+                              {t("body.dvInStage", {
+                                d: humaniseDuration(entry.duration_seconds, t),
+                              })}
                             </p>
                           )}
                         </div>
@@ -221,11 +228,13 @@ export default async function DealDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Status</CardTitle>
+              <CardTitle className="text-sm">{t("forms.status")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-muted-foreground">Stage</span>
+                <span className="text-sm text-muted-foreground">
+                  {t("forms.stage")}
+                </span>
                 <StatusBadge
                   status={deal.stage.key}
                   label={deal.stage.name}
@@ -234,19 +243,29 @@ export default async function DealDetailPage({
                 />
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-muted-foreground">Outcome</span>
-                <StatusBadge status={deal.status} />
+                <span className="text-sm text-muted-foreground">
+                  {t("body.dvOutcome")}
+                </span>
+                <StatusBadge
+                  status={deal.status}
+                  label={t(`body.dealStatus_${deal.status}`)}
+                />
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-muted-foreground">Priority</span>
-                <StatusBadge status={deal.priority} />
+                <span className="text-sm text-muted-foreground">
+                  {t("body.dfPriority")}
+                </span>
+                <StatusBadge
+                  status={deal.priority}
+                  label={t(`body.dfPriority_${deal.priority}`)}
+                />
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Client</CardTitle>
+              <CardTitle className="text-sm">{t("body.dvClient")}</CardTitle>
             </CardHeader>
             <CardContent>
               <Link
@@ -262,7 +281,7 @@ export default async function DealDetailPage({
           {deal.listing && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Property</CardTitle>
+                <CardTitle className="text-sm">{t("body.dfProperty")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <Link
@@ -283,7 +302,7 @@ export default async function DealDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Owner</CardTitle>
+              <CardTitle className="text-sm">{t("forms.owner")}</CardTitle>
             </CardHeader>
             <CardContent>
               {deal.owner ? (
@@ -303,14 +322,16 @@ export default async function DealDetailPage({
                   </span>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Unassigned</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("body.unassigned")}
+                </p>
               )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Pipeline</CardTitle>
+              <CardTitle className="text-sm">{t("body.dvPipeline")}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">

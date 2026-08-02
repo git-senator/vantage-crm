@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { getPipeline } from "@/lib/api/deals";
 import { ApiError } from "@/lib/api/server";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Pipeline" };
@@ -19,6 +20,7 @@ export default async function PipelinePage({
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const t = await getTranslations();
 
   // Pipelines are workspace configuration, so this is settings.manage rather
   // than deals.manage — an agent who can edit deals must not be able to delete
@@ -46,12 +48,12 @@ export default async function PipelinePage({
         render={<Link href="/deals" />}
       >
         <ArrowLeft className="size-4" />
-        Back to board
+        {t("body.autoBackToBoard")}
       </Button>
 
       <PageHeader
         title={pipeline.name}
-        description="Stages become the columns on the board. Changes apply to every deal in this pipeline."
+        description={t("body.peBoardHint")}
       />
 
       <PipelineEditor pipeline={pipeline} />

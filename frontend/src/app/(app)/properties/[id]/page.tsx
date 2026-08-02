@@ -15,8 +15,9 @@ import { Separator } from "@/components/ui/separator";
 import { getProperty } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/server";
 import { RecordActivity } from "@/components/shared/record-activity";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
-import { formatCurrency, formatNumber, titleize } from "@/lib/format";
+import { formatCurrency, formatNumber } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Property" };
 
@@ -27,6 +28,7 @@ export default async function PropertyDetailPage({
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const t = await getTranslations();
 
   let property;
   try {
@@ -55,7 +57,7 @@ export default async function PropertyDetailPage({
         render={<Link href="/properties" />}
       >
         <ArrowLeft className="size-4" />
-        All properties
+        {t("body.dvBackProperties")}
       </Button>
 
       <PageHeader
@@ -69,7 +71,7 @@ export default async function PropertyDetailPage({
                 render={<Link href={`/properties/${property.id}/edit`} />}
               >
                 <Pencil className="size-4" />
-                Edit
+                {t("buttons.edit")}
               </Button>
               <DeletePropertyButton
                 propertyId={property.id}
@@ -91,49 +93,54 @@ export default async function PropertyDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Details</CardTitle>
+              <CardTitle>{t("body.dvDetails")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-0">
-              <Detail label="Price">
+              <Detail label={t("forms.price")}>
                 <span className="tabular font-medium">
                   {property.price
                     ? formatCurrency(Number(property.price))
-                    : "On application"}
+                    : t("body.dvOnApplication")}
                 </span>
               </Detail>
-              <Detail label="Status">
-                <StatusBadge status={property.status} />
+              <Detail label={t("forms.status")}>
+                <StatusBadge
+                  status={property.status}
+                  label={t(`body.propStatus_${property.status}`)}
+                />
               </Detail>
-              <Detail label="Type">
+              <Detail label={t("forms.type")}>
                 <StatusBadge
                   status={property.property_type}
-                  label={titleize(property.property_type)}
+                  label={t(`body.propType_${property.property_type}`)}
                   tone="neutral"
                   dot={false}
                 />
               </Detail>
               {property.mls_number && (
-                <Detail label="MLS number">
+                <Detail label={t("body.pfMls")}>
                   <span className="tabular">{property.mls_number}</span>
                 </Detail>
               )}
               {property.year_built && (
-                <Detail label="Year built">
+                <Detail label={t("body.pfYearBuilt")}>
                   <span className="tabular">{property.year_built}</span>
                 </Detail>
               )}
               {property.lot_size_sqft && (
-                <Detail label="Lot size">
+                <Detail label={t("body.dvLotSize")}>
                   <span className="tabular">
-                    {formatNumber(property.lot_size_sqft)} sqft
+                    {t("body.propSqft", {
+                      n: formatNumber(property.lot_size_sqft),
+                    })}
                   </span>
                 </Detail>
               )}
               {property.listed_at && (
-                <Detail label="Listed on">{property.listed_at}</Detail>
+                <Detail label={t("body.pfListedOn")}>{property.listed_at}</Detail>
               )}
               {property.days_on_market !== null && (
-                <Detail label="Days on market">
+                <Detail label={t("body.dvDaysOnMarketLabel")}>
                   <span className="tabular">{property.days_on_market}</span>
                 </Detail>
               )}
@@ -143,7 +150,7 @@ export default async function PropertyDetailPage({
           {property.description && (
             <Card>
               <CardHeader>
-                <CardTitle>Description</CardTitle>
+                <CardTitle>{t("body.pfDescription")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -159,26 +166,26 @@ export default async function PropertyDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">At a glance</CardTitle>
+              <CardTitle className="text-sm">{t("body.dvAtAGlance")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="tabular flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
                 {property.bedrooms ? (
                   <span className="flex items-center gap-1.5">
                     <Bed className="size-4 text-muted-foreground" />
-                    {property.bedrooms} bd
+                    {t("body.dvBd", { n: property.bedrooms })}
                   </span>
                 ) : null}
                 {property.bathrooms ? (
                   <span className="flex items-center gap-1.5">
                     <Bath className="size-4 text-muted-foreground" />
-                    {Number(property.bathrooms)} ba
+                    {t("body.dvBa", { n: Number(property.bathrooms) })}
                   </span>
                 ) : null}
                 {property.square_feet ? (
                   <span className="flex items-center gap-1.5">
                     <Ruler className="size-4 text-muted-foreground" />
-                    {formatNumber(property.square_feet)} sqft
+                    {t("body.propSqft", { n: formatNumber(property.square_feet) })}
                   </span>
                 ) : null}
               </div>
@@ -187,7 +194,7 @@ export default async function PropertyDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Address</CardTitle>
+              <CardTitle className="text-sm">{t("body.pfAddress")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <p className="flex items-start gap-2 text-muted-foreground">
@@ -205,7 +212,9 @@ export default async function PropertyDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Listing agent</CardTitle>
+              <CardTitle className="text-sm">
+                {t("body.dvListingAgent")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {property.listing_agent ? (
@@ -225,12 +234,13 @@ export default async function PropertyDetailPage({
                   </span>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Unassigned</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("body.unassigned")}
+                </p>
               )}
               {canManage && !canEdit && (
                 <p className="mt-3 text-xs text-muted-foreground">
-                  This listing belongs to another agent. You can view it, but
-                  not change it.
+                  {t("body.dvNotYourListing")}
                 </p>
               )}
             </CardContent>
@@ -239,7 +249,7 @@ export default async function PropertyDetailPage({
           {property.client_id && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Seller</CardTitle>
+                <CardTitle className="text-sm">{t("body.dvSeller")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <Link
@@ -247,7 +257,7 @@ export default async function PropertyDetailPage({
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                 >
                   <User className="size-4 shrink-0" />
-                  View the client record
+                  {t("body.dvViewClientRecord")}
                 </Link>
               </CardContent>
             </Card>
@@ -256,7 +266,7 @@ export default async function PropertyDetailPage({
           {property.features.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Features</CardTitle>
+                <CardTitle className="text-sm">{t("body.pfFeatures")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">

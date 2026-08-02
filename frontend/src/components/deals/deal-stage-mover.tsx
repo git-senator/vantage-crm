@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslation } from "@/i18n/language-provider";
 import { ClientApiError } from "@/lib/api/client";
 import { moveDealStage } from "@/lib/api/deals-client";
 import type { Deal, PipelineStage } from "@/lib/api/types";
@@ -48,6 +49,7 @@ export function DealStageMover({
   stages: PipelineStage[];
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,9 +78,7 @@ export function DealStageMover({
       router.refresh();
     } catch (caught) {
       setError(
-        caught instanceof ClientApiError
-          ? caught.message
-          : "Unable to move the deal. Please try again.",
+        caught instanceof ClientApiError ? caught.message : t("body.dsmError"),
       );
     } finally {
       setPending(false);
@@ -93,16 +93,15 @@ export function DealStageMover({
         render={
           <Button variant="outline">
             <ArrowRight className="size-4" />
-            Move stage
+            {t("body.dsmMoveStage")}
           </Button>
         }
       />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Move this deal</DialogTitle>
+          <DialogTitle>{t("body.dsmTitle")}</DialogTitle>
           <DialogDescription>
-            Currently in {deal.stage.name}. Moving records the change in the
-            deal&apos;s history and updates its probability.
+            {t("body.dsmDesc", { stage: deal.stage.name })}
           </DialogDescription>
         </DialogHeader>
 
@@ -118,7 +117,7 @@ export function DealStageMover({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="to_stage">Move to</Label>
+            <Label htmlFor="to_stage">{t("body.dsmMoveTo")}</Label>
             <Select
               value={target}
               onValueChange={(next) => setTarget(next ?? "")}
@@ -139,27 +138,27 @@ export function DealStageMover({
 
           {needsReason && (
             <div className="space-y-2">
-              <Label htmlFor="lost_reason">Why was it lost?</Label>
+              <Label htmlFor="lost_reason">{t("body.dsmWhyLost")}</Label>
               <Textarea
                 id="lost_reason"
                 rows={3}
-                placeholder="Financing fell through, lost to a cash offer…"
+                placeholder={t("body.dsmLostPlaceholder")}
                 value={lostReason}
                 onChange={(event) => setLostReason(event.target.value)}
                 disabled={pending}
               />
               <p className="text-xs text-muted-foreground">
-                Required. This is the data behind &quot;why do we lose deals&quot;.
+                {t("body.dsmLostHint")}
               </p>
             </div>
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="note">Note</Label>
+            <Label htmlFor="note">{t("body.dsmNote")}</Label>
             <Textarea
               id="note"
               rows={2}
-              placeholder="Optional — added to the deal's timeline"
+              placeholder={t("body.dsmNotePlaceholder")}
               value={note}
               onChange={(event) => setNote(event.target.value)}
               disabled={pending}
@@ -169,11 +168,15 @@ export function DealStageMover({
 
         <DialogFooter>
           <DialogClose
-            render={<Button variant="ghost" disabled={pending}>Cancel</Button>}
+            render={
+              <Button variant="ghost" disabled={pending}>
+                {t("buttons.cancel")}
+              </Button>
+            }
           />
           <Button onClick={handleMove} disabled={pending || blocked || !target}>
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Move deal
+            {t("body.dsmMoveDeal")}
           </Button>
         </DialogFooter>
       </DialogContent>

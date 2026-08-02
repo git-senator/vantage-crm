@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { sendMessage } from "@/lib/api/conversations-client";
 
 /**
@@ -31,6 +32,7 @@ export function MessageComposer({
   subject: string | null;
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [body, setBody] = useState("");
   const [subjectLine, setSubjectLine] = useState(
     subject && !subject.toLowerCase().startsWith("re:")
@@ -48,7 +50,7 @@ export function MessageComposer({
       await sendMessage({
         to_address: toAddress,
         to_name: toName,
-        subject: subjectLine.trim() || "(no subject)",
+        subject: subjectLine.trim() || t("body.msgNoSubject"),
         body_text: body,
       });
       setBody("");
@@ -57,7 +59,7 @@ export function MessageComposer({
       setError(
         caught instanceof ClientApiError
           ? caught.message
-          : "Could not send that message.",
+          : t("body.msgSendError"),
       );
     } finally {
       setPending(false);
@@ -69,15 +71,15 @@ export function MessageComposer({
       <Input
         value={subjectLine}
         onChange={(event) => setSubjectLine(event.target.value)}
-        placeholder="Subject"
-        aria-label="Subject"
+        placeholder={t("body.msgSubject")}
+        aria-label={t("body.msgSubject")}
         disabled={pending}
       />
       <Textarea
         value={body}
         onChange={(event) => setBody(event.target.value)}
-        placeholder={`Reply to ${toName ?? toAddress}…`}
-        aria-label="Message"
+        placeholder={t("body.msgReplyTo", { name: toName ?? toAddress })}
+        aria-label={t("body.msgBodyAria")}
         rows={3}
         disabled={pending}
         onKeyDown={(event) => {
@@ -96,7 +98,7 @@ export function MessageComposer({
       )}
       <div className="flex items-center justify-between">
         <span className="text-[11px] text-muted-foreground">
-          Sending to {toAddress}
+          {t("body.msgSendingTo", { address: toAddress })}
         </span>
         <Button size="sm" onClick={submit} disabled={pending || !body.trim()}>
           {pending ? (
@@ -104,7 +106,7 @@ export function MessageComposer({
           ) : (
             <Send className="size-4" />
           )}
-          Send
+          {t("body.msgSend")}
         </Button>
       </div>
     </div>

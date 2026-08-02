@@ -15,6 +15,7 @@ import { getLead } from "@/lib/api/leads";
 import { ApiError } from "@/lib/api/server";
 import { LeadIntelligence } from "@/components/leads/lead-intelligence";
 import { RecordActivity } from "@/components/shared/record-activity";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 import { formatPrice } from "@/lib/format";
 
@@ -27,11 +28,6 @@ function budgetLabel(min: string | null, max: string | null): string {
   return low ?? high ?? "—";
 }
 
-function label(value: string): string {
-  const spaced = value.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
 export default async function LeadDetailPage({
   params,
 }: {
@@ -39,6 +35,7 @@ export default async function LeadDetailPage({
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const t = await getTranslations();
 
   let lead;
   try {
@@ -69,12 +66,12 @@ export default async function LeadDetailPage({
         render={<Link href="/leads" />}
       >
         <ArrowLeft className="size-4" />
-        All leads
+        {t("body.dvBackLeads")}
       </Button>
 
       <PageHeader
         title={lead.full_name}
-        description={lead.preferred_location ?? "No location preference recorded"}
+        description={lead.preferred_location ?? t("body.dvNoLocationPref")}
         actions={
           canManage ? (
             <>
@@ -89,7 +86,7 @@ export default async function LeadDetailPage({
                 render={<Link href={`/leads/${lead.id}/edit`} />}
               >
                 <Pencil className="size-4" />
-                Edit
+                {t("buttons.edit")}
               </Button>
               <DeleteLeadButton leadId={lead.id} leadName={lead.full_name} />
             </>
@@ -101,31 +98,42 @@ export default async function LeadDetailPage({
         <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Details</CardTitle>
+              <CardTitle>{t("body.dvDetails")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-0">
-              <Detail label="Stage">
-                <StatusBadge status={lead.stage} />
+              <Detail label={t("forms.stage")}>
+                <StatusBadge
+                  status={lead.stage}
+                  label={t(`body.leadStage_${lead.stage}`)}
+                />
               </Detail>
-              <Detail label="Temperature">
+              <Detail label={t("body.formTemperature")}>
                 <span className="flex items-center gap-1.5">
-                  <StatusBadge status={lead.temperature} />
+                  <StatusBadge
+                    status={lead.temperature}
+                    label={t(`body.lfTemp_${lead.temperature}`)}
+                  />
                   {lead.temperature === "hot" && (
                     <Flame className="size-3.5 text-destructive" />
                   )}
                 </span>
               </Detail>
-              <Detail label="Source">{label(lead.source)}</Detail>
-              <Detail label="Budget">
+              <Detail label={t("forms.source")}>
+                {t(`body.lfSource_${lead.source}`)}
+              </Detail>
+              <Detail label={t("forms.budget")}>
                 <span className="tabular">
                   {budgetLabel(lead.budget_min, lead.budget_max)}
                 </span>
               </Detail>
-              <Detail label="Status">
-                <StatusBadge status={lead.status} />
+              <Detail label={t("forms.status")}>
+                <StatusBadge
+                  status={lead.status}
+                  label={t(`body.leadStatus_${lead.status}`)}
+                />
               </Detail>
               {lead.score !== null && (
-                <Detail label="Score">
+                <Detail label={t("body.dvScore")}>
                   <span className="tabular font-medium">{lead.score}</span>
                 </Detail>
               )}
@@ -135,7 +143,7 @@ export default async function LeadDetailPage({
           {lead.notes && (
             <Card>
               <CardHeader>
-                <CardTitle>Notes</CardTitle>
+                <CardTitle>{t("forms.notes")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -151,7 +159,7 @@ export default async function LeadDetailPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Contact</CardTitle>
+              <CardTitle className="text-sm">{t("body.dvContact")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               {lead.email ? (
@@ -179,14 +187,14 @@ export default async function LeadDetailPage({
                 </p>
               ) : null}
               {!lead.email && !lead.phone && (
-                <p className="text-muted-foreground">No contact details yet.</p>
+                <p className="text-muted-foreground">{t("body.dvNoContact")}</p>
               )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Owner</CardTitle>
+              <CardTitle className="text-sm">{t("forms.owner")}</CardTitle>
             </CardHeader>
             <CardContent>
               {lead.owner ? (
@@ -206,7 +214,9 @@ export default async function LeadDetailPage({
                   </span>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Unassigned</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("body.unassigned")}
+                </p>
               )}
             </CardContent>
           </Card>
@@ -217,7 +227,9 @@ export default async function LeadDetailPage({
           {isConverted && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Converted</CardTitle>
+                <CardTitle className="text-sm">
+                  {t("body.dvConverted")}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <Link
@@ -225,7 +237,7 @@ export default async function LeadDetailPage({
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                 >
                   <UserCheck className="size-4 shrink-0" />
-                  View the client record
+                  {t("body.dvViewClientRecord")}
                 </Link>
               </CardContent>
             </Card>
@@ -234,7 +246,7 @@ export default async function LeadDetailPage({
           {lead.tags.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Tags</CardTitle>
+                <CardTitle className="text-sm">{t("forms.tags")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { getLead } from "@/lib/api/leads";
 import { ApiError } from "@/lib/api/server";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Edit lead" };
@@ -17,6 +18,7 @@ export default async function EditLeadPage({
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const t = await getTranslations();
 
   if (!hasPermission(session, "leads.manage")) {
     redirect(`/leads/${id}`);
@@ -35,8 +37,8 @@ export default async function EditLeadPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Edit ${lead.full_name}`}
-        description="Changes are recorded in the audit log."
+        title={t("body.cfEditTitle", { name: lead.full_name })}
+        description={t("body.formEditAudit")}
       />
       <Card className="max-w-3xl">
         <CardContent className="pt-6">

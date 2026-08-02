@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useTranslation } from "@/i18n/language-provider";
 import { ClientApiError } from "@/lib/api/client";
 import {
   activateMfa,
@@ -34,6 +35,7 @@ type Stage = "idle" | "enrolling" | "codes";
  */
 export function MfaCard({ status }: { status: MfaStatus }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [stage, setStage] = useState<Stage>("idle");
   const [secret, setSecret] = useState<string | null>(null);
   const [uri, setUri] = useState<string | null>(null);
@@ -50,9 +52,7 @@ export function MfaCard({ status }: { status: MfaStatus }) {
       await action();
     } catch (caught) {
       setError(
-        caught instanceof ClientApiError
-          ? caught.message
-          : "Something went wrong. Please try again.",
+        caught instanceof ClientApiError ? caught.message : t("body.errGeneric"),
       );
     } finally {
       setPending(false);
@@ -68,16 +68,16 @@ export function MfaCard({ status }: { status: MfaStatus }) {
           ) : (
             <ShieldAlert className="size-4 text-muted-foreground" />
           )}
-          Two-factor authentication
+          {t("body.mfaTitle")}
         </CardTitle>
         {status.enabled ? (
-          <Badge>On</Badge>
+          <Badge>{t("body.mfaOn")}</Badge>
         ) : status.setup_required ? (
           // Worth stating plainly: their role obliges it, and the login still
           // works — this is a nudge with teeth, not a lockout.
-          <Badge variant="destructive">Required for your role</Badge>
+          <Badge variant="destructive">{t("body.mfaRequired")}</Badge>
         ) : (
-          <Badge variant="outline">Off</Badge>
+          <Badge variant="outline">{t("body.mfaOff")}</Badge>
         )}
       </CardHeader>
 
@@ -90,10 +90,9 @@ export function MfaCard({ status }: { status: MfaStatus }) {
 
         {stage === "codes" && (
           <div className="space-y-2 rounded-lg border border-warning/40 bg-warning/5 p-3">
-            <p className="text-sm font-medium">Save your recovery codes</p>
+            <p className="text-sm font-medium">{t("body.mfaSaveCodes")}</p>
             <p className="text-xs text-muted-foreground">
-              Each works once, if you lose your phone. They are stored hashed —
-              this is the only time they can be shown.
+              {t("body.mfaCodesHint")}
             </p>
             <ul className="grid grid-cols-2 gap-1 font-mono text-xs">
               {codes.map((recoveryCode) => (
@@ -109,7 +108,7 @@ export function MfaCard({ status }: { status: MfaStatus }) {
                 router.refresh();
               }}
             >
-              I&apos;ve saved them
+              {t("body.mfaSavedThem")}
             </Button>
           </div>
         )}
@@ -117,10 +116,7 @@ export function MfaCard({ status }: { status: MfaStatus }) {
         {stage === "enrolling" && secret && (
           <div className="space-y-3">
             <div className="space-y-1">
-              <p className="text-sm">
-                Add this to your authenticator app, then enter the code it
-                shows.
-              </p>
+              <p className="text-sm">{t("body.mfaAddToApp")}</p>
               <p className="font-mono text-xs break-all text-muted-foreground">
                 {secret}
               </p>
@@ -133,7 +129,7 @@ export function MfaCard({ status }: { status: MfaStatus }) {
             <div className="flex items-end gap-2">
               <div className="space-y-1">
                 <Label htmlFor="mfa-code" className="text-xs">
-                  Code
+                  {t("body.mfaCode")}
                 </Label>
                 <Input
                   id="mfa-code"
@@ -160,7 +156,7 @@ export function MfaCard({ status }: { status: MfaStatus }) {
                 }
               >
                 {pending && <Loader2 className="size-4 animate-spin" />}
-                Turn on
+                {t("body.mfaTurnOn")}
               </Button>
               <Button
                 size="sm"
@@ -171,7 +167,7 @@ export function MfaCard({ status }: { status: MfaStatus }) {
                   setSecret(null);
                 }}
               >
-                Cancel
+                {t("buttons.cancel")}
               </Button>
             </div>
           </div>
@@ -180,7 +176,7 @@ export function MfaCard({ status }: { status: MfaStatus }) {
         {stage === "idle" && !status.enabled && (
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              Protect your account with a code from an authenticator app.
+              {t("body.mfaProtect")}
             </p>
             <Button
               size="sm"
@@ -195,7 +191,7 @@ export function MfaCard({ status }: { status: MfaStatus }) {
               }
             >
               {pending && <Loader2 className="size-4 animate-spin" />}
-              Set up
+              {t("body.mfaSetUp")}
             </Button>
           </div>
         )}
@@ -203,12 +199,11 @@ export function MfaCard({ status }: { status: MfaStatus }) {
         {stage === "idle" && status.enabled && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {status.recovery_codes_remaining} recovery code
-              {status.recovery_codes_remaining === 1 ? "" : "s"} left.
+              {t("body.mfaCodesLeft", { n: status.recovery_codes_remaining })}
             </p>
             <div className="space-y-1">
               <Label htmlFor="mfa-password" className="text-xs">
-                Confirm your password to make changes
+                {t("body.mfaConfirmPw")}
               </Label>
               <Input
                 id="mfa-password"
@@ -234,7 +229,7 @@ export function MfaCard({ status }: { status: MfaStatus }) {
                   })
                 }
               >
-                New recovery codes
+                {t("body.mfaNewCodes")}
               </Button>
               <Button
                 size="sm"
@@ -249,7 +244,7 @@ export function MfaCard({ status }: { status: MfaStatus }) {
                   })
                 }
               >
-                Turn off
+                {t("body.mfaTurnOff")}
               </Button>
             </div>
           </div>

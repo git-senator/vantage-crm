@@ -36,6 +36,12 @@ class MessageRead(BaseModel):
     #: Stored for fidelity. **Not sanitised here** — it arrived from outside and
     #: the client is responsible for rendering it safely or not at all.
     body_html: str | None
+    #: Seamless translation (Rossa plan): the detected source language and the
+    #: message rendered into each team language (RU/PT/EN), stored on the message
+    #: metadata by the ingest agent. Empty when a message has not been translated;
+    #: the client then falls back to `body_text`.
+    lang: str | None = None
+    translations: dict[str, str] = Field(default_factory=dict)
     sender: MessageSender | None
     sent_at: datetime | None
     read_at: datetime | None

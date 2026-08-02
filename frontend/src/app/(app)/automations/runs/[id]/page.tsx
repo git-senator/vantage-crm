@@ -5,6 +5,7 @@ import { RunStatusBadge } from "@/components/automations/run-status-badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getRun } from "@/lib/api/automations";
+import { getTranslations } from "@/i18n/server";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Workflow run" };
@@ -23,6 +24,7 @@ export default async function RunPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const t = await getTranslations();
   const detail = await getRun(id).catch(() => null);
   if (!detail) notFound();
 
@@ -31,8 +33,10 @@ export default async function RunPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Workflow run"
-        description={`Started ${new Date(run.created_at).toLocaleString()}`}
+        title={t("body.autoWorkflowRun")}
+        description={t("body.autoStarted", {
+          date: new Date(run.created_at).toLocaleString(),
+        })}
         actions={<RunStatusBadge status={run.status} />}
       />
 
@@ -45,19 +49,21 @@ export default async function RunPage({
       {run.status === "waiting" && run.resume_at && (
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">
-            Waiting until {new Date(run.resume_at).toLocaleString()}.
+            {t("body.autoWaitingUntil", {
+              date: new Date(run.resume_at).toLocaleString(),
+            })}
           </p>
         </Card>
       )}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Steps</CardTitle>
+          <CardTitle className="text-sm">{t("body.autoSteps")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {steps.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              This run has not executed a step yet.
+              {t("body.autoNoStepsYet")}
             </p>
           ) : (
             steps.map((step) => (
@@ -76,7 +82,9 @@ export default async function RunPage({
                     {step.node_label || step.node_id}
                   </p>
                   <span className="text-[11px] text-muted-foreground">
-                    {step.node_type}
+                    {t(
+                      `body.ne${step.node_type.charAt(0).toUpperCase()}${step.node_type.slice(1)}`,
+                    )}
                   </span>
                 </div>
                 {step.error && (

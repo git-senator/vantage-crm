@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { createLead, updateLead } from "@/lib/api/leads-client";
 import type { Lead, LeadInput } from "@/lib/api/types";
 
@@ -32,12 +33,6 @@ const SOURCES = [
 ] as const;
 const TEMPERATURES = ["hot", "warm", "cold"] as const;
 
-/** `open_house` -> `Open house`. Keeps the wire format snake_case. */
-function label(value: string): string {
-  const spaced = value.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
 /**
  * Create and edit form.
  *
@@ -46,6 +41,7 @@ function label(value: string): string {
  */
 export function LeadForm({ lead }: { lead?: Lead }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const isEdit = lead !== undefined;
 
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +93,7 @@ export function LeadForm({ lead }: { lead?: Lead }) {
         setFieldErrors(caught.fieldErrors);
         setError(caught.message);
       } else {
-        setError("Unable to reach the server. Please try again.");
+        setError(t("body.formServerError"));
       }
       setPending(false);
     }
@@ -118,7 +114,7 @@ export function LeadForm({ lead }: { lead?: Lead }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           name="first_name"
-          label="First name"
+          label={t("body.formFirstName")}
           required
           defaultValue={lead?.first_name}
           error={fieldErrors.first_name}
@@ -126,7 +122,7 @@ export function LeadForm({ lead }: { lead?: Lead }) {
         />
         <Field
           name="last_name"
-          label="Last name"
+          label={t("body.formLastName")}
           required
           defaultValue={lead?.last_name}
           error={fieldErrors.last_name}
@@ -134,7 +130,7 @@ export function LeadForm({ lead }: { lead?: Lead }) {
         />
         <Field
           name="email"
-          label="Email"
+          label={t("body.formEmail")}
           type="email"
           defaultValue={lead?.email ?? ""}
           error={fieldErrors.email}
@@ -142,7 +138,7 @@ export function LeadForm({ lead }: { lead?: Lead }) {
         />
         <Field
           name="phone"
-          label="Phone"
+          label={t("body.formPhone")}
           defaultValue={lead?.phone ?? ""}
           error={fieldErrors.phone}
           disabled={pending}
@@ -152,23 +148,26 @@ export function LeadForm({ lead }: { lead?: Lead }) {
       <div className="grid gap-4 sm:grid-cols-3">
         <Choice
           name="stage"
-          label="Stage"
+          label={t("body.formStage")}
           options={STAGES}
           defaultValue={lead?.stage ?? "new"}
+          labelFor={(o) => t(`body.leadStage_${o}`)}
           disabled={pending}
         />
         <Choice
           name="source"
-          label="Source"
+          label={t("body.formSource")}
           options={SOURCES}
           defaultValue={lead?.source ?? "other"}
+          labelFor={(o) => t(`body.lfSource_${o}`)}
           disabled={pending}
         />
         <Choice
           name="temperature"
-          label="Temperature"
+          label={t("body.formTemperature")}
           options={TEMPERATURES}
           defaultValue={lead?.temperature ?? "warm"}
+          labelFor={(o) => t(`body.lfTemp_${o}`)}
           disabled={pending}
         />
       </div>
@@ -176,7 +175,7 @@ export function LeadForm({ lead }: { lead?: Lead }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           name="budget_min"
-          label="Budget from"
+          label={t("body.lfBudgetFrom")}
           type="number"
           placeholder="500000"
           defaultValue={lead?.budget_min ?? ""}
@@ -185,7 +184,7 @@ export function LeadForm({ lead }: { lead?: Lead }) {
         />
         <Field
           name="budget_max"
-          label="Budget to"
+          label={t("body.lfBudgetTo")}
           type="number"
           placeholder="750000"
           defaultValue={lead?.budget_max ?? ""}
@@ -196,8 +195,8 @@ export function LeadForm({ lead }: { lead?: Lead }) {
 
       <Field
         name="preferred_location"
-        label="Preferred location"
-        placeholder="Noe Valley, SF"
+        label={t("body.lfPreferredLocation")}
+        placeholder={t("body.lfLocationPlaceholder")}
         defaultValue={lead?.preferred_location ?? ""}
         error={fieldErrors.preferred_location}
         disabled={pending}
@@ -205,20 +204,20 @@ export function LeadForm({ lead }: { lead?: Lead }) {
 
       <Field
         name="tags"
-        label="Tags"
-        placeholder="Pre-approved, Relocating"
-        hint="Comma separated"
+        label={t("body.formTags")}
+        placeholder={t("body.lfTagsPlaceholder")}
+        hint={t("body.formTagsHint")}
         defaultValue={(lead?.tags ?? []).join(", ")}
         disabled={pending}
       />
 
       <div className="space-y-2">
-        <Label htmlFor="notes">Notes</Label>
+        <Label htmlFor="notes">{t("body.formNotes")}</Label>
         <Textarea
           id="notes"
           name="notes"
           rows={4}
-          placeholder="Context from the first conversation…"
+          placeholder={t("body.lfNotesPlaceholder")}
           defaultValue={lead?.notes ?? ""}
           disabled={pending}
         />
@@ -231,11 +230,11 @@ export function LeadForm({ lead }: { lead?: Lead }) {
           onClick={() => router.back()}
           disabled={pending}
         >
-          Cancel
+          {t("buttons.cancel")}
         </Button>
         <Button type="submit" disabled={pending}>
           {pending && <Loader2 className="size-4 animate-spin" />}
-          {isEdit ? "Save changes" : "Create lead"}
+          {isEdit ? t("body.profSaveChanges") : t("body.lfCreate")}
         </Button>
       </div>
     </form>
@@ -272,12 +271,14 @@ function Choice({
   label: fieldLabel,
   options,
   defaultValue,
+  labelFor,
   disabled,
 }: {
   name: string;
   label: string;
   options: readonly string[];
   defaultValue: string;
+  labelFor: (option: string) => string;
   disabled?: boolean;
 }) {
   // Controlled via a hidden input: Base UI's Select does not submit a native
@@ -299,7 +300,7 @@ function Choice({
         <SelectContent>
           {options.map((option) => (
             <SelectItem key={option} value={option}>
-              {label(option)}
+              {labelFor(option)}
             </SelectItem>
           ))}
         </SelectContent>

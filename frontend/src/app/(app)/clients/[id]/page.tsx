@@ -13,8 +13,9 @@ import { Separator } from "@/components/ui/separator";
 import { getClient } from "@/lib/api/clients";
 import { ApiError } from "@/lib/api/server";
 import { RecordActivity } from "@/components/shared/record-activity";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
-import { formatPrice, titleize } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Client" };
 
@@ -25,6 +26,7 @@ export default async function ClientDetailPage({
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const t = await getTranslations();
 
   let client;
   try {
@@ -50,15 +52,18 @@ export default async function ClientDetailPage({
         render={<Link href="/clients" />}
       >
         <ArrowLeft className="size-4" />
-        All clients
+        {t("body.dvBackClients")}
       </Button>
 
       <PageHeader
         title={client.display_name}
         description={
           client.is_company
-            ? "Company client"
-            : `${titleize(client.type)} · client since ${client.client_since ?? "—"}`
+            ? t("body.dvCompanyClient")
+            : t("body.dvClientDesc", {
+                type: t(`body.clientType_${client.type}`),
+                date: client.client_since ?? "—",
+              })
         }
         actions={
           canManage ? (
@@ -68,7 +73,7 @@ export default async function ClientDetailPage({
                 render={<Link href={`/clients/${client.id}/edit`} />}
               >
                 <Pencil className="size-4" />
-                Edit
+                {t("buttons.edit")}
               </Button>
               <DeleteClientButton
                 clientId={client.id}
@@ -83,32 +88,35 @@ export default async function ClientDetailPage({
         <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Details</CardTitle>
+              <CardTitle>{t("body.dvDetails")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-0">
-              <Detail label="Type">
+              <Detail label={t("forms.type")}>
                 <StatusBadge
                   status={client.type}
-                  label={titleize(client.type)}
+                  label={t(`body.clientType_${client.type}`)}
                   tone="neutral"
                   dot={false}
                 />
               </Detail>
-              <Detail label="Status">
-                <StatusBadge status={client.status} />
+              <Detail label={t("forms.status")}>
+                <StatusBadge
+                  status={client.status}
+                  label={t(`body.clientStatus_${client.status}`)}
+                />
               </Detail>
-              <Detail label="Lifetime value">
+              <Detail label={t("body.cfLifetimeValue")}>
                 <span className="tabular">
                   {client.lifetime_value
                     ? formatPrice(Number(client.lifetime_value))
                     : "—"}
                 </span>
               </Detail>
-              <Detail label="Client since">
+              <Detail label={t("body.clientSince")}>
                 {client.client_since ?? "—"}
               </Detail>
               {client.is_company && client.first_name && (
-                <Detail label="Primary contact">
+                <Detail label={t("body.dvPrimaryContact")}>
                   {`${client.first_name} ${client.last_name ?? ""}`.trim()}
                 </Detail>
               )}
@@ -118,7 +126,7 @@ export default async function ClientDetailPage({
           {client.notes && (
             <Card>
               <CardHeader>
-                <CardTitle>Notes</CardTitle>
+                <CardTitle>{t("forms.notes")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -132,7 +140,7 @@ export default async function ClientDetailPage({
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Contact</CardTitle>
+              <CardTitle className="text-sm">{t("body.dvContact")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               {client.email ? (
@@ -160,14 +168,14 @@ export default async function ClientDetailPage({
                 </p>
               ) : null}
               {!client.email && !client.phone && (
-                <p className="text-muted-foreground">No contact details yet.</p>
+                <p className="text-muted-foreground">{t("body.dvNoContact")}</p>
               )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-sm">Owner</CardTitle>
+              <CardTitle className="text-sm">{t("forms.owner")}</CardTitle>
             </CardHeader>
             <CardContent>
               {client.owner ? (
@@ -187,7 +195,9 @@ export default async function ClientDetailPage({
                   </span>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Unassigned</p>
+                <p className="text-sm text-muted-foreground">
+                  {t("body.unassigned")}
+                </p>
               )}
             </CardContent>
           </Card>
@@ -196,7 +206,7 @@ export default async function ClientDetailPage({
           {client.source_lead_id && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Origin</CardTitle>
+                <CardTitle className="text-sm">{t("body.dvOrigin")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <Link
@@ -204,7 +214,7 @@ export default async function ClientDetailPage({
                   className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                 >
                   <Target className="size-4 shrink-0" />
-                  Converted from a lead
+                  {t("body.dvConvertedFromLead")}
                 </Link>
               </CardContent>
             </Card>
@@ -213,7 +223,7 @@ export default async function ClientDetailPage({
           {client.tags.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Tags</CardTitle>
+                <CardTitle className="text-sm">{t("forms.tags")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">

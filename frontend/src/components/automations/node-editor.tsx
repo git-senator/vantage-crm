@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslation } from "@/i18n/language-provider";
 import type {
   Registries,
   RegistryField,
@@ -42,6 +43,7 @@ export function NodeEditor({
   readOnly: boolean;
   onChange: (node: WorkflowNode) => void;
 }) {
+  const { t } = useTranslation();
   const action = registries.actions.find((entry) => entry.key === node.action);
 
   // Actions that cannot run under this trigger are hidden rather than shown and
@@ -63,25 +65,25 @@ export function NodeEditor({
       <CardHeader>
         <CardTitle className="text-sm">
           {node.type === "action"
-            ? "Action"
+            ? t("body.neAction")
             : node.type === "condition"
-              ? "Condition"
-              : "Delay"}
+              ? t("body.neCondition")
+              : t("body.neDelay")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Field label="Step name">
+        <Field label={t("body.neStepName")}>
           <Input
             value={node.label ?? ""}
             disabled={readOnly}
             onChange={(event) => set({ label: event.target.value })}
-            placeholder="What this step does"
+            placeholder={t("body.neStepPlaceholder")}
           />
         </Field>
 
         {node.type === "action" && (
           <>
-            <Field label="Do what">
+            <Field label={t("body.neDoWhat")}>
               <select
                 className="h-9 w-full rounded-md border bg-transparent px-2 text-sm"
                 value={node.action ?? ""}
@@ -93,7 +95,7 @@ export function NodeEditor({
                   set({ action: event.target.value || null, config: {} })
                 }
               >
-                <option value="">Choose an action…</option>
+                <option value="">{t("body.neChooseAction")}</option>
                 {available.map((entry) => (
                   <option key={entry.key} value={entry.key}>
                     {entry.category} · {entry.label}
@@ -119,7 +121,7 @@ export function NodeEditor({
             {action && (
               <div className="flex items-center justify-between gap-3 border-t pt-3">
                 <Label className="text-xs font-normal">
-                  Keep going if this step fails
+                  {t("body.neKeepGoing")}
                 </Label>
                 <Switch
                   checked={Boolean((node.config ?? {}).continue_on_error)}
@@ -135,7 +137,7 @@ export function NodeEditor({
 
         {node.type === "delay" && (
           <>
-            <Field label="Wait (minutes)">
+            <Field label={t("body.neWaitMinutes")}>
               <Input
                 type="number"
                 min={1}
@@ -149,10 +151,10 @@ export function NodeEditor({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <Label className="text-xs font-normal">
-                  Only count working hours
+                  {t("body.neWorkingHours")}
                 </Label>
                 <p className="text-[11px] text-muted-foreground">
-                  A two-hour wait starting at 5pm resumes at 10am.
+                  {t("body.neWorkingHoursHint")}
                 </p>
               </div>
               <Switch
@@ -216,7 +218,10 @@ function ConfigField({
   readOnly: boolean;
   onChange: (value: unknown) => void;
 }) {
-  const label = field.required ? field.label : `${field.label} (optional)`;
+  const { t } = useTranslation();
+  const label = field.required
+    ? field.label
+    : t("body.neOptional", { label: field.label });
 
   if (field.kind === "select") {
     return (
@@ -227,7 +232,7 @@ function ConfigField({
           disabled={readOnly}
           onChange={(event) => onChange(event.target.value)}
         >
-          <option value="">Choose…</option>
+          <option value="">{t("body.neChoose")}</option>
           {field.options.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
@@ -284,7 +289,7 @@ function ConfigField({
       label={label}
       help={
         field.kind === "template"
-          ? (field.help_text ?? "Use {{record.first_name}} to insert values.")
+          ? (field.help_text ?? t("body.neTemplateHint"))
           : field.help_text
       }
     >
@@ -308,6 +313,7 @@ function ConditionEditor({
   readOnly: boolean;
   onChange: (node: WorkflowNode) => void;
 }) {
+  const { t } = useTranslation();
   const comparisons = node.comparisons ?? [];
 
   const setComparison = (index: number, patch: Partial<WorkflowComparison>) =>
@@ -320,7 +326,7 @@ function ConditionEditor({
 
   return (
     <div className="space-y-3 border-t pt-3">
-      <Field label="Match">
+      <Field label={t("body.neMatch")}>
         <select
           className="h-9 w-full rounded-md border bg-transparent px-2 text-sm"
           value={node.mode ?? "all"}
@@ -329,8 +335,8 @@ function ConditionEditor({
             onChange({ ...node, mode: event.target.value as "all" | "any" })
           }
         >
-          <option value="all">All of these</option>
-          <option value="any">Any of these</option>
+          <option value="all">{t("body.neAllOfThese")}</option>
+          <option value="any">{t("body.neAnyOfThese")}</option>
         </select>
       </Field>
 
@@ -343,7 +349,7 @@ function ConditionEditor({
             <Input
               value={comparison.field}
               disabled={readOnly}
-              placeholder="Field, e.g. stage"
+              placeholder={t("body.neFieldPlaceholder")}
               onChange={(event) =>
                 setComparison(index, { field: event.target.value })
               }
@@ -356,7 +362,7 @@ function ConditionEditor({
                 setComparison(index, { operator: event.target.value })
               }
             >
-              <option value="">Choose a comparison…</option>
+              <option value="">{t("body.neChooseComparison")}</option>
               {registries.operators.map((entry) => (
                 <option key={entry.key} value={entry.key}>
                   {entry.category} · {entry.label}
@@ -369,7 +375,7 @@ function ConditionEditor({
               <Input
                 value={String(comparison.value ?? "")}
                 disabled={readOnly}
-                placeholder="Value"
+                placeholder={t("body.neValue")}
                 onChange={(event) =>
                   setComparison(index, { value: event.target.value })
                 }
@@ -388,7 +394,7 @@ function ConditionEditor({
                 }
               >
                 <Trash2 className="size-3.5" />
-                Remove
+                {t("buttons.remove")}
               </Button>
             )}
           </div>
@@ -410,7 +416,7 @@ function ConditionEditor({
           }
         >
           <Plus className="size-3.5" />
-          Add a condition
+          {t("body.neAddCondition")}
         </Button>
       )}
     </div>
@@ -437,6 +443,7 @@ function BranchPicker({
   readOnly: boolean;
   onChange: (node: WorkflowNode) => void;
 }) {
+  const { t } = useTranslation();
   const options = Object.entries(definition.nodes ?? {}).filter(
     ([id]) => id !== nodeId,
   );
@@ -453,7 +460,7 @@ function BranchPicker({
         disabled={readOnly}
         onChange={(event) => onChange({ ...node, [key]: event.target.value || null })}
       >
-        <option value="">Stop here</option>
+        <option value="">{t("body.neStopHere")}</option>
         {options.map(([id, other]) => (
           <option key={id} value={id}>
             {other.label || id}
@@ -467,11 +474,11 @@ function BranchPicker({
     <div className="space-y-3 border-t pt-3">
       {node.type === "condition" ? (
         <>
-          {picker("If yes, go to", node.on_true, "on_true")}
-          {picker("If no, go to", node.on_false, "on_false")}
+          {picker(t("body.neIfYesGoTo"), node.on_true, "on_true")}
+          {picker(t("body.neIfNoGoTo"), node.on_false, "on_false")}
         </>
       ) : (
-        picker("Then go to", node.next, "next")
+        picker(t("body.neThenGoTo"), node.next, "next")
       )}
     </div>
   );

@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTranslation } from "@/i18n/language-provider";
 import { ClientApiError } from "@/lib/api/client";
 import { convertLead } from "@/lib/api/clients-client";
 import type { ClientType } from "@/lib/api/types";
@@ -36,11 +37,6 @@ const TYPES = [
   "tenant",
   "other",
 ] as const;
-
-function label(value: string): string {
-  const spaced = value.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
 
 /**
  * Convert a lead into a client.
@@ -60,6 +56,7 @@ export function ConvertLeadButton({
   leadName: string;
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,9 +76,7 @@ export function ConvertLeadButton({
       router.refresh();
     } catch (caught) {
       setError(
-        caught instanceof ClientApiError
-          ? caught.message
-          : "Unable to convert. Please try again.",
+        caught instanceof ClientApiError ? caught.message : t("body.clbError"),
       );
       setPending(false);
     }
@@ -93,17 +88,14 @@ export function ConvertLeadButton({
         render={
           <Button>
             <UserCheck className="size-4" />
-            Convert to client
+            {t("body.clbConvertToClient")}
           </Button>
         }
       />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Convert {leadName} to a client?</DialogTitle>
-          <DialogDescription>
-            Contact details, tags, notes and the current owner carry over. The
-            lead stays in your pipeline, marked as converted.
-          </DialogDescription>
+          <DialogTitle>{t("body.clbTitle", { name: leadName })}</DialogTitle>
+          <DialogDescription>{t("body.clbDesc")}</DialogDescription>
         </DialogHeader>
 
         {error && (
@@ -118,7 +110,7 @@ export function ConvertLeadButton({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="convert-type">Client type</Label>
+            <Label htmlFor="convert-type">{t("body.clbClientType")}</Label>
             <Select
               value={type}
               onValueChange={(next) => setType((next ?? "buyer") as ClientType)}
@@ -130,7 +122,7 @@ export function ConvertLeadButton({
               <SelectContent>
                 {TYPES.map((option) => (
                   <SelectItem key={option} value={option}>
-                    {label(option)}
+                    {t(`body.clientType_${option}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -138,10 +130,10 @@ export function ConvertLeadButton({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="convert-company">Company name</Label>
+            <Label htmlFor="convert-company">{t("body.clbCompanyName")}</Label>
             <Input
               id="convert-company"
-              placeholder="Optional — for an LLC, trust or company"
+              placeholder={t("body.clbCompanyPlaceholder")}
               value={companyName}
               onChange={(event) => setCompanyName(event.target.value)}
               disabled={pending}
@@ -151,11 +143,15 @@ export function ConvertLeadButton({
 
         <DialogFooter>
           <DialogClose
-            render={<Button variant="ghost" disabled={pending}>Cancel</Button>}
+            render={
+              <Button variant="ghost" disabled={pending}>
+                {t("buttons.cancel")}
+              </Button>
+            }
           />
           <Button onClick={handleConvert} disabled={pending}>
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Convert
+            {t("body.clbConvert")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { getProperty } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/server";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Edit listing" };
@@ -17,6 +18,7 @@ export default async function EditPropertyPage({
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const t = await getTranslations();
 
   if (!hasPermission(session, "properties.manage")) {
     redirect(`/properties/${id}`);
@@ -43,8 +45,8 @@ export default async function EditPropertyPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Edit ${property.title}`}
-        description="Changes are recorded in the audit log."
+        title={t("body.cfEditTitle", { name: property.title })}
+        description={t("body.formEditAudit")}
       />
       <Card className="max-w-3xl">
         <CardContent className="pt-6">

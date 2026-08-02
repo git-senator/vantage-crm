@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getRegistries, getWorkflow, listRuns } from "@/lib/api/automations";
+import { getTranslations } from "@/i18n/server";
 import { requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Workflow" };
@@ -28,6 +29,7 @@ export default async function WorkflowPage({
 }) {
   const { id } = await params;
   const session = await requireSession();
+  const t = await getTranslations();
   const canManage = session.permissions.includes("automations.manage");
 
   const [detail, registries, runs] = await Promise.all([
@@ -47,10 +49,14 @@ export default async function WorkflowPage({
         description={detail.workflow.description ?? undefined}
         actions={
           <div className="flex items-center gap-3">
-            {detail.draft && <Badge variant="outline">Unpublished draft</Badge>}
+            {detail.draft && (
+              <Badge variant="outline">{t("body.autoUnpublishedDraft")}</Badge>
+            )}
             {detail.published && (
               <Badge variant="secondary">
-                Live: v{detail.published.version}
+                {t("body.autoLiveVersion", {
+                  version: detail.published.version,
+                })}
               </Badge>
             )}
             <WorkflowToggle
@@ -71,12 +77,12 @@ export default async function WorkflowPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Run history</CardTitle>
+          <CardTitle className="text-sm">{t("body.autoRunHistory")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {runs.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              This workflow has not run yet.
+              {t("body.autoNotRunYet")}
             </p>
           ) : (
             runs.map((run) => (

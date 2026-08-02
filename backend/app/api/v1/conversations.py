@@ -77,6 +77,13 @@ def _to_conversation(conversation: Conversation) -> ConversationRead:
 
 
 def _to_message(message: Message) -> MessageRead:
+    meta = message.metadata_ or {}
+    raw_translations = meta.get("translations") or {}
+    translations = {
+        str(k): str(v)
+        for k, v in raw_translations.items()
+        if isinstance(v, str) and v
+    } if isinstance(raw_translations, dict) else {}
     return MessageRead(
         id=message.id,
         conversation_id=message.conversation_id,
@@ -87,6 +94,8 @@ def _to_message(message: Message) -> MessageRead:
         subject=message.subject,
         body_text=message.body_text,
         body_html=message.body_html,
+        lang=(meta.get("lang") if isinstance(meta.get("lang"), str) else None),
+        translations=translations,
         sender=_person(message.sender),
         sent_at=message.sent_at,
         read_at=message.read_at,

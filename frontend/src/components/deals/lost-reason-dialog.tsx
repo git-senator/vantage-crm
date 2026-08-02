@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslation } from "@/i18n/language-provider";
 
 /**
  * Asks why a deal was lost, before the drop is committed.
@@ -36,6 +37,7 @@ export function LostReasonDialog({
 }) {
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <Dialog
@@ -46,20 +48,19 @@ export function LostReasonDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Mark &ldquo;{dealTitle}&rdquo; as {stageName}?</DialogTitle>
-          <DialogDescription>
-            Recording why keeps the pipeline able to answer what is actually
-            costing you deals.
-          </DialogDescription>
+          <DialogTitle>
+            {t("body.lrdTitle", { title: dealTitle, stage: stageName })}
+          </DialogTitle>
+          <DialogDescription>{t("body.lrdDesc")}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          <Label htmlFor="board_lost_reason">Reason</Label>
+          <Label htmlFor="board_lost_reason">{t("body.lrdReason")}</Label>
           <Textarea
             id="board_lost_reason"
             rows={3}
             autoFocus
-            placeholder="Lost to a cash offer, financing fell through…"
+            placeholder={t("body.lrdPlaceholder")}
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             disabled={pending}
@@ -68,7 +69,7 @@ export function LostReasonDialog({
 
         <DialogFooter>
           <Button variant="ghost" onClick={onCancel} disabled={pending}>
-            Cancel
+            {t("buttons.cancel")}
           </Button>
           <Button
             variant="destructive"
@@ -79,7 +80,7 @@ export function LostReasonDialog({
             }}
           >
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Mark as lost
+            {t("body.lrdConfirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

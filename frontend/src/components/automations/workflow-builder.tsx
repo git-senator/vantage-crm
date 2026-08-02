@@ -17,6 +17,7 @@ import { NodeEditor } from "@/components/automations/node-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useTranslation } from "@/i18n/language-provider";
 import { ClientApiError } from "@/lib/api/client";
 import {
   publishWorkflow,
@@ -60,6 +61,7 @@ export function WorkflowBuilder({
   canManage: boolean;
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [definition, setDefinition] =
     useState<WorkflowDefinition>(initialDefinition);
   const [selected, setSelected] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export function WorkflowBuilder({
         setErrors(detail?.errors ?? []);
         setMessage(caught.message);
       } else {
-        setMessage("Something went wrong. Please try again.");
+        setMessage(t("body.errGeneric"));
       }
     } finally {
       setPending(false);
@@ -107,10 +109,10 @@ export function WorkflowBuilder({
     const id = nextNodeId(nodes);
     const created: WorkflowNode =
       type === "condition"
-        ? { type, label: "Check something", mode: "all", comparisons: [], on_true: null, on_false: null }
+        ? { type, label: t("body.wbCheckSomething"), mode: "all", comparisons: [], on_true: null, on_false: null }
         : type === "delay"
-          ? { type, label: "Wait", config: { minutes: 60 }, next: null }
-          : { type, label: "Do something", action: null, config: {}, next: null };
+          ? { type, label: t("body.wbWait"), config: { minutes: 60 }, next: null }
+          : { type, label: t("body.wbDoSomething"), action: null, config: {}, next: null };
 
     const updated: Record<string, WorkflowNode> = { ...nodes, [id]: created };
     let startNode = definition.start_node ?? null;
@@ -169,10 +171,10 @@ export function WorkflowBuilder({
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                When
+                {t("body.wbWhen")}
               </p>
               <p className="text-sm font-medium">
-                {trigger?.label ?? "No trigger chosen"}
+                {trigger?.label ?? t("body.wbNoTrigger")}
               </p>
               {trigger?.description && (
                 <p className="mt-0.5 text-xs text-muted-foreground">
@@ -186,7 +188,7 @@ export function WorkflowBuilder({
         {ordered.length === 0 ? (
           <Card className="border-dashed p-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Nothing happens yet. Add the first step.
+              {t("body.wbNothingYet")}
             </p>
             {canManage && (
               <div className="mt-3 flex justify-center gap-2">
@@ -199,7 +201,7 @@ export function WorkflowBuilder({
             <div key={id} style={{ marginLeft: depth * 24 }}>
               {branch && (
                 <p className="mb-1 text-[11px] font-medium text-muted-foreground">
-                  {branch === "true" ? "If yes" : "If no"}
+                  {branch === "true" ? t("body.wbIfYes") : t("body.wbIfNo")}
                 </p>
               )}
               <NodeCard
@@ -222,7 +224,7 @@ export function WorkflowBuilder({
           <Card className="border-destructive/40 bg-destructive/5 p-4">
             <p className="flex items-center gap-2 text-sm font-medium text-destructive">
               <AlertTriangle className="size-4" />
-              This workflow cannot go live yet
+              {t("body.wbCannotGoLive")}
             </p>
             <ul className="mt-2 space-y-1 text-xs text-destructive">
               {errors.map((error) => (
@@ -247,11 +249,11 @@ export function WorkflowBuilder({
                   await saveDefinition(workflowId, definition);
                   setDirty(false);
                   router.refresh();
-                }, "Draft saved.")
+                }, t("body.wbDraftSaved"))
               }
             >
               {pending && <Loader2 className="size-4 animate-spin" />}
-              Save draft
+              {t("body.wbSaveDraft")}
             </Button>
             <Button
               size="sm"
@@ -261,11 +263,11 @@ export function WorkflowBuilder({
                 run(async () => {
                   const result = await validateDefinition(workflowId, definition);
                   setErrors(result.errors);
-                  if (result.valid) setMessage("Looks good.");
+                  if (result.valid) setMessage(t("body.wbLooksGood"));
                 })
               }
             >
-              Check
+              {t("body.wbCheck")}
             </Button>
             <Button
               size="sm"
@@ -279,14 +281,14 @@ export function WorkflowBuilder({
                   setErrors([]);
                   setDirty(false);
                   router.refresh();
-                }, "Published. Turn it on when you're ready.")
+                }, t("body.wbPublished"))
               }
             >
-              Publish
+              {t("body.wbPublish")}
             </Button>
             {dirty && (
               <span className="text-xs text-muted-foreground">
-                Unsaved changes
+                {t("body.wbUnsavedChanges")}
               </span>
             )}
           </div>
@@ -313,7 +315,7 @@ export function WorkflowBuilder({
           />
         ) : (
           <Card className="p-4 text-sm text-muted-foreground">
-            Select a step to configure it.
+            {t("body.wbSelectStep")}
           </Card>
         )}
       </div>
@@ -322,19 +324,20 @@ export function WorkflowBuilder({
 }
 
 function AddButtons({ onAdd }: { onAdd: (type: WorkflowNodeType) => void }) {
+  const { t } = useTranslation();
   return (
     <>
       <Button size="sm" variant="outline" onClick={() => onAdd("action")}>
         <Plus className="size-3.5" />
-        Action
+        {t("body.neAction")}
       </Button>
       <Button size="sm" variant="outline" onClick={() => onAdd("condition")}>
         <GitBranch className="size-3.5" />
-        Condition
+        {t("body.neCondition")}
       </Button>
       <Button size="sm" variant="outline" onClick={() => onAdd("delay")}>
         <Clock className="size-3.5" />
-        Delay
+        {t("body.neDelay")}
       </Button>
     </>
   );
@@ -357,6 +360,7 @@ function NodeCard({
   onDelete: () => void;
   onAdd: (type: WorkflowNodeType) => void;
 }) {
+  const { t } = useTranslation();
   const action = registries.actions.find((entry) => entry.key === node.action);
   const Icon =
     node.type === "condition" ? GitBranch : node.type === "delay" ? Clock : Zap;
@@ -376,21 +380,26 @@ function NodeCard({
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">
-              {node.label || action?.label || "Untitled step"}
+              {node.label || action?.label || t("body.wbUntitledStep")}
             </p>
             <p className="truncate text-xs text-muted-foreground">
               {node.type === "delay"
-                ? `Wait ${String(node.config?.minutes ?? "?")} minutes`
+                ? t("body.wbWaitMinutes", {
+                    n: String(node.config?.minutes ?? "?"),
+                  })
                 : node.type === "condition"
-                  ? `${node.comparisons?.length ?? 0} condition(s), match ${node.mode ?? "all"}`
-                  : (action?.label ?? "No action chosen")}
+                  ? t("body.wbConditionSummary", {
+                      n: node.comparisons?.length ?? 0,
+                      mode: node.mode ?? "all",
+                    })
+                  : (action?.label ?? t("body.wbNoAction"))}
             </p>
           </div>
           {action?.external && (
             // Worth calling out on the canvas: an automation bug that files a
             // task is embarrassing, one that emails clients is not.
             <Badge variant="outline" className="shrink-0">
-              Contacts people
+              {t("body.wbContactsPeople")}
             </Badge>
           )}
           {canManage && (
@@ -402,7 +411,7 @@ function NodeCard({
                 event.stopPropagation();
                 onDelete();
               }}
-              title="Remove step"
+              title={t("body.wbRemoveStep")}
             >
               <Trash2 className="size-4" />
             </Button>

@@ -16,6 +16,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { deleteLead } from "@/lib/api/leads-client";
 
 /**
@@ -33,6 +34,7 @@ export function DeleteLeadButton({
   leadName: string;
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -49,7 +51,7 @@ export function DeleteLeadButton({
       setError(
         caught instanceof ClientApiError
           ? caught.message
-          : "Unable to delete. Please try again.",
+          : t("body.taskDeleteError"),
       );
       setPending(false);
     }
@@ -61,16 +63,15 @@ export function DeleteLeadButton({
         render={
           <Button variant="outline" className="text-destructive">
             <Trash2 className="size-4" />
-            Delete
+            {t("buttons.delete")}
           </Button>
         }
       />
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete this lead?</DialogTitle>
+          <DialogTitle>{t("body.delLead")}</DialogTitle>
           <DialogDescription>
-            {leadName} will be removed from your pipeline. This cannot be undone
-            from here.
+            {t("body.delLeadBody", { name: leadName })}
           </DialogDescription>
         </DialogHeader>
 
@@ -86,11 +87,15 @@ export function DeleteLeadButton({
 
         <DialogFooter>
           <DialogClose
-            render={<Button variant="ghost" disabled={pending}>Cancel</Button>}
+            render={
+              <Button variant="ghost" disabled={pending}>
+                {t("buttons.cancel")}
+              </Button>
+            }
           />
           <Button variant="destructive" onClick={handleDelete} disabled={pending}>
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Delete lead
+            {t("body.delLeadConfirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

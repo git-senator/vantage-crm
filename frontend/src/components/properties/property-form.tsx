@@ -16,9 +16,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { createProperty, updateProperty } from "@/lib/api/properties-client";
 import type { Property, PropertyInput } from "@/lib/api/types";
-import { titleize } from "@/lib/format";
 
 const STATUSES = [
   "active",
@@ -44,6 +44,7 @@ const TYPES = [
  */
 export function PropertyForm({ property }: { property?: Property }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const isEdit = property !== undefined;
 
   const [error, setError] = useState<string | null>(null);
@@ -110,7 +111,7 @@ export function PropertyForm({ property }: { property?: Property }) {
         setFieldErrors(caught.fieldErrors);
         setError(caught.message);
       } else {
-        setError("Unable to reach the server. Please try again.");
+        setError(t("body.formServerError"));
       }
       setPending(false);
     }
@@ -130,9 +131,9 @@ export function PropertyForm({ property }: { property?: Property }) {
 
       <Field
         name="title"
-        label="Listing title"
+        label={t("body.pfTitle")}
         required
-        placeholder="Restored Edwardian with garden"
+        placeholder={t("body.pfTitlePlaceholder")}
         defaultValue={property?.title}
         error={fieldErrors.title}
         disabled={pending}
@@ -141,21 +142,23 @@ export function PropertyForm({ property }: { property?: Property }) {
       <div className="grid gap-4 sm:grid-cols-3">
         <Choice
           name="status"
-          label="Status"
+          label={t("body.formStatus")}
           options={STATUSES}
           defaultValue={property?.status ?? "active"}
+          labelFor={(o) => t(`body.propStatus_${o}`)}
           disabled={pending}
         />
         <Choice
           name="property_type"
-          label="Type"
+          label={t("body.formType")}
           options={TYPES}
           defaultValue={property?.property_type ?? "single_family"}
+          labelFor={(o) => t(`body.propType_${o}`)}
           disabled={pending}
         />
         <Field
           name="mls_number"
-          label="MLS number"
+          label={t("body.pfMls")}
           placeholder="MLS-4471"
           defaultValue={property?.mls_number ?? ""}
           error={fieldErrors.mls_number}
@@ -164,10 +167,10 @@ export function PropertyForm({ property }: { property?: Property }) {
       </div>
 
       <div className="space-y-4 rounded-lg border p-4">
-        <p className="text-sm font-medium">Address</p>
+        <p className="text-sm font-medium">{t("body.pfAddress")}</p>
         <Field
           name="address_line1"
-          label="Street address"
+          label={t("body.pfStreet")}
           required
           placeholder="1428 Sanchez Street"
           defaultValue={property?.address_line1}
@@ -176,7 +179,7 @@ export function PropertyForm({ property }: { property?: Property }) {
         />
         <Field
           name="address_line2"
-          label="Apartment, suite, unit"
+          label={t("body.pfUnit")}
           defaultValue={property?.address_line2 ?? ""}
           error={fieldErrors.address_line2}
           disabled={pending}
@@ -184,7 +187,7 @@ export function PropertyForm({ property }: { property?: Property }) {
         <div className="grid gap-4 sm:grid-cols-3">
           <Field
             name="city"
-            label="City"
+            label={t("body.pfCity")}
             required
             defaultValue={property?.city}
             error={fieldErrors.city}
@@ -192,7 +195,7 @@ export function PropertyForm({ property }: { property?: Property }) {
           />
           <Field
             name="state"
-            label="State"
+            label={t("body.pfState")}
             required
             placeholder="CA"
             defaultValue={property?.state}
@@ -201,7 +204,7 @@ export function PropertyForm({ property }: { property?: Property }) {
           />
           <Field
             name="postal_code"
-            label="ZIP"
+            label={t("body.pfZip")}
             required
             placeholder="94131"
             defaultValue={property?.postal_code}
@@ -214,17 +217,17 @@ export function PropertyForm({ property }: { property?: Property }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           name="price"
-          label="Price"
+          label={t("body.pfPrice")}
           type="number"
           placeholder="1895000"
-          hint="Leave empty for price on application"
+          hint={t("body.pfPriceHint")}
           defaultValue={property?.price ?? ""}
           error={fieldErrors.price}
           disabled={pending}
         />
         <Field
           name="listed_at"
-          label="Listed on"
+          label={t("body.pfListedOn")}
           type="date"
           defaultValue={property?.listed_at ?? ""}
           error={fieldErrors.listed_at}
@@ -235,7 +238,7 @@ export function PropertyForm({ property }: { property?: Property }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field
           name="bedrooms"
-          label="Bedrooms"
+          label={t("body.pfBedrooms")}
           type="number"
           defaultValue={property?.bedrooms ?? ""}
           error={fieldErrors.bedrooms}
@@ -243,17 +246,17 @@ export function PropertyForm({ property }: { property?: Property }) {
         />
         <Field
           name="bathrooms"
-          label="Bathrooms"
+          label={t("body.pfBathrooms")}
           type="number"
           step="0.5"
-          hint="Half-baths allowed"
+          hint={t("body.pfBathsHint")}
           defaultValue={property?.bathrooms ?? ""}
           error={fieldErrors.bathrooms}
           disabled={pending}
         />
         <Field
           name="square_feet"
-          label="Square feet"
+          label={t("body.pfSquareFeet")}
           type="number"
           defaultValue={property?.square_feet ?? ""}
           error={fieldErrors.square_feet}
@@ -261,7 +264,7 @@ export function PropertyForm({ property }: { property?: Property }) {
         />
         <Field
           name="year_built"
-          label="Year built"
+          label={t("body.pfYearBuilt")}
           type="number"
           defaultValue={property?.year_built ?? ""}
           error={fieldErrors.year_built}
@@ -271,20 +274,20 @@ export function PropertyForm({ property }: { property?: Property }) {
 
       <Field
         name="features"
-        label="Features"
-        placeholder="Pool, Garage, Solar"
-        hint="Comma separated"
+        label={t("body.pfFeatures")}
+        placeholder={t("body.pfFeaturesPlaceholder")}
+        hint={t("body.formTagsHint")}
         defaultValue={(property?.features ?? []).join(", ")}
         disabled={pending}
       />
 
       <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
+        <Label htmlFor="description">{t("body.pfDescription")}</Label>
         <Textarea
           id="description"
           name="description"
           rows={5}
-          placeholder="What makes this listing worth seeing…"
+          placeholder={t("body.pfDescPlaceholder")}
           defaultValue={property?.description ?? ""}
           disabled={pending}
         />
@@ -297,11 +300,11 @@ export function PropertyForm({ property }: { property?: Property }) {
           onClick={() => router.back()}
           disabled={pending}
         >
-          Cancel
+          {t("buttons.cancel")}
         </Button>
         <Button type="submit" disabled={pending}>
           {pending && <Loader2 className="size-4 animate-spin" />}
-          {isEdit ? "Save changes" : "Create listing"}
+          {isEdit ? t("body.profSaveChanges") : t("body.pfCreate")}
         </Button>
       </div>
     </form>
@@ -338,12 +341,14 @@ function Choice({
   label: fieldLabel,
   options,
   defaultValue,
+  labelFor,
   disabled,
 }: {
   name: string;
   label: string;
   options: readonly string[];
   defaultValue: string;
+  labelFor: (option: string) => string;
   disabled?: boolean;
 }) {
   // Controlled via a hidden input: Base UI's Select does not submit a native
@@ -365,7 +370,7 @@ function Choice({
         <SelectContent>
           {options.map((option) => (
             <SelectItem key={option} value={option}>
-              {titleize(option)}
+              {labelFor(option)}
             </SelectItem>
           ))}
         </SelectContent>

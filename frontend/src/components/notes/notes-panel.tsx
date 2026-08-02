@@ -8,6 +8,7 @@ import { OwnerAvatar } from "@/components/shared/owner-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { useTranslation } from "@/i18n/language-provider";
 import { ClientApiError } from "@/lib/api/client";
 import {
   createNote,
@@ -37,6 +38,7 @@ export function NotesPanel({
   canManage: boolean;
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [body, setBody] = useState("");
   const [pinned, setPinned] = useState(false);
   const [pending, setPending] = useState(false);
@@ -50,9 +52,7 @@ export function NotesPanel({
       router.refresh();
     } catch (caught) {
       setError(
-        caught instanceof ClientApiError
-          ? caught.message
-          : "Something went wrong. Please try again.",
+        caught instanceof ClientApiError ? caught.message : t("body.errGeneric"),
       );
     } finally {
       setPending(false);
@@ -81,7 +81,7 @@ export function NotesPanel({
           <Textarea
             value={body}
             onChange={(event) => setBody(event.target.value)}
-            placeholder="Add a note. Markdown is supported."
+            placeholder={t("body.npPlaceholder")}
             rows={3}
             disabled={pending}
           />
@@ -93,11 +93,11 @@ export function NotesPanel({
                 onChange={(event) => setPinned(event.target.checked)}
                 disabled={pending}
               />
-              Pin to top
+              {t("body.npPinToTop")}
             </label>
             <Button size="sm" onClick={handleAdd} disabled={pending || !body.trim()}>
               {pending && <Loader2 className="size-4 animate-spin" />}
-              Add note
+              {t("body.npAddNote")}
             </Button>
           </div>
         </div>
@@ -110,7 +110,7 @@ export function NotesPanel({
       )}
 
       {notes.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No notes yet.</p>
+        <p className="text-sm text-muted-foreground">{t("body.npNoNotes")}</p>
       ) : (
         <ul className="space-y-3">
           {notes.map((note) => (
@@ -146,6 +146,7 @@ function NoteCard({
   onTogglePin: () => void;
   onSave: (body: string) => void;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(note.body);
 
@@ -156,7 +157,7 @@ function NoteCard({
           <OwnerAvatar owner={note.author} size="xs" />
           <div className="leading-tight">
             <p className="text-xs font-medium">
-              {note.author?.full_name ?? "Unknown"}
+              {note.author?.full_name ?? t("body.npUnknown")}
             </p>
             {/* Rendered in the viewer's locale/timezone, which differs from the
                 server's — suppress the unavoidable hydration text mismatch so
@@ -170,7 +171,7 @@ function NoteCard({
           </div>
           {note.is_pinned && (
             <Badge variant="secondary" className="ml-1">
-              <Pin className="size-3" /> Pinned
+              <Pin className="size-3" /> {t("body.npPinned")}
             </Badge>
           )}
         </div>
@@ -182,7 +183,7 @@ function NoteCard({
               size="icon-sm"
               onClick={onTogglePin}
               disabled={pending}
-              title={note.is_pinned ? "Unpin" : "Pin"}
+              title={note.is_pinned ? t("body.npUnpin") : t("body.npPin")}
             >
               {note.is_pinned ? (
                 <PinOff className="size-4" />
@@ -198,7 +199,7 @@ function NoteCard({
                 setEditing(true);
               }}
               disabled={pending}
-              title="Edit"
+              title={t("buttons.edit")}
             >
               <Pencil className="size-4" />
             </Button>
@@ -208,7 +209,7 @@ function NoteCard({
               className="text-destructive"
               onClick={onDelete}
               disabled={pending}
-              title="Delete"
+              title={t("buttons.delete")}
             >
               <Trash2 className="size-4" />
             </Button>
@@ -231,7 +232,7 @@ function NoteCard({
               onClick={() => setEditing(false)}
               disabled={pending}
             >
-              Cancel
+              {t("buttons.cancel")}
             </Button>
             <Button
               size="sm"
@@ -241,7 +242,7 @@ function NoteCard({
               }}
               disabled={pending || !draft.trim()}
             >
-              Save
+              {t("buttons.save")}
             </Button>
           </div>
         </div>

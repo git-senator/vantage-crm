@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { titleize } from "@/lib/format";
+import { useTranslation } from "@/i18n/language-provider";
 
 const STATUSES = ["open", "won", "lost"];
 const PRIORITIES = ["low", "medium", "high", "urgent"];
@@ -30,6 +30,7 @@ export function DealFilterBar() {
   const pathname = usePathname();
   const params = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const { t } = useTranslation();
 
   const [search, setSearch] = useState(params.get("search") ?? "");
 
@@ -75,7 +76,7 @@ export function DealFilterBar() {
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         )}
         <Input
-          placeholder="Search deals by title…"
+          placeholder={t("body.dfltSearchPlaceholder")}
           className="pl-9"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -90,10 +91,10 @@ export function DealFilterBar() {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All statuses</SelectItem>
+          <SelectItem value="all">{t("body.clientAllStatuses")}</SelectItem>
           {STATUSES.map((option) => (
             <SelectItem key={option} value={option}>
-              {titleize(option)}
+              {t(`body.dealStatus_${option}`)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -109,10 +110,10 @@ export function DealFilterBar() {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">Any priority</SelectItem>
+          <SelectItem value="all">{t("body.dfltAnyPriority")}</SelectItem>
           {PRIORITIES.map((option) => (
             <SelectItem key={option} value={option}>
-              {titleize(option)}
+              {t(`body.dfPriority_${option}`)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -128,7 +129,7 @@ export function DealFilterBar() {
           }}
         >
           <ListFilter className="size-4" />
-          Clear
+          {t("body.clear")}
         </Button>
       )}
     </div>

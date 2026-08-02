@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useTranslation } from "@/i18n/language-provider";
 import {
   createReport,
   getDownloadUrl,
@@ -81,6 +82,7 @@ export function ReportBuilder({
   saved: ReportDefinition[];
   runs: ReportRun[];
 }) {
+  const { t } = useTranslation();
   const [datasetKey, setDatasetKey] = useState(datasets[0]?.key ?? "");
   const [columns, setColumns] = useState<string[]>([]);
   const [groupBy, setGroupBy] = useState<string>("");
@@ -135,7 +137,7 @@ export function ReportBuilder({
         setPreview(await previewReport(spec));
       } catch (error) {
         toast.error(
-          error instanceof Error ? error.message : "The preview failed.",
+          error instanceof Error ? error.message : t("body.rbPreviewFailed"),
         );
       }
     });
@@ -158,22 +160,25 @@ export function ReportBuilder({
       );
 
       if (run.status === "failed") {
-        toast.error(run.error ?? "The export failed.");
+        toast.error(run.error ?? t("body.rbExportFailed"));
         return;
       }
       if (run.status === "queued" || run.status === "running") {
-        toast.info("Still running. It will appear in the history when it finishes.");
+        toast.info(t("body.rbStillRunning"));
         return;
       }
       if (run.status === "partial") {
         // Said out loud rather than silently handing over a prefix.
         toast.warning(
-          `Exported ${run.row_count.toLocaleString()} of ${run.total_rows.toLocaleString()} rows — the rest were cut off.`,
+          t("body.rbExportedPartial", {
+            n: run.row_count.toLocaleString(),
+            total: run.total_rows.toLocaleString(),
+          }),
         );
       }
       window.open(await getDownloadUrl(run.id), "_blank", "noopener");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "The export failed.");
+      toast.error(error instanceof Error ? error.message : t("body.rbExportFailed"));
     } finally {
       setExporting(false);
     }
@@ -181,15 +186,15 @@ export function ReportBuilder({
 
   async function save() {
     if (!name.trim()) {
-      toast.error("Give the report a name first.");
+      toast.error(t("body.rbNameFirst"));
       return;
     }
     try {
       await createReport({ name: name.trim(), definition: spec });
-      toast.success("Saved.");
+      toast.success(t("body.rbSaved"));
       setName("");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save.");
+      toast.error(error instanceof Error ? error.message : t("body.rbCouldNotSave"));
     }
   }
 
@@ -197,8 +202,8 @@ export function ReportBuilder({
     return (
       <EmptyState
         icon={Play}
-        title="Nothing to report on"
-        description="You do not have access to any of the datasets reports are built from."
+        title={t("body.rbNothingToReport")}
+        description={t("body.rbNoAccess")}
       />
     );
   }
@@ -209,10 +214,8 @@ export function ReportBuilder({
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Dataset</CardTitle>
-            <CardDescription>
-              Only the ones you can query are listed.
-            </CardDescription>
+            <CardTitle>{t("body.rbDataset")}</CardTitle>
+            <CardDescription>{t("body.rbOnlyQueryable")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Select value={datasetKey} onValueChange={chooseDataset}>
@@ -237,11 +240,8 @@ export function ReportBuilder({
 
         <Card>
           <CardHeader>
-            <CardTitle>Group by</CardTitle>
-            <CardDescription>
-              Leave empty for a row-by-row list. Grouping counts each distinct
-              value.
-            </CardDescription>
+            <CardTitle>{t("body.rbGroupBy")}</CardTitle>
+            <CardDescription>{t("body.rbGroupByDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Select
@@ -252,7 +252,7 @@ export function ReportBuilder({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No grouping</SelectItem>
+                <SelectItem value="none">{t("body.rbNoGrouping")}</SelectItem>
                 {(dataset?.fields ?? [])
                   .filter((field) => field.groupable)
                   .map((field) => (
@@ -268,11 +268,8 @@ export function ReportBuilder({
         {!groupBy ? (
           <Card>
             <CardHeader>
-              <CardTitle>Columns</CardTitle>
-              <CardDescription>
-                Sensitive fields are marked; they stay out of exports unless
-                chosen deliberately.
-              </CardDescription>
+              <CardTitle>{t("body.rbColumns")}</CardTitle>
+              <CardDescription>{t("body.rbColumnsDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2.5">
               {(dataset?.fields ?? []).map((field) => (
@@ -288,7 +285,7 @@ export function ReportBuilder({
                   <span className="min-w-0 truncate">{field.label}</span>
                   {field.sensitive ? (
                     <Badge variant="outline" className="ml-auto shrink-0">
-                      sensitive
+                      {t("body.rbSensitive")}
                     </Badge>
                   ) : null}
                 </label>
@@ -302,10 +299,8 @@ export function ReportBuilder({
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Preview</CardTitle>
-            <CardDescription>
-              The first 100 rows, within your own access.
-            </CardDescription>
+            <CardTitle>{t("body.rbPreview")}</CardTitle>
+            <CardDescription>{t("body.rbPreviewDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -315,7 +310,7 @@ export function ReportBuilder({
                 ) : (
                   <Play className="size-4" />
                 )}
-                Run preview
+                {t("body.rbRunPreview")}
               </Button>
 
               <Select
@@ -344,23 +339,23 @@ export function ReportBuilder({
                 ) : (
                   <Download className="size-4" />
                 )}
-                Export
+                {t("buttons.export")}
               </Button>
 
               <div className="ml-auto flex items-center gap-2">
                 <Label htmlFor="report-name" className="sr-only">
-                  Report name
+                  {t("body.rbReportName")}
                 </Label>
                 <Input
                   id="report-name"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
-                  placeholder="Save as…"
+                  placeholder={t("body.rbSaveAs")}
                   className="h-9 w-[180px]"
                 />
                 <Button variant="outline" onClick={save}>
                   <Save className="size-4" />
-                  Save
+                  {t("buttons.save")}
                 </Button>
               </div>
             </div>
@@ -369,12 +364,16 @@ export function ReportBuilder({
               <>
                 {preview.truncated ? (
                   <p className="text-xs text-muted-foreground">
-                    Showing {preview.row_count.toLocaleString()} of{" "}
-                    {preview.total_rows.toLocaleString()} rows.
+                    {t("body.rbShowingRows", {
+                      n: preview.row_count.toLocaleString(),
+                      total: preview.total_rows.toLocaleString(),
+                    })}
                   </p>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    {preview.row_count.toLocaleString()} rows.
+                    {t("body.rbRowsDot", {
+                      n: preview.row_count.toLocaleString(),
+                    })}
                   </p>
                 )}
                 <div className="overflow-x-auto rounded-lg border">
@@ -406,8 +405,8 @@ export function ReportBuilder({
               <EmptyState
                 icon={Play}
                 compact
-                title="Nothing run yet"
-                description="Choose columns or a grouping, then run the preview."
+                title={t("body.rbNothingRun")}
+                description={t("body.rbNothingRunDesc")}
               />
             )}
           </CardContent>
@@ -416,11 +415,8 @@ export function ReportBuilder({
         {saved.length ? (
           <Card>
             <CardHeader>
-              <CardTitle>Saved reports</CardTitle>
-              <CardDescription>
-                Yours, plus anything shared with the workspace. Running a shared
-                report still returns only your own rows.
-              </CardDescription>
+              <CardTitle>{t("body.rbSavedReports")}</CardTitle>
+              <CardDescription>{t("body.rbSavedReportsDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-0">
               {saved.map((report, index) => (
@@ -437,7 +433,7 @@ export function ReportBuilder({
                   </div>
                   {report.is_shared ? (
                     <Badge variant="outline" className="shrink-0">
-                      shared
+                      {t("body.rbShared")}
                     </Badge>
                   ) : null}
                 </div>
@@ -449,11 +445,8 @@ export function ReportBuilder({
         {history.length ? (
           <Card>
             <CardHeader>
-              <CardTitle>Export history</CardTitle>
-              <CardDescription>
-                Files are kept for 30 days; the record of the export is kept
-                indefinitely.
-              </CardDescription>
+              <CardTitle>{t("body.rbExportHistory")}</CardTitle>
+              <CardDescription>{t("body.rbExportHistoryDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-0">
               {history.slice(0, 10).map((run, index) => (
@@ -465,13 +458,13 @@ export function ReportBuilder({
                     <p className="truncate text-sm font-medium">{run.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
                       {run.format.toUpperCase()} ·{" "}
-                      {run.row_count.toLocaleString()} rows
+                      {t("body.rbRows", { n: run.row_count.toLocaleString() })}
                       {run.status === "partial"
-                        ? ` of ${run.total_rows.toLocaleString()}`
+                        ? ` / ${run.total_rows.toLocaleString()}`
                         : ""}
                     </p>
                   </div>
-                  <RunBadge status={run.status} />
+                  <RunBadge status={run.status} t={t} />
                 </div>
               ))}
             </CardContent>
@@ -483,7 +476,13 @@ export function ReportBuilder({
 }
 
 /** `partial` gets its own colour: it is a success, but not a complete one. */
-function RunBadge({ status }: { status: ReportRun["status"] }) {
+function RunBadge({
+  status,
+  t,
+}: {
+  status: ReportRun["status"];
+  t: ReturnType<typeof useTranslation>["t"];
+}) {
   const variant =
     status === "failed"
       ? "destructive"
@@ -492,7 +491,7 @@ function RunBadge({ status }: { status: ReportRun["status"] }) {
         : "outline";
   return (
     <Badge variant={variant} className="shrink-0">
-      {status}
+      {t(`body.rbStatus_${status}`)}
     </Badge>
   );
 }

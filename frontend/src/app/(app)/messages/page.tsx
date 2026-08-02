@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { getConversation, listConversations } from "@/lib/api/conversations";
 import type { Conversation, ConversationMessage } from "@/lib/api/types";
-import { getTranslations } from "@/i18n/server";
+import { getLocale, getTranslations } from "@/i18n/server";
+import { LOCALE_META, type Locale } from "@/i18n/config";
+import type { TranslateFn } from "@/i18n/translate";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Messages" };
@@ -34,6 +36,7 @@ export default async function MessagesPage({
 }) {
   const { c } = await searchParams;
   const t = await getTranslations();
+  const locale = await getLocale();
   const { data: conversations } = await listConversations({ limit: 50 });
 
   // Fall back to the first thread rather than trusting the parameter: a stale
@@ -73,10 +76,15 @@ export default async function MessagesPage({
                 conversationId={detail.conversation.id}
                 unreadCount={detail.conversation.unread_count}
               />
-              <ThreadHeader conversation={detail.conversation} />
+              <ThreadHeader conversation={detail.conversation} t={t} />
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                 {detail.messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    locale={locale}
+                    t={t}
+                  />
                 ))}
               </div>
               <MessageComposer
@@ -170,7 +178,13 @@ function ConversationRow({
   );
 }
 
-function ThreadHeader({ conversation }: { conversation: Conversation }) {
+function ThreadHeader({
+  conversation,
+  t,
+}: {
+  conversation: Conversation;
+  t: TranslateFn;
+}) {
   const name = conversation.display_name ?? conversation.external_id;
   return (
     <div className="flex items-center gap-3 border-b p-3">
@@ -182,18 +196,37 @@ function ThreadHeader({ conversation }: { conversation: Conversation }) {
         </p>
       </div>
       {conversation.entity_type ? (
-        <Badge variant="secondary">Filed on {conversation.entity_type}</Badge>
+        <Badge variant="secondary">
+          {t("body.msgFiledOn", { entity: conversation.entity_type })}
+        </Badge>
       ) : (
         // Worth saying out loud: an unfiled thread is visible to everyone and
         // is waiting for somebody to claim it.
-        <Badge variant="outline">Unfiled</Badge>
+        <Badge variant="outline">{t("body.msgUnfiled")}</Badge>
       )}
     </div>
   );
 }
 
-function MessageBubble({ message }: { message: ConversationMessage }) {
+function MessageBubble({
+  message,
+  locale,
+  t,
+}: {
+  message: ConversationMessage;
+  locale: Locale;
+  t: TranslateFn;
+}) {
   const outbound = message.direction === "outbound";
+  // Seamless translation: show the message in the viewer's own language when a
+  // translation exists, and keep the client's original one tap away. Falls back
+  // to the original text when the message was never translated.
+  const translated = message.translations?.[locale];
+  const display = translated || message.body_text;
+  const isTranslated = Boolean(
+    translated && message.lang && message.lang !== locale &&
+    translated !== message.body_text,
+  );
   return (
     <div className={cn("flex", outbound ? "justify-end" : "justify-start")}>
       <div
@@ -208,13 +241,27 @@ function MessageBubble({ message }: { message: ConversationMessage }) {
         {/* Plain text only. `body_html` arrived from outside and the API does
             not sanitise it — rendering it here would be a stored-XSS hole with
             somebody's inbox as the delivery mechanism. */}
-        <p className="text-sm whitespace-pre-wrap">{message.body_text}</p>
+        <p className="text-sm whitespace-pre-wrap">{display}</p>
+        {isTranslated && (
+          <details className="mt-1.5 group">
+            <summary className="cursor-pointer list-none text-[10px] text-muted-foreground/80 hover:text-foreground">
+              {t("body.msgTranslatedFrom", { lang: (message.lang ?? "").toUpperCase() })}
+              {" · "}
+              {t("body.msgShowOriginal")}
+            </summary>
+            <p className="mt-1 border-l-2 pl-2 text-sm whitespace-pre-wrap text-muted-foreground">
+              {message.body_text}
+            </p>
+          </details>
+        )}
         <p className="mt-1.5 text-[10px] text-muted-foreground">
           {message.status === "failed"
-            ? (message.failure_reason ?? "Delivery failed")
+            ? (message.failure_reason ?? t("body.msgDeliveryFailed"))
             : message.status === "queued"
-              ? "Sending…"
-              : new Date(message.sent_at ?? message.created_at).toLocaleString()}
+              ? t("body.msgSending")
+              : new Date(message.sent_at ?? message.created_at).toLocaleString(
+                  LOCALE_META[locale].htmlLang,
+                )}
         </p>
       </div>
     </div>

@@ -13,6 +13,8 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n/language-provider";
+import type { TranslateFn } from "@/i18n/translate";
 import { ClientApiError } from "@/lib/api/client";
 import {
   UploadTransferError,
@@ -27,11 +29,11 @@ import type {
   AttachmentStatus,
 } from "@/lib/api/types";
 
-const STATUS_LABEL: Record<AttachmentStatus, string> = {
-  pending_upload: "Processing",
-  available: "Available",
-  quarantined: "Quarantined",
-  failed: "Rejected",
+const STATUS_KEY: Record<AttachmentStatus, string> = {
+  pending_upload: "apProcessing",
+  available: "apAvailable",
+  quarantined: "apQuarantined",
+  failed: "apRejected",
 };
 
 /**
@@ -56,6 +58,7 @@ export function AttachmentsPanel({
   canManage: boolean;
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
   const [uploadingName, setUploadingName] = useState<string | null>(null);
@@ -68,7 +71,7 @@ export function AttachmentsPanel({
       await action();
       router.refresh();
     } catch (caught) {
-      setError(describe(caught));
+      setError(describe(caught, t));
     } finally {
       setPending(false);
       setUploadingName(null);
@@ -110,7 +113,7 @@ export function AttachmentsPanel({
             ) : (
               <Paperclip className="size-4" />
             )}
-            {uploadingName ? "Uploading…" : "Attach file"}
+            {uploadingName ? t("body.apUploading") : t("body.apAttachFile")}
           </Button>
           {uploadingName && (
             <p className="text-[11px] text-muted-foreground">{uploadingName}</p>
@@ -125,7 +128,7 @@ export function AttachmentsPanel({
       )}
 
       {attachments.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No files attached.</p>
+        <p className="text-sm text-muted-foreground">{t("body.apNoFiles")}</p>
       ) : (
         <ul className="space-y-1.5">
           {attachments.map((attachment) => {
@@ -151,7 +154,7 @@ export function AttachmentsPanel({
                     {attachment.size_bytes === null
                       ? "—"
                       : formatBytes(attachment.size_bytes)}{" "}
-                    · {attachment.uploader?.full_name ?? "Unknown"}
+                    · {attachment.uploader?.full_name ?? t("body.apUnknown")}
                   </p>
                   {isRejected && attachment.failure_reason && (
                     <p className="text-[11px] text-destructive">
@@ -168,7 +171,7 @@ export function AttachmentsPanel({
                         : "secondary"
                   }
                 >
-                  {STATUS_LABEL[attachment.status]}
+                  {t(`body.${STATUS_KEY[attachment.status]}`)}
                 </Badge>
                 {isAvailable && (
                   <Button
@@ -176,7 +179,9 @@ export function AttachmentsPanel({
                     size="icon-sm"
                     onClick={() => run(() => downloadAttachment(attachment.id))}
                     disabled={pending}
-                    title={`Download ${attachment.filename}`}
+                    title={t("body.apDownloadName", {
+                      name: attachment.filename,
+                    })}
                   >
                     <Download className="size-4" />
                   </Button>
@@ -188,7 +193,7 @@ export function AttachmentsPanel({
                     className="text-destructive"
                     onClick={() => run(() => deleteAttachment(attachment.id))}
                     disabled={pending}
-                    title="Remove"
+                    title={t("buttons.remove")}
                   >
                     <Trash2 className="size-4" />
                   </Button>
@@ -202,8 +207,8 @@ export function AttachmentsPanel({
   );
 }
 
-function describe(caught: unknown): string {
+function describe(caught: unknown, t: TranslateFn): string {
   if (caught instanceof UploadTransferError) return caught.message;
   if (caught instanceof ClientApiError) return caught.message;
-  return "Something went wrong. Please try again.";
+  return t("body.errGeneric");
 }

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { getClient } from "@/lib/api/clients";
 import { ApiError } from "@/lib/api/server";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Edit client" };
@@ -17,6 +18,7 @@ export default async function EditClientPage({
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const t = await getTranslations();
 
   if (!hasPermission(session, "contacts.manage")) {
     redirect(`/clients/${id}`);
@@ -35,8 +37,8 @@ export default async function EditClientPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Edit ${client.display_name}`}
-        description="Changes are recorded in the audit log."
+        title={t("body.cfEditTitle", { name: client.display_name })}
+        description={t("body.formEditAudit")}
       />
       <Card className="max-w-3xl">
         <CardContent className="pt-6">

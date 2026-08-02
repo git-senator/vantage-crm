@@ -751,6 +751,11 @@ export interface ConversationMessage {
    * the one that is always safe.
    */
   body_html: string | null;
+  /** Detected source language of the message (e.g. "pt", "ru"), when translated. */
+  lang: string | null;
+  /** The message rendered into each team language (RU/PT/EN). Empty when not
+   *  translated; the UI then falls back to `body_text`. */
+  translations: Record<string, string>;
   sender: OwnerSummary | null;
   sent_at: string | null;
   read_at: string | null;

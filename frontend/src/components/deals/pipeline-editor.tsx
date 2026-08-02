@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { useTranslation } from "@/i18n/language-provider";
 import { ClientApiError } from "@/lib/api/client";
 import {
   addPipelineStage,
@@ -40,6 +41,7 @@ function toKey(name: string): string {
  */
 export function PipelineEditor({ pipeline }: { pipeline: Pipeline }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
@@ -54,9 +56,7 @@ export function PipelineEditor({ pipeline }: { pipeline: Pipeline }) {
       router.refresh();
     } catch (caught) {
       setError(
-        caught instanceof ClientApiError
-          ? caught.message
-          : "Something went wrong. Please try again.",
+        caught instanceof ClientApiError ? caught.message : t("body.errGeneric"),
       );
     } finally {
       setBusy(null);
@@ -87,7 +87,7 @@ export function PipelineEditor({ pipeline }: { pipeline: Pipeline }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Stages</CardTitle>
+          <CardTitle>{t("body.peStages")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-0">
           {stages.map((stage, index) => (
@@ -97,7 +97,7 @@ export function PipelineEditor({ pipeline }: { pipeline: Pipeline }) {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Move ${stage.name} earlier`}
+                    aria-label={t("body.peMoveEarlier", { name: stage.name })}
                     disabled={index === 0 || busy !== null}
                     onClick={() => swap(index, index - 1)}
                   >
@@ -106,7 +106,7 @@ export function PipelineEditor({ pipeline }: { pipeline: Pipeline }) {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Move ${stage.name} later`}
+                    aria-label={t("body.peMoveLater", { name: stage.name })}
                     disabled={index === stages.length - 1 || busy !== null}
                     onClick={() => swap(index, index + 1)}
                   >
@@ -131,7 +131,7 @@ export function PipelineEditor({ pipeline }: { pipeline: Pipeline }) {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Remove ${stage.name}`}
+                  aria-label={t("body.peRemoveStage", { name: stage.name })}
                   className="text-destructive"
                   disabled={busy !== null || stages.length <= 1}
                   onClick={() =>
@@ -155,15 +155,15 @@ export function PipelineEditor({ pipeline }: { pipeline: Pipeline }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Add a stage</CardTitle>
+          <CardTitle className="text-sm">{t("body.peAddStage")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-end gap-2">
             <div className="flex-1 space-y-2">
-              <Label htmlFor="new_stage">Name</Label>
+              <Label htmlFor="new_stage">{t("body.peName")}</Label>
               <Input
                 id="new_stage"
-                placeholder="Inspection"
+                placeholder={t("body.peStagePlaceholder")}
                 value={newName}
                 onChange={(event) => setNewName(event.target.value)}
                 disabled={busy !== null}
@@ -193,7 +193,7 @@ export function PipelineEditor({ pipeline }: { pipeline: Pipeline }) {
               ) : (
                 <Plus className="size-4" />
               )}
-              Add stage
+              {t("body.peAddStageBtn")}
             </Button>
           </div>
         </CardContent>

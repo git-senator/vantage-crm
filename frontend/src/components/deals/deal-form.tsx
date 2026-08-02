@@ -15,9 +15,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { createDeal, updateDeal } from "@/lib/api/deals-client";
 import type { Client, Deal, DealInput, Property } from "@/lib/api/types";
-import { titleize } from "@/lib/format";
 
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
 
@@ -39,6 +39,7 @@ export function DealForm({
   properties: Pick<Property, "id" | "title">[];
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const isEdit = deal !== undefined;
 
   const [clientId, setClientId] = useState(deal?.client.id ?? clients[0]?.id ?? "");
@@ -54,7 +55,7 @@ export function DealForm({
     setFieldErrors({});
 
     if (!clientId) {
-      setError("A deal needs a client. Create one first.");
+      setError(t("body.dfNeedClient"));
       return;
     }
     setPending(true);
@@ -93,7 +94,7 @@ export function DealForm({
         setFieldErrors(caught.fieldErrors);
         setError(caught.message);
       } else {
-        setError("Unable to reach the server. Please try again.");
+        setError(t("body.formServerError"));
       }
       setPending(false);
     }
@@ -113,7 +114,7 @@ export function DealForm({
 
       <Field
         name="title"
-        label="Deal title"
+        label={t("body.dfTitle")}
         required
         placeholder="1428 Sanchez — Lindqvist purchase"
         defaultValue={deal?.title}
@@ -123,10 +124,10 @@ export function DealForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="client_id">Client</Label>
+          <Label htmlFor="client_id">{t("body.dfClient")}</Label>
           <Select value={clientId} onValueChange={(v) => setClientId(v ?? "")} disabled={pending}>
             <SelectTrigger id="client_id" className="w-full">
-              <SelectValue placeholder="Select a client" />
+              <SelectValue placeholder={t("body.dfSelectClient")} />
             </SelectTrigger>
             <SelectContent>
               {clients.map((option) => (
@@ -137,14 +138,12 @@ export function DealForm({
             </SelectContent>
           </Select>
           {clients.length === 0 && (
-            <p className="text-xs text-destructive">
-              No clients yet — a deal must belong to one.
-            </p>
+            <p className="text-xs text-destructive">{t("body.dfNoClients")}</p>
           )}
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="property_id">Property</Label>
+          <Label htmlFor="property_id">{t("body.dfProperty")}</Label>
           <Select
             value={propertyId}
             onValueChange={(v) => setPropertyId(v ?? "none")}
@@ -156,7 +155,7 @@ export function DealForm({
             <SelectContent>
               {/* Optional: a buyer-representation deal has no listing until an
                   offer is made. */}
-              <SelectItem value="none">No property yet</SelectItem>
+              <SelectItem value="none">{t("body.dfNoProperty")}</SelectItem>
               {properties.map((option) => (
                 <SelectItem key={option.id} value={option.id}>
                   {option.title}
@@ -170,7 +169,7 @@ export function DealForm({
       <div className="grid gap-4 sm:grid-cols-3">
         <Field
           name="value"
-          label="Deal value"
+          label={t("body.dfValue")}
           type="number"
           placeholder="1895000"
           defaultValue={deal?.value ?? ""}
@@ -179,21 +178,21 @@ export function DealForm({
         />
         <Field
           name="commission_rate"
-          label="Commission rate"
+          label={t("body.dfCommissionRate")}
           type="number"
           step="0.0001"
           placeholder="0.025"
-          hint="0.025 is 2.5%"
+          hint={t("body.dfRateHint")}
           defaultValue={deal?.commission_rate ?? ""}
           error={fieldErrors.commission_rate}
           disabled={pending}
         />
         <Field
           name="commission_amount"
-          label="Commission amount"
+          label={t("body.dfCommissionAmount")}
           type="number"
-          placeholder="Auto from rate"
-          hint="Overrides the rate"
+          placeholder={t("body.dfAmountPlaceholder")}
+          hint={t("body.dfAmountHint")}
           defaultValue={deal?.commission_amount ?? ""}
           error={fieldErrors.commission_amount}
           disabled={pending}
@@ -202,7 +201,7 @@ export function DealForm({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="priority">Priority</Label>
+          <Label htmlFor="priority">{t("body.dfPriority")}</Label>
           <Select
             value={priority}
             onValueChange={(v) => setPriority((v ?? "medium") as typeof priority)}
@@ -214,7 +213,7 @@ export function DealForm({
             <SelectContent>
               {PRIORITIES.map((option) => (
                 <SelectItem key={option} value={option}>
-                  {titleize(option)}
+                  {t(`body.dfPriority_${option}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -222,7 +221,7 @@ export function DealForm({
         </div>
         <Field
           name="expected_close_date"
-          label="Expected close"
+          label={t("body.dfExpectedClose")}
           type="date"
           defaultValue={deal?.expected_close_date ?? ""}
           error={fieldErrors.expected_close_date}
@@ -237,11 +236,11 @@ export function DealForm({
           onClick={() => router.back()}
           disabled={pending}
         >
-          Cancel
+          {t("buttons.cancel")}
         </Button>
         <Button type="submit" disabled={pending || clients.length === 0}>
           {pending && <Loader2 className="size-4 animate-spin" />}
-          {isEdit ? "Save changes" : "Create deal"}
+          {isEdit ? t("body.profSaveChanges") : t("body.dfCreate")}
         </Button>
       </div>
     </form>

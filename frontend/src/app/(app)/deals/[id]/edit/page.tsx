@@ -8,6 +8,7 @@ import { listClients } from "@/lib/api/clients";
 import { getDeal } from "@/lib/api/deals";
 import { listProperties } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/server";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Edit deal" };
@@ -19,6 +20,7 @@ export default async function EditDealPage({
 }) {
   const session = await requireSession();
   const { id } = await params;
+  const t = await getTranslations();
 
   if (!hasPermission(session, "deals.manage")) {
     redirect(`/deals/${id}`);
@@ -42,8 +44,8 @@ export default async function EditDealPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Edit ${deal.title}`}
-        description="Changes are recorded in the audit log. To move the deal between stages, use Move stage."
+        title={t("body.cfEditTitle", { name: deal.title })}
+        description={t("body.dealEditAudit")}
       />
       <Card className="max-w-3xl">
         <CardContent className="pt-6">

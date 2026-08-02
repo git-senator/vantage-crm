@@ -4,12 +4,14 @@ import { redirect } from "next/navigation";
 import { ClientForm } from "@/components/clients/client-form";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "New client" };
 
 export default async function NewClientPage() {
   const session = await requireSession();
+  const t = await getTranslations();
 
   // Belt and braces. The list page hides the button and the API refuses the
   // POST, but someone typing the URL should not reach a form they cannot
@@ -21,8 +23,8 @@ export default async function NewClientPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="New client"
-        description="Add someone you represent, as a person or a company."
+        title={t("body.cfNewTitle")}
+        description={t("body.cfNewDesc")}
       />
       <Card className="max-w-3xl">
         <CardContent className="pt-6">

@@ -40,6 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useTranslation } from "@/i18n/language-provider";
 import { ClientApiError } from "@/lib/api/client";
 import {
   deleteAttachment,
@@ -57,6 +58,7 @@ const ENTITY_PATH: Record<string, string> = {
 
 function DeleteDocumentDialog({ doc }: { doc: Attachment }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,13 +69,13 @@ function DeleteDocumentDialog({ doc }: { doc: Attachment }) {
     try {
       await deleteAttachment(doc.id);
       setOpen(false);
-      toast.success("Document deleted");
+      toast.success(t("body.dtDeleted"));
       router.refresh();
     } catch (caught) {
       setError(
         caught instanceof ClientApiError
           ? caught.message
-          : "Unable to delete. Please try again.",
+          : t("body.dtDeleteError"),
       );
       setPending(false);
     }
@@ -89,14 +91,14 @@ function DeleteDocumentDialog({ doc }: { doc: Attachment }) {
         }}
       >
         <Trash2 className="size-4" />
-        Delete
+        {t("buttons.delete")}
       </DropdownMenuItem>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete this document?</DialogTitle>
+          <DialogTitle>{t("body.dtDeleteTitle")}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          “{doc.filename}” will be removed. This cannot be undone from here.
+          {t("body.dtDeleteBody", { name: doc.filename })}
         </p>
         {error && (
           <div
@@ -109,11 +111,15 @@ function DeleteDocumentDialog({ doc }: { doc: Attachment }) {
         )}
         <DialogFooter>
           <DialogClose
-            render={<Button variant="ghost" disabled={pending}>Cancel</Button>}
+            render={
+              <Button variant="ghost" disabled={pending}>
+                {t("buttons.cancel")}
+              </Button>
+            }
           />
           <Button variant="destructive" onClick={handleDelete} disabled={pending}>
             {pending && <Loader2 className="size-4 animate-spin" />}
-            Delete document
+            {t("body.dtDeleteConfirm")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -122,8 +128,11 @@ function DeleteDocumentDialog({ doc }: { doc: Attachment }) {
 }
 
 function DocumentRow({ doc }: { doc: Attachment }) {
+  const { t } = useTranslation();
   const [downloading, setDownloading] = useState(false);
   const available = doc.status === "available";
+  const entityCap =
+    doc.entity_type.charAt(0).toUpperCase() + doc.entity_type.slice(1);
 
   async function handleDownload() {
     setDownloading(true);
@@ -131,7 +140,9 @@ function DocumentRow({ doc }: { doc: Attachment }) {
       await downloadAttachment(doc.id);
     } catch (caught) {
       toast.error(
-        caught instanceof ClientApiError ? caught.message : "Download failed",
+        caught instanceof ClientApiError
+          ? caught.message
+          : t("body.dtDownloadFailed"),
       );
     } finally {
       setDownloading(false);
@@ -162,14 +173,14 @@ function DocumentRow({ doc }: { doc: Attachment }) {
         {entityPath ? (
           <Link
             href={`${entityPath}/${doc.entity_id}`}
-            className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground capitalize transition-colors hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
           >
             <Link2 className="size-3" />
-            {doc.entity_type}
+            {t(`body.entity${entityCap}`)}
           </Link>
         ) : (
-          <span className="text-xs text-muted-foreground capitalize">
-            {doc.entity_type}
+          <span className="text-xs text-muted-foreground">
+            {t(`body.entity${entityCap}`)}
           </span>
         )}
       </TableCell>
@@ -201,7 +212,7 @@ function DocumentRow({ doc }: { doc: Attachment }) {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label={`Actions for ${doc.filename}`}
+                aria-label={t("body.dtActionsFor", { name: doc.filename })}
               >
                 <MoreHorizontal className="size-4" />
               </Button>
@@ -220,7 +231,7 @@ function DocumentRow({ doc }: { doc: Attachment }) {
               ) : (
                 <Download className="size-4" />
               )}
-              Download
+              {t("buttons.download")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DeleteDocumentDialog doc={doc} />
@@ -232,17 +243,20 @@ function DocumentRow({ doc }: { doc: Attachment }) {
 }
 
 export function DocumentTable({ documents }: { documents: Attachment[] }) {
+  const { t } = useTranslation();
   return (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="min-w-[280px] pl-4">Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Related to</TableHead>
-            <TableHead>Uploaded by</TableHead>
-            <TableHead>Size</TableHead>
-            <TableHead>Added</TableHead>
+            <TableHead className="min-w-[280px] pl-4">
+              {t("tables.name")}
+            </TableHead>
+            <TableHead>{t("forms.status")}</TableHead>
+            <TableHead>{t("body.dtRelatedTo")}</TableHead>
+            <TableHead>{t("body.dtUploadedBy")}</TableHead>
+            <TableHead>{t("body.dtSize")}</TableHead>
+            <TableHead>{t("body.dtAdded")}</TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>

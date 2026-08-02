@@ -6,12 +6,14 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { listClients } from "@/lib/api/clients";
 import { listProperties } from "@/lib/api/properties";
+import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "New deal" };
 
 export default async function NewDealPage() {
   const session = await requireSession();
+  const t = await getTranslations();
 
   // Belt and braces. The list hides the button and the API refuses the POST,
   // but someone typing the URL should not reach a form they cannot submit.
@@ -29,8 +31,8 @@ export default async function NewDealPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="New deal"
-        description="Deals start in the default pipeline's first stage."
+        title={t("body.newDeal")}
+        description={t("body.newDealDesc")}
       />
       <Card className="max-w-3xl">
         <CardContent className="pt-6">

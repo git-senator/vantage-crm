@@ -1,8 +1,11 @@
+"use client";
+
 import { ListFilter, Search, SlidersHorizontal } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTranslation } from "@/i18n/language-provider";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,7 +13,7 @@ import { cn } from "@/lib/utils";
  * visual prototype, so nothing here is wired to state.
  */
 export function DataToolbar({
-  placeholder = "Search…",
+  placeholder,
   filters,
   actions,
   className,
@@ -20,6 +23,7 @@ export function DataToolbar({
   actions?: ReactNode;
   className?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className={cn(
@@ -30,18 +34,25 @@ export function DataToolbar({
       <div className="flex flex-1 flex-wrap items-center gap-2">
         <div className="relative w-full min-w-0 sm:w-72">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder={placeholder} className="pl-9" />
+          <Input
+            placeholder={placeholder ?? t("forms.searchPlaceholder")}
+            className="pl-9"
+          />
         </div>
         {filters}
         <Button variant="outline" size="sm" className="gap-1.5">
           <ListFilter className="size-4" />
-          <span className="hidden sm:inline">Filters</span>
+          <span className="hidden sm:inline">{t("body.dtbFilters")}</span>
         </Button>
       </div>
 
       <div className="flex items-center gap-2">
         {actions}
-        <Button variant="outline" size="icon-sm" aria-label="View options">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          aria-label={t("body.dtbViewOptions")}
+        >
           <SlidersHorizontal className="size-4" />
         </Button>
       </div>

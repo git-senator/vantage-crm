@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ClientApiError } from "@/lib/api/client";
+import { useTranslation } from "@/i18n/language-provider";
 import { createClient, updateClient } from "@/lib/api/clients-client";
 import type { Client, ClientInput } from "@/lib/api/types";
 
@@ -29,12 +30,6 @@ const TYPES = [
   "other",
 ] as const;
 const STATUSES = ["active", "under_contract", "dormant", "past"] as const;
-
-/** `under_contract` -> `Under contract`. Keeps the wire format snake_case. */
-function label(value: string): string {
-  const spaced = value.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
 
 /**
  * Create and edit form.
@@ -49,6 +44,7 @@ function label(value: string): string {
  */
 export function ClientForm({ client }: { client?: Client }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const isEdit = client !== undefined;
 
   const [kind, setKind] = useState<"person" | "company">(
@@ -105,7 +101,7 @@ export function ClientForm({ client }: { client?: Client }) {
         setFieldErrors(caught.fieldErrors);
         setError(caught.message);
       } else {
-        setError("Unable to reach the server. Please try again.");
+        setError(t("body.formServerError"));
       }
       setPending(false);
     }
@@ -124,17 +120,17 @@ export function ClientForm({ client }: { client?: Client }) {
       )}
 
       <div className="space-y-2">
-        <Label>This client is</Label>
+        <Label>{t("body.cfIntro")}</Label>
         <Tabs
           value={kind}
           onValueChange={(next) => setKind(next as "person" | "company")}
         >
           <TabsList>
             <TabsTrigger value="person" disabled={pending}>
-              A person
+              {t("body.cfPerson")}
             </TabsTrigger>
             <TabsTrigger value="company" disabled={pending}>
-              A company
+              {t("body.cfCompany")}
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -144,7 +140,7 @@ export function ClientForm({ client }: { client?: Client }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             name="first_name"
-            label="First name"
+            label={t("body.formFirstName")}
             required
             defaultValue={client?.first_name ?? ""}
             error={fieldErrors.first_name}
@@ -152,7 +148,7 @@ export function ClientForm({ client }: { client?: Client }) {
           />
           <Field
             name="last_name"
-            label="Last name"
+            label={t("body.formLastName")}
             required
             defaultValue={client?.last_name ?? ""}
             error={fieldErrors.last_name}
@@ -162,7 +158,7 @@ export function ClientForm({ client }: { client?: Client }) {
       ) : (
         <Field
           name="company_name"
-          label="Company name"
+          label={t("body.cfCompanyName")}
           required
           placeholder="Tanaka Holdings Co"
           defaultValue={client?.company_name ?? ""}
@@ -174,7 +170,7 @@ export function ClientForm({ client }: { client?: Client }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           name="email"
-          label="Email"
+          label={t("body.formEmail")}
           type="email"
           defaultValue={client?.email ?? ""}
           error={fieldErrors.email}
@@ -182,7 +178,7 @@ export function ClientForm({ client }: { client?: Client }) {
         />
         <Field
           name="phone"
-          label="Phone"
+          label={t("body.formPhone")}
           defaultValue={client?.phone ?? ""}
           error={fieldErrors.phone}
           disabled={pending}
@@ -192,16 +188,18 @@ export function ClientForm({ client }: { client?: Client }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <Choice
           name="type"
-          label="Type"
+          label={t("body.formType")}
           options={TYPES}
           defaultValue={client?.type ?? "buyer"}
+          labelFor={(o) => t(`body.clientType_${o}`)}
           disabled={pending}
         />
         <Choice
           name="status"
-          label="Status"
+          label={t("body.formStatus")}
           options={STATUSES}
           defaultValue={client?.status ?? "active"}
+          labelFor={(o) => t(`body.clientStatus_${o}`)}
           disabled={pending}
         />
       </div>
@@ -209,7 +207,7 @@ export function ClientForm({ client }: { client?: Client }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           name="lifetime_value"
-          label="Lifetime value"
+          label={t("body.cfLifetimeValue")}
           type="number"
           placeholder="2450000"
           defaultValue={client?.lifetime_value ?? ""}
@@ -218,7 +216,7 @@ export function ClientForm({ client }: { client?: Client }) {
         />
         <Field
           name="client_since"
-          label="Client since"
+          label={t("body.cfClientSince")}
           type="date"
           defaultValue={client?.client_since ?? ""}
           error={fieldErrors.client_since}
@@ -228,20 +226,20 @@ export function ClientForm({ client }: { client?: Client }) {
 
       <Field
         name="tags"
-        label="Tags"
+        label={t("body.formTags")}
         placeholder="VIP, Repeat"
-        hint="Comma separated"
+        hint={t("body.formTagsHint")}
         defaultValue={(client?.tags ?? []).join(", ")}
         disabled={pending}
       />
 
       <div className="space-y-2">
-        <Label htmlFor="notes">Notes</Label>
+        <Label htmlFor="notes">{t("body.formNotes")}</Label>
         <Textarea
           id="notes"
           name="notes"
           rows={4}
-          placeholder="What matters about this relationship…"
+          placeholder={t("body.cfNotesPlaceholder")}
           defaultValue={client?.notes ?? ""}
           disabled={pending}
         />
@@ -254,11 +252,11 @@ export function ClientForm({ client }: { client?: Client }) {
           onClick={() => router.back()}
           disabled={pending}
         >
-          Cancel
+          {t("buttons.cancel")}
         </Button>
         <Button type="submit" disabled={pending}>
           {pending && <Loader2 className="size-4 animate-spin" />}
-          {isEdit ? "Save changes" : "Create client"}
+          {isEdit ? t("body.profSaveChanges") : t("body.cfCreate")}
         </Button>
       </div>
     </form>
@@ -295,12 +293,14 @@ function Choice({
   label: fieldLabel,
   options,
   defaultValue,
+  labelFor,
   disabled,
 }: {
   name: string;
   label: string;
   options: readonly string[];
   defaultValue: string;
+  labelFor: (option: string) => string;
   disabled?: boolean;
 }) {
   // Controlled via a hidden input: Base UI's Select does not submit a native
@@ -322,7 +322,7 @@ function Choice({
         <SelectContent>
           {options.map((option) => (
             <SelectItem key={option} value={option}>
-              {label(option)}
+              {labelFor(option)}
             </SelectItem>
           ))}
         </SelectContent>

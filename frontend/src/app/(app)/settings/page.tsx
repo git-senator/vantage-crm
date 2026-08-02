@@ -101,10 +101,18 @@ export default async function SettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Pacific Time (US & Canada)">Pacific Time (US & Canada)</SelectItem>
-                      <SelectItem value="Mountain Time">Mountain Time</SelectItem>
-                      <SelectItem value="Central Time">Central Time</SelectItem>
-                      <SelectItem value="Eastern Time">Eastern Time</SelectItem>
+                      <SelectItem value="Pacific Time (US & Canada)">
+                        {t("body.tzPacific")}
+                      </SelectItem>
+                      <SelectItem value="Mountain Time">
+                        {t("body.tzMountain")}
+                      </SelectItem>
+                      <SelectItem value="Central Time">
+                        {t("body.tzCentral")}
+                      </SelectItem>
+                      <SelectItem value="Eastern Time">
+                        {t("body.tzEastern")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
