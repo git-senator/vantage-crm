@@ -1501,6 +1501,9 @@ const en = {
     aiDeleteConversation: "Delete conversation",
     aiOpenError: "Could not open that conversation.",
     aiReplyError: "The assistant could not reply.",
+    aiBusy: "The AI assistant is busy right now. Please try again in a moment.",
+    aiBudgetReached:
+      "This workspace has reached its monthly AI limit. It resets at the start of next month.",
     aiDeleteError: "Could not delete that conversation.",
     profTitle: "Profile",
     profDesc: "Your account details and how you appear to teammates.",

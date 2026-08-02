@@ -1470,6 +1470,9 @@ const ptBR: Dictionary = {
     aiDeleteConversation: "Excluir conversa",
     aiOpenError: "Não foi possível abrir essa conversa.",
     aiReplyError: "O assistente não conseguiu responder.",
+    aiBusy: "O assistente de IA está ocupado no momento. Tente novamente em instantes.",
+    aiBudgetReached:
+      "Este espaço atingiu o limite mensal de IA. Ele é renovado no início do próximo mês.",
     aiDeleteError: "Não foi possível excluir essa conversa.",
     profTitle: "Perfil",
     profDesc: "Os dados da sua conta e como você aparece para a equipe.",

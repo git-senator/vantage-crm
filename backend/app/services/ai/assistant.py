@@ -30,6 +30,8 @@ Three things worth stating because they are where the safety lives:
 
 from __future__ import annotations
 
+import json
+import re
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -212,7 +214,7 @@ class AssistantService:
             organization_id=self.auth.organization_id,
             conversation_id=conversation.id,
             role="assistant",
-            content=result.text or "(no response)",
+            content=_clean_reply(result.text) or "(no response)",
             prompt_tokens=result.usage.prompt_tokens,
             completion_tokens=result.usage.completion_tokens,
             ai_job_id=self.ai.last_job.id if self.ai.last_job is not None else None,
@@ -301,6 +303,44 @@ def _derive_title(message: str) -> str:
     worth a completion, and the first line is what a user recognises anyway."""
     first_line = message.strip().splitlines()[0] if message.strip() else "New chat"
     return first_line[:80]
+
+
+#: A reply that is *entirely* one Markdown code fence — ```lang ... ``` — with
+#: nothing else around it. The visible answer was meant to be prose, so a
+#: fully-wrapped fence is the model leaking structure, not formatting a snippet.
+_WHOLE_FENCE_RE = re.compile(r"^```[a-zA-Z0-9_-]*\s*\n?(.*?)\n?```$", re.DOTALL)
+
+#: Fields a JSON-object reply might hide the actual text behind.
+_REPLY_FIELDS = ("reply", "answer", "response", "message", "content", "text")
+
+
+def _clean_reply(text: str | None) -> str:
+    """Undo the two ways a reasoning model occasionally leaks structure into a
+    reply that was asked to be plain prose: wrapping the whole answer in a code
+    fence, or returning a bare JSON object like ``{"reply": "..."}``.
+
+    Only a reply that is *entirely* one of those is touched — prose that merely
+    contains a code block, or mentions a brace, is left exactly as written.
+    """
+    if not text:
+        return ""
+    cleaned = text.strip()
+
+    match = _WHOLE_FENCE_RE.match(cleaned)
+    if match:
+        cleaned = match.group(1).strip()
+
+    if cleaned.startswith("{") and cleaned.endswith("}"):
+        try:
+            data = json.loads(cleaned)
+        except json.JSONDecodeError:
+            data = None
+        if isinstance(data, dict):
+            for field in _REPLY_FIELDS:
+                value = data.get(field)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+    return cleaned
 
 
 __all__ = ["FEATURE", "HISTORY_TURNS", "MAX_MESSAGE_CHARS", "AssistantService"]

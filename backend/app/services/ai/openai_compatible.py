@@ -23,6 +23,7 @@ with the *provider's* error text, never the request that carried the key.
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 import httpx
@@ -44,6 +45,14 @@ logger = get_logger(__name__)
 #: problem — both transient. A 400 or 401 is ours and retrying only wastes the
 #: budget.
 _RETRYABLE_STATUSES = frozenset({408, 409, 429, 500, 502, 503, 504})
+
+#: How a transient failure (a 429 rate limit above all, the one a free tier hits
+#: first) is retried before it reaches the user. A short, capped backoff: enough
+#: to ride out a brief burst without leaving someone waiting on a chat reply.
+#: Three attempts total.
+_MAX_ATTEMPTS = 3
+_BACKOFF_BASE_SECONDS = 0.8
+_BACKOFF_CAP_SECONDS = 4.0
 
 #: OpenAI `finish_reason` → the neutral `stop_reason` the rest of the system
 #: uses. `length` is the truncation signal `CompletionResult.truncated` reads.
@@ -120,9 +129,50 @@ class OpenAICompatibleProvider:
                 for tool in request.tools
             ]
 
+        # Retry transient faults (429/5xx/timeouts) with a short, capped backoff
+        # rather than surfacing the first blip. A free-tier rate limit is the
+        # common case: a chat turn that would have died with "returned 429" now
+        # waits a beat and succeeds. Non-retryable faults raise on the first try.
+        last_error: AIError | None = None
+        for attempt in range(1, _MAX_ATTEMPTS + 1):
+            try:
+                response = await self._post(payload)
+            except AIError as exc:
+                last_error = exc
+                if exc.retryable and attempt < _MAX_ATTEMPTS:
+                    await asyncio.sleep(_backoff_delay(attempt))
+                    continue
+                raise
+
+            if response.status_code >= 400:
+                error = self._error_from(response)
+                if error.retryable and attempt < _MAX_ATTEMPTS:
+                    last_error = error
+                    delay = _retry_after(response) or _backoff_delay(attempt)
+                    logger.info(
+                        "ai_provider_retry",
+                        extra={
+                            "status": response.status_code,
+                            "attempt": attempt,
+                            "delay": round(delay, 2),
+                        },
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                raise error
+
+            return self._parse(response.json(), request.model)
+
+        # Loop only exits without returning when every attempt was retryable and
+        # exhausted; `last_error` is then the most recent transient failure.
+        raise last_error or AIError("The model could not be reached.", retryable=True)
+
+    async def _post(self, payload: dict[str, object]) -> httpx.Response:  # type: ignore[type-arg]
+        """One POST to the completions endpoint. Transport faults become a
+        retryable `AIError` that never carries the request body (and its key)."""
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
+                return await client.post(
                     f"{self._base_url}/chat/completions",
                     headers={
                         "authorization": f"Bearer {self._api_key}",
@@ -134,33 +184,43 @@ class OpenAICompatibleProvider:
             raise AIError("The model timed out.", retryable=True) from exc
         except httpx.HTTPError as exc:
             # Connection refused, DNS, reset mid-flight — transient transport
-            # faults, all retryable, none of which should carry the request body
-            # (and its key) into the exception.
+            # faults, all retryable.
             raise AIError("The model could not be reached.", retryable=True) from exc
 
-        if response.status_code >= 400:
-            raise self._error_from(response)
-
-        return self._parse(response.json(), request.model)
-
     def _error_from(self, response: httpx.Response) -> AIError:
-        retryable = response.status_code in _RETRYABLE_STATUSES
-        message = f"The model returned {response.status_code}."
+        status = response.status_code
+        retryable = status in _RETRYABLE_STATUSES
+
+        detail = ""
         try:
             body = response.json()
             # OpenAI-shaped errors are `{"error": {"message": ...}}`; some
             # gateways nest a string instead. Handle both without trusting shape.
             error = body.get("error", {})
-            detail = error.get("message") if isinstance(error, dict) else str(error)
-            if detail:
-                # The provider's message, never the request. Truncated so a
-                # verbose error cannot bloat a log line or a job's error column.
-                message = f"{message} {detail[:300]}"
+            raw = error.get("message") if isinstance(error, dict) else str(error)
+            detail = (raw or "")[:300]
         except Exception:  # pragma: no cover — body may not be JSON
             logger.debug("ai_error_body_unparseable", exc_info=True)
+
+        # The user sees a plain-language message keyed to the failure class, not
+        # a raw "returned 429" or the provider's verbose quota text. The provider
+        # detail is kept in the log for diagnosis, never in the surfaced error
+        # (and never the request that carried the key).
+        if status == 429:
+            message = (
+                "The AI assistant is busy right now. Please wait a few seconds "
+                "and try again."
+            )
+        elif status >= 500 or status == 408:
+            message = (
+                "The AI service is temporarily unavailable. Please try again in "
+                "a moment."
+            )
+        else:
+            message = "The AI request could not be completed."
         logger.warning(
             "ai_provider_error",
-            extra={"status": response.status_code, "retryable": retryable},
+            extra={"status": status, "retryable": retryable, "detail": detail},
         )
         return AIError(message, retryable=retryable)
 
@@ -247,6 +307,30 @@ def _decode_arguments(raw: object) -> dict:  # type: ignore[type-arg]
         except json.JSONDecodeError:
             return {}
     return {}
+
+
+def _backoff_delay(attempt: int) -> float:
+    """Exponential backoff for the nth attempt (1-based), capped."""
+    return min(_BACKOFF_CAP_SECONDS, _BACKOFF_BASE_SECONDS * (2 ** (attempt - 1)))
+
+
+def _retry_after(response: httpx.Response) -> float | None:
+    """The provider's `Retry-After` (seconds), honoured only when it is short.
+
+    A rate-limited free tier sometimes asks to wait far longer than a person
+    will hold a chat open for; a hint above the cap is ignored in favour of the
+    ordinary backoff, so the retry stays snappy and the failure surfaces quickly
+    if it is going to."""
+    raw = response.headers.get("retry-after")
+    if not raw:
+        return None
+    try:
+        seconds = float(raw)
+    except ValueError:
+        return None
+    if seconds <= 0 or seconds > _BACKOFF_CAP_SECONDS:
+        return None
+    return seconds
 
 
 __all__ = ["OpenAICompatibleProvider"]

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "@/i18n/language-provider";
+import { ClientApiError } from "@/lib/api/client";
 import {
   createConversation,
   deleteConversation,
@@ -201,14 +202,21 @@ export function AssistantChat({
       ]);
       setTyping({ message: reply, full: reply.content ?? "", shown: 0 });
     } catch (error) {
-      // Keep the user's message on screen; the server kept it too. Surface the
-      // server's own words — a budget refusal explains when it resets.
+      // Keep the user's message on screen; the server kept it too. Show a
+      // localized message keyed to the failure class rather than the server's
+      // English words: a provider fault (503) is transient, the monthly budget
+      // (429) resets. Everything else is the generic reply error.
       setMessages((current) =>
         current.filter((m) => m.id !== optimistic.id).concat(optimistic),
       );
-      toast.error(
-        error instanceof Error ? error.message : t("body.aiReplyError"),
-      );
+      const status = error instanceof ClientApiError ? error.status : 0;
+      const key =
+        status === 503
+          ? "body.aiBusy"
+          : status === 429
+            ? "body.aiBudgetReached"
+            : "body.aiReplyError";
+      toast.error(t(key));
     } finally {
       setSending(false);
     }
