@@ -269,6 +269,10 @@ class ConversationService:
             conversation.autopilot = bool(updates["autopilot"])
 
         await self.session.flush()
+        # `updated_at` has a SQL-side onupdate, so the flush expires it; refresh
+        # it here, inside the async context, or the sync serializer would trigger
+        # a lazy reload outside the greenlet and raise MissingGreenlet.
+        await self.session.refresh(conversation, attribute_names=["updated_at"])
         return conversation
 
     async def mark_read(self, conversation_id: UUID, actor: User) -> Conversation:
@@ -300,6 +304,9 @@ class ConversationService:
 
         conversation.unread_count = 0
         await self.session.flush()
+        # See update_conversation: refresh the onupdate-expired column in-async
+        # so the sync serializer does not lazy-load it and raise MissingGreenlet.
+        await self.session.refresh(conversation, attribute_names=["updated_at"])
         return conversation
 
     # ------------------------------------------------------------ internal

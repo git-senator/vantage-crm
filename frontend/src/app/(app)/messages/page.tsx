@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Globe, Inbox, Mail, MessageCircle, Paperclip, Send } from "lucide-react";
 
 import { AutopilotToggle } from "@/components/messages/autopilot-toggle";
+import { AutoRefresh } from "@/components/messages/auto-refresh";
 import { MarkReadOnView } from "@/components/messages/mark-read-button";
 import { MessageComposer } from "@/components/messages/message-composer";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -55,6 +56,9 @@ export default async function MessagesPage({
 
   return (
     <div className="h-[calc(100svh-7rem)] min-h-[560px]">
+      {/* Live inbox: soft-refresh the server view so replies land without a
+          manual reload or switching threads. */}
+      <AutoRefresh intervalMs={2000} />
       <Card className="flex h-full flex-row gap-0 overflow-hidden p-0">
         <aside className="hidden w-[320px] shrink-0 flex-col border-r md:flex">
           <div className="border-b p-3">
