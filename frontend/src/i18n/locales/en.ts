@@ -460,6 +460,35 @@ const en = {
     files: "Files",
   },
 
+  leadIntel: {
+    title: "Lead intelligence",
+    subtitle:
+      "A score you can read back as its reasons. Not the agent's score — the CRM's own read.",
+    whatDrove: "What drove the score",
+    risks: "Risks",
+    nextSteps: "Recommended next steps",
+    missing: "Missing",
+    buyingIntent: "Buying intent",
+    priorityWord: "priority",
+    aiSummary: "AI summary",
+    generate: "Generate AI summary",
+    scoreError: "Could not score this lead.",
+    insightsError: "Could not generate insights.",
+    tempHot: "Hot",
+    tempWarm: "Warm",
+    tempCold: "Cold",
+    qualQualified: "Qualified",
+    qualNurture: "Nurture",
+    qualUnqualified: "Unqualified",
+    prioHigh: "high",
+    prioMedium: "medium",
+    prioLow: "low",
+    intentStrong: "strong",
+    intentModerate: "moderate",
+    intentWeak: "weak",
+    intentNone: "none",
+  },
+
   // ----------------------------------------------------------------- reports
   reports: {
     title: "Reports",

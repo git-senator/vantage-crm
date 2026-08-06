@@ -101,14 +101,20 @@ class LeadScore:
 # --------------------------------------------------------------- signals
 
 
+#: What a signal's `evaluate` returns: points, an English reason (the fallback),
+#: the i18n key that localizes it, and the params that key interpolates. `None`
+#: means the signal contributes nothing and says nothing for this lead.
+Outcome = "tuple[int, str, str, dict] | None"
+
+
 @dataclass(frozen=True, slots=True)
 class Signal:
-    """A named scoring rule. `evaluate` returns points + reason, or None to
-    contribute nothing (and say nothing) for this lead."""
+    """A named scoring rule. `evaluate` returns points + reason + i18n key, or
+    None to contribute nothing (and say nothing) for this lead."""
 
     key: str
     label: str
-    evaluate: object  # Callable[[LeadFeatures], tuple[int, str] | None]
+    evaluate: object  # Callable[[LeadFeatures], Outcome]
 
 
 #: Source quality. Referrals and open-house leads convert best; a bare "other"
@@ -125,28 +131,29 @@ _SOURCE_POINTS = {
 }
 
 
-def _source(f: LeadFeatures) -> tuple[int, str] | None:
-    points, reason = _SOURCE_POINTS.get(f.source, _SOURCE_POINTS["other"])
-    return points, reason
+def _source(f: LeadFeatures) -> tuple[int, str, str, dict] | None:
+    name = f.source if f.source in _SOURCE_POINTS else "other"
+    points, reason = _SOURCE_POINTS[name]
+    return points, reason, f"lead_src_{name}", {}
 
 
-def _contact_method(f: LeadFeatures) -> tuple[int, str] | None:
+def _contact_method(f: LeadFeatures) -> tuple[int, str, str, dict] | None:
     if f.has_email and f.has_phone:
-        return 12, "Reachable by both email and phone."
+        return 12, "Reachable by both email and phone.", "lead_contact_both", {}
     if f.has_email or f.has_phone:
-        return 6, "Reachable by one channel."
-    return 0, "No way to reach the lead yet."
+        return 6, "Reachable by one channel.", "lead_contact_one", {}
+    return 0, "No way to reach the lead yet.", "lead_contact_none", {}
 
 
-def _budget(f: LeadFeatures) -> tuple[int, str] | None:
+def _budget(f: LeadFeatures) -> tuple[int, str, str, dict] | None:
     if f.has_budget:
-        return 15, "Budget is on record."
-    return 0, "No budget captured yet."
+        return 15, "Budget is on record.", "lead_budget_yes", {}
+    return 0, "No budget captured yet.", "lead_budget_no", {}
 
 
-def _location(f: LeadFeatures) -> tuple[int, str] | None:
+def _location(f: LeadFeatures) -> tuple[int, str, str, dict] | None:
     if f.has_location:
-        return 5, "Preferred location is known."
+        return 5, "Preferred location is known.", "lead_loc_known", {}
     return None
 
 
@@ -157,8 +164,12 @@ _AGENT_TEMPERATURE_POINTS = {
 }
 
 
-def _agent_temperature(f: LeadFeatures) -> tuple[int, str] | None:
-    return _AGENT_TEMPERATURE_POINTS.get(f.agent_temperature)
+def _agent_temperature(f: LeadFeatures) -> tuple[int, str, str, dict] | None:
+    hit = _AGENT_TEMPERATURE_POINTS.get(f.agent_temperature)
+    if hit is None:
+        return None
+    points, reason = hit
+    return points, reason, f"lead_atemp_{f.agent_temperature}", {}
 
 
 _STAGE_POINTS = {
@@ -170,32 +181,36 @@ _STAGE_POINTS = {
 }
 
 
-def _stage(f: LeadFeatures) -> tuple[int, str] | None:
-    return _STAGE_POINTS.get(f.stage)
+def _stage(f: LeadFeatures) -> tuple[int, str, str, dict] | None:
+    hit = _STAGE_POINTS.get(f.stage)
+    if hit is None:
+        return None
+    points, reason = hit
+    return points, reason, f"lead_stage_{f.stage}", {}
 
 
-def _engagement(f: LeadFeatures) -> tuple[int, str] | None:
+def _engagement(f: LeadFeatures) -> tuple[int, str, str, dict] | None:
     n = f.activity_count
     if n >= 6:
-        return 15, f"Highly engaged — {n} interactions logged."
+        return 15, f"Highly engaged — {n} interactions logged.", "lead_eng_high", {"n": n}
     if n >= 3:
-        return 10, f"Engaged — {n} interactions logged."
+        return 10, f"Engaged — {n} interactions logged.", "lead_eng_mid", {"n": n}
     if n >= 1:
-        return 5, f"Some engagement — {n} interaction(s) logged."
-    return 0, "No interactions logged yet."
+        return 5, f"Some engagement — {n} interaction(s) logged.", "lead_eng_some", {"n": n}
+    return 0, "No interactions logged yet.", "lead_eng_none", {}
 
 
-def _recency(f: LeadFeatures) -> tuple[int, str] | None:
+def _recency(f: LeadFeatures) -> tuple[int, str, str, dict] | None:
     d = f.days_since_last_contact
     if d is None:
-        return 0, "Has not been contacted yet."
+        return 0, "Has not been contacted yet.", "lead_rec_never", {}
     if d <= 2:
-        return 12, "Contacted within the last two days."
+        return 12, "Contacted within the last two days.", "lead_rec_2d", {}
     if d <= 7:
-        return 8, "Contacted within the last week."
+        return 8, "Contacted within the last week.", "lead_rec_1w", {}
     if d <= 14:
-        return 3, "Last contact was over a week ago."
-    return -8, f"Going quiet — {d} days since last contact."
+        return 3, "Last contact was over a week ago.", "lead_rec_2w", {}
+    return -8, f"Going quiet — {d} days since last contact.", "lead_rec_quiet", {"d": d}
 
 
 #: The registry. Order is display order in the breakdown; it does not affect the
@@ -255,11 +270,20 @@ def _risks(f: LeadFeatures) -> list[RiskFlag]:
                 "going_cold",
                 "Going cold",
                 f"{d} days since last contact.",
+                label_key="lead_risk_going_cold_label",
+                detail_key="lead_risk_going_cold_detail",
+                i18n_params={"d": d},
             )
         )
     if not f.has_email and not f.has_phone:
         risks.append(
-            RiskFlag("no_contact_method", "No contact method", "No email or phone.")
+            RiskFlag(
+                "no_contact_method",
+                "No contact method",
+                "No email or phone.",
+                label_key="lead_risk_no_contact_label",
+                detail_key="lead_risk_no_contact_detail",
+            )
         )
     if f.stage == "new" and f.days_since_created > 14 and f.status == "open":
         risks.append(
@@ -267,11 +291,20 @@ def _risks(f: LeadFeatures) -> list[RiskFlag]:
                 "stalled",
                 "Stalled",
                 f"Still 'new' after {f.days_since_created} days.",
+                label_key="lead_risk_stalled_label",
+                detail_key="lead_risk_stalled_detail",
+                i18n_params={"days": f.days_since_created},
             )
         )
     if f.stage == "unqualified":
         risks.append(
-            RiskFlag("unqualified", "Unqualified", "Marked unqualified in the pipeline.")
+            RiskFlag(
+                "unqualified",
+                "Unqualified",
+                "Marked unqualified in the pipeline.",
+                label_key="lead_risk_unqualified_label",
+                detail_key="lead_risk_unqualified_detail",
+            )
         )
     return risks
 
@@ -307,6 +340,8 @@ def _recommendations(
                 "Follow up now",
                 "Contact has gone quiet and the lead is cooling.",
                 "high",
+                action_key="lead_rec_followup_action",
+                reason_key="lead_rec_followup_reason",
             )
         )
     if "no_contact_method" in risk_keys:
@@ -315,6 +350,8 @@ def _recommendations(
                 "Add an email or phone number",
                 "There is currently no way to reach this lead.",
                 "high",
+                action_key="lead_rec_addcontact_action",
+                reason_key="lead_rec_addcontact_reason",
             )
         )
     if f.stage == "new" and (f.has_email or f.has_phone):
@@ -323,6 +360,8 @@ def _recommendations(
                 "Make first contact",
                 "The lead is new and reachable but not yet contacted.",
                 "high" if f.agent_temperature == "hot" else "medium",
+                action_key="lead_rec_firstcontact_action",
+                reason_key="lead_rec_firstcontact_reason",
             )
         )
     if not f.has_budget and f.stage in ("contacted", "qualified", "touring"):
@@ -331,6 +370,8 @@ def _recommendations(
                 "Capture the lead's budget",
                 "Budget is missing on an engaged lead, which blocks matching.",
                 "medium",
+                action_key="lead_rec_budget_action",
+                reason_key="lead_rec_budget_reason",
             )
         )
     if buying_intent == "strong" and f.stage == "qualified":
@@ -339,6 +380,8 @@ def _recommendations(
                 "Propose a showing",
                 "Strong buying intent and qualified — ready to tour.",
                 "high",
+                action_key="lead_rec_showing_action",
+                reason_key="lead_rec_showing_reason",
             )
         )
     if not f.has_location and f.stage in ("contacted", "qualified"):
@@ -347,6 +390,8 @@ def _recommendations(
                 "Ask about preferred locations",
                 "Knowing where they want to buy sharpens matching.",
                 "low",
+                action_key="lead_rec_location_action",
+                reason_key="lead_rec_location_reason",
             )
         )
     return recs
@@ -396,10 +441,17 @@ class RuleBasedScorer:
             outcome = signal.evaluate(features)  # type: ignore[operator]
             if outcome is None:
                 continue
-            points, reason = outcome
+            points, reason, i18n_key, params = outcome
             total += points
             signals.append(
-                ScoredSignal(signal.key, signal.label, points, reason)
+                ScoredSignal(
+                    signal.key,
+                    signal.label,
+                    points,
+                    reason,
+                    i18n_key=i18n_key,
+                    i18n_params=params,
+                )
             )
 
         score = max(MIN_SCORE, min(MAX_SCORE, total))

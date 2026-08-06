@@ -79,16 +79,40 @@ class PrioritisedLead(BaseModel):
     top_reasons: list[str]
 
 
-def to_score_read(result: object) -> LeadScoreRead:
-    """A `LeadScore` (the engine's dataclass) into its wire shape.
+def to_score_read(result: object, locale: str = "en") -> LeadScoreRead:
+    """A `LeadScore` (the engine's dataclass) into its wire shape, localized.
 
     Kept next to the schema, not in the service, so the mapping from the internal
     dataclass to the API lives in one place — and a field added to one is an
-    obvious edit to the other.
+    obvious edit to the other. Every generated reason carries an i18n key; this
+    renders it in `locale` (the `vg_locale` cookie), falling back to the English
+    prose the engine also produced.
     """
+    from app.ai.lead_i18n import render
     from app.ai.lead_scoring import LeadScore
 
     assert isinstance(result, LeadScore)
+
+    def signal_reason(s: object) -> str:
+        key = getattr(s, "i18n_key", "")
+        return render(locale, key, getattr(s, "i18n_params", {})) if key else s.reason  # type: ignore[attr-defined]
+
+    def risk_label(r: object) -> str:
+        key = getattr(r, "label_key", "")
+        return render(locale, key) if key else r.label  # type: ignore[attr-defined]
+
+    def risk_detail(r: object) -> str:
+        key = getattr(r, "detail_key", "")
+        return render(locale, key, getattr(r, "i18n_params", {})) if key else r.detail  # type: ignore[attr-defined]
+
+    def rec_action(r: object) -> str:
+        key = getattr(r, "action_key", "")
+        return render(locale, key) if key else r.action  # type: ignore[attr-defined]
+
+    def rec_reason(r: object) -> str:
+        key = getattr(r, "reason_key", "")
+        return render(locale, key) if key else r.reason  # type: ignore[attr-defined]
+
     return LeadScoreRead(
         score=result.score,
         temperature=result.temperature,
@@ -96,17 +120,23 @@ def to_score_read(result: object) -> LeadScoreRead:
         priority=result.priority,
         buying_intent=result.buying_intent,
         signals=[
-            ScoredSignalRead(key=s.key, label=s.label, points=s.points, reason=s.reason)
+            ScoredSignalRead(
+                key=s.key, label=s.label, points=s.points, reason=signal_reason(s)
+            )
             for s in result.signals
         ],
         risks=[
-            RiskFlagRead(key=r.key, label=r.label, detail=r.detail) for r in result.risks
+            RiskFlagRead(key=r.key, label=risk_label(r), detail=risk_detail(r))
+            for r in result.risks
         ],
         missing_info=[
-            MissingFieldRead(key=m.key, label=m.label) for m in result.missing_info
+            MissingFieldRead(key=m.key, label=render(locale, f"lead_missing_{m.key}"))
+            for m in result.missing_info
         ],
         recommendations=[
-            RecommendationRead(action=r.action, reason=r.reason, priority=r.priority)
+            RecommendationRead(
+                action=rec_action(r), reason=rec_reason(r), priority=r.priority
+            )
             for r in result.recommendations
         ],
         scorer=result.scorer,

@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { getInsights, getScore } from "@/lib/api/lead-intelligence-client";
+import { useTranslation } from "@/i18n/language-provider";
 import type { LeadScoreDetail } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +47,30 @@ const PRIORITY_VARIANT: Record<string, "destructive" | "secondary" | "outline"> 
     low: "outline",
   };
 
+const TEMP_KEY: Record<string, string> = {
+  hot: "leadIntel.tempHot",
+  warm: "leadIntel.tempWarm",
+  cold: "leadIntel.tempCold",
+};
+const QUAL_KEY: Record<string, string> = {
+  qualified: "leadIntel.qualQualified",
+  nurture: "leadIntel.qualNurture",
+  unqualified: "leadIntel.qualUnqualified",
+};
+const PRIO_KEY: Record<string, string> = {
+  high: "leadIntel.prioHigh",
+  medium: "leadIntel.prioMedium",
+  low: "leadIntel.prioLow",
+};
+const INTENT_KEY: Record<string, string> = {
+  strong: "leadIntel.intentStrong",
+  moderate: "leadIntel.intentModerate",
+  weak: "leadIntel.intentWeak",
+  none: "leadIntel.intentNone",
+};
+
 export function LeadIntelligence({ leadId }: { leadId: string }) {
+  const { t } = useTranslation();
   const [score, setScore] = useState<LeadScoreDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [narrative, setNarrative] = useState<string | null>(null);
@@ -56,12 +80,12 @@ export function LeadIntelligence({ leadId }: { leadId: string }) {
     let active = true;
     getScore(leadId)
       .then((result) => active && setScore(result))
-      .catch(() => active && toast.error("Could not score this lead."))
+      .catch(() => active && toast.error(t("leadIntel.scoreError")))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [leadId]);
+  }, [leadId, t]);
 
   async function generate() {
     setGenerating(true);
@@ -71,7 +95,7 @@ export function LeadIntelligence({ leadId }: { leadId: string }) {
       setNarrative(result.narrative);
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not generate insights.",
+        error instanceof Error ? error.message : t("leadIntel.insightsError"),
       );
     } finally {
       setGenerating(false);
@@ -84,7 +108,7 @@ export function LeadIntelligence({ leadId }: { leadId: string }) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="size-4" />
-            Lead intelligence
+            {t("leadIntel.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -103,12 +127,9 @@ export function LeadIntelligence({ leadId }: { leadId: string }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <TrendingUp className="size-4" />
-          Lead intelligence
+          {t("leadIntel.title")}
         </CardTitle>
-        <CardDescription>
-          A score you can read back as its reasons. Not the agent&apos;s score —
-          the CRM&apos;s own read.
-        </CardDescription>
+        <CardDescription>{t("leadIntel.subtitle")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         {/* -------------------------------------------------- headline */}
@@ -118,29 +139,31 @@ export function LeadIntelligence({ leadId }: { leadId: string }) {
             <div className="flex items-center gap-2">
               <span
                 className={cn(
-                  "text-sm font-medium capitalize",
+                  "text-sm font-medium",
                   TEMPERATURE_TONE[score.temperature],
                 )}
               >
-                {score.temperature}
+                {t(TEMP_KEY[score.temperature] ?? "")}
               </span>
               <Badge variant={PRIORITY_VARIANT[score.priority] ?? "outline"}>
-                {score.priority} priority
+                {t(PRIO_KEY[score.priority] ?? "")} {t("leadIntel.priorityWord")}
               </Badge>
             </div>
           </div>
           <Progress value={score.score} className="h-1.5" />
           <div className="flex flex-wrap gap-2 pt-1 text-xs text-muted-foreground">
-            <span className="capitalize">{score.qualification}</span>
+            <span>{t(QUAL_KEY[score.qualification] ?? "")}</span>
             <span>·</span>
-            <span>Buying intent: {score.buying_intent}</span>
+            <span>
+              {t("leadIntel.buyingIntent")}: {t(INTENT_KEY[score.buying_intent] ?? "")}
+            </span>
           </div>
         </div>
 
         {/* --------------------------------------------------- signals */}
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-muted-foreground">
-            What drove the score
+            {t("leadIntel.whatDrove")}
           </p>
           {score.signals.map((signal) => (
             <div
@@ -168,7 +191,7 @@ export function LeadIntelligence({ leadId }: { leadId: string }) {
           <div className="space-y-1.5">
             <p className="flex items-center gap-1.5 text-xs font-medium text-destructive">
               <AlertTriangle className="size-3.5" />
-              Risks
+              {t("leadIntel.risks")}
             </p>
             {score.risks.map((risk) => (
               <p key={risk.key} className="text-sm">
@@ -183,7 +206,7 @@ export function LeadIntelligence({ leadId }: { leadId: string }) {
         {score.recommendations.length > 0 ? (
           <div className="space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground">
-              Recommended next steps
+              {t("leadIntel.nextSteps")}
             </p>
             {score.recommendations.map((rec) => (
               <div key={rec.action} className="text-sm">
@@ -199,7 +222,7 @@ export function LeadIntelligence({ leadId }: { leadId: string }) {
           <div className="flex flex-wrap gap-1.5">
             {score.missing_info.map((field) => (
               <Badge key={field.key} variant="outline" className="font-normal">
-                Missing: {field.label}
+                {t("leadIntel.missing")}: {field.label}
               </Badge>
             ))}
           </div>
@@ -211,7 +234,7 @@ export function LeadIntelligence({ leadId }: { leadId: string }) {
             <div className="space-y-2">
               <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <Sparkles className="size-3.5" />
-                AI summary
+                {t("leadIntel.aiSummary")}
               </p>
               <p className="whitespace-pre-wrap text-sm leading-relaxed">
                 {narrative}
@@ -230,7 +253,7 @@ export function LeadIntelligence({ leadId }: { leadId: string }) {
               ) : (
                 <Sparkles className="size-4" />
               )}
-              Generate AI summary
+              {t("leadIntel.generate")}
             </Button>
           )}
         </div>

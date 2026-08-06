@@ -9,9 +9,10 @@ provider fault a 503, the same posture as the assistant.
 
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Cookie, Query
 
 from app.api.v1.dependencies import Authorization, CurrentUser, TenantSessionDep
 from app.core.exceptions import RateLimitedError, ServiceUnavailableError
@@ -25,6 +26,10 @@ from app.services.ai.base import AIError, BudgetExceededError
 from app.services.ai.lead_intelligence import LeadIntelligenceService
 
 router = APIRouter()
+
+#: The viewer's language, read from the same cookie the UI sets. Reasons are
+#: rendered in it so the panel matches the rest of the interface.
+LocaleDep = Annotated[str | None, Cookie(alias="vg_locale")]
 
 #: Bounded so a prioritised list stays a shortlist. A hundred "top" leads is not
 #: a priority list, it is the lead list with extra steps.
@@ -69,6 +74,7 @@ async def lead_score(
     session: TenantSessionDep,
     auth: Authorization,
     _user: CurrentUser,
+    locale: LocaleDep = None,
 ) -> LeadScoreRead:
     """One lead's explainable score, computed from its current data.
 
@@ -78,7 +84,7 @@ async def lead_score(
     """
     result = await LeadIntelligenceService(session, auth).score(lead_id)
     await session.commit()
-    return to_score_read(result)
+    return to_score_read(result, locale or "en")
 
 
 @router.get("/leads/{lead_id}/insights", response_model=LeadInsightResponse)
@@ -87,6 +93,7 @@ async def lead_insights(
     session: TenantSessionDep,
     auth: Authorization,
     user: CurrentUser,
+    locale: LocaleDep = None,
 ) -> LeadInsightResponse:
     """The score plus a grounded AI narrative. Requires `leads.view` and `ai.use`.
 
@@ -103,4 +110,6 @@ async def lead_insights(
         await session.commit()
         raise ServiceUnavailableError(str(exc)) from exc
     await session.commit()
-    return LeadInsightResponse(score=to_score_read(result), narrative=narrative)
+    return LeadInsightResponse(
+        score=to_score_read(result, locale or "en"), narrative=narrative
+    )
