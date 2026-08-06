@@ -313,6 +313,15 @@ _WHOLE_FENCE_RE = re.compile(r"^```[a-zA-Z0-9_-]*\s*\n?(.*?)\n?```$", re.DOTALL)
 #: Fields a JSON-object reply might hide the actual text behind.
 _REPLY_FIELDS = ("reply", "answer", "response", "message", "content", "text")
 
+#: The CRM-data fencing delimiters (`<untrusted:label>…</untrusted:label>`). Some
+#: models (Llama on Groq) echo them into the answer, and inconsistently: a proper
+#: short-label tag, a long run of real text stuffed into the open tag, or a bare
+#: token whose closing bracket got lost. These three passes strip the scaffolding
+#: while keeping the prose in every observed form.
+_UNTRUSTED_SHORT_TAG_RE = re.compile(r"</?untrusted:[^>\n]{0,40}>", re.IGNORECASE)
+_UNTRUSTED_OPEN_CONTENT_RE = re.compile(r"<untrusted:([^>\n]{41,})>", re.IGNORECASE)
+_UNTRUSTED_BARE_RE = re.compile(r"</?untrusted:\.{0,3}", re.IGNORECASE)
+
 
 def _clean_reply(text: str | None) -> str:
     """Undo the two ways a reasoning model occasionally leaks structure into a
@@ -325,6 +334,16 @@ def _clean_reply(text: str | None) -> str:
     if not text:
         return ""
     cleaned = text.strip()
+
+    # Safety net for models that echo the CRM-data fencing delimiters into the
+    # answer (the prompt already forbids it). Strip the tags, keep the prose:
+    # remove short-label tags, unwrap a long run stuffed into an open tag, then
+    # clear any bare leftover token.
+    if "untrusted:" in cleaned.lower():
+        cleaned = _UNTRUSTED_SHORT_TAG_RE.sub("", cleaned)
+        cleaned = _UNTRUSTED_OPEN_CONTENT_RE.sub(r"\1", cleaned)
+        cleaned = _UNTRUSTED_BARE_RE.sub("", cleaned)
+        cleaned = re.sub(r"[ \t]{2,}", " ", cleaned).strip()
 
     match = _WHOLE_FENCE_RE.match(cleaned)
     if match:
