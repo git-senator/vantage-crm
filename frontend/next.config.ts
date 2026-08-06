@@ -11,19 +11,37 @@ import type { NextConfig } from "next";
  * emits inline styles. Scripts do NOT get that exemption. Phase 1 introduces a
  * per-request nonce for script-src once the auth flow adds inline bootstrap.
  */
+/**
+ * Uploads and downloads talk directly to object storage on its own host
+ * (`S3_PUBLIC_ENDPOINT_URL`, e.g. https://files.<domain>). The browser PUTs
+ * there and renders image previews from there, so that origin must be allowed
+ * in `connect-src` (the upload fetch) and `img-src` (the preview). Read at build
+ * time and passed in as a build arg; empty in envs without object storage.
+ */
+const s3Origin = (() => {
+  const raw = process.env.S3_PUBLIC_ENDPOINT_URL;
+  if (!raw) return "";
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return "";
+  }
+})();
+const withS3 = (directive: string) => (s3Origin ? `${directive} ${s3Origin}` : directive);
+
 const securityHeaders = [
   {
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "img-src 'self' data: blob:",
+      withS3("img-src 'self' data: blob:"),
       "font-src 'self' data:",
       "style-src 'self' 'unsafe-inline'",
       // 'unsafe-eval' is required by the Next.js dev overlay only.
       process.env.NODE_ENV === "development"
         ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
         : "script-src 'self' 'unsafe-inline'",
-      "connect-src 'self'",
+      withS3("connect-src 'self'"),
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -14,6 +14,10 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# The object-storage origin is baked into the CSP at build time (next.config.ts
+# reads it here), so the browser may PUT uploads and load previews from it.
+ARG S3_PUBLIC_ENDPOINT_URL=""
+ENV S3_PUBLIC_ENDPOINT_URL=$S3_PUBLIC_ENDPOINT_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

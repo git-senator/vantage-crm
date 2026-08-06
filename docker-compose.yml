@@ -188,6 +188,10 @@ services:
     build:
       context: ./frontend
       target: runtime
+      args:
+        # Baked into the Content-Security-Policy so the browser may upload to and
+        # load previews from the object-storage host. Same default as the api/minio.
+        S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://127.0.0.1:9000}
     environment:
       NODE_ENV: production
       API_INTERNAL_URL: http://api:8000
