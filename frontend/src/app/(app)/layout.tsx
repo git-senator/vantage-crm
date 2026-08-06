@@ -40,6 +40,7 @@ export default async function AppLayout({
       <AppSidebar
         user={user}
         canManageUsers={hasPermission(session, "users.manage")}
+        permissions={session.permissions}
       />
       <SidebarInset className="min-w-0">
         <Topbar unreadCount={unreadCount} />

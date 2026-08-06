@@ -433,6 +433,8 @@ const ptBR: Dictionary = {
     filterAll: "Tudo",
     filterNotes: "Notas",
     filterEvents: "Eventos",
+    timeline: "Linha do tempo",
+    files: "Arquivos",
   },
 
   reports: {

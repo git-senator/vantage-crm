@@ -13,6 +13,7 @@ import { listAttachmentsForEntity } from "@/lib/api/attachments";
 import { listNotesForEntity } from "@/lib/api/notes";
 import { getEntityTimeline } from "@/lib/api/timeline";
 import type { RecordEntityType } from "@/lib/api/types";
+import { getTranslations } from "@/i18n/server";
 
 /**
  * The shared "what has happened here" block, dropped into every record's detail
@@ -32,10 +33,11 @@ export async function RecordActivity({
   canManageNotes: boolean;
   canManageDocuments: boolean;
 }) {
-  const [timeline, notes, attachments] = await Promise.all([
+  const [timeline, notes, attachments, t] = await Promise.all([
     getEntityTimeline(entityType, entityId),
     listNotesForEntity(entityType, entityId),
     listAttachmentsForEntity(entityType, entityId),
+    getTranslations(),
   ]);
 
   return (
@@ -44,7 +46,7 @@ export async function RecordActivity({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <StickyNote className="size-4" />
-            Notes
+            {t("notes.title")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -61,11 +63,11 @@ export async function RecordActivity({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="size-4" />
-            Timeline
+            {t("activities.timeline")}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Timeline items={timeline} />
+          <Timeline items={timeline} emptyLabel={t("body.dashNothingLogged")} />
         </CardContent>
       </Card>
 
@@ -73,7 +75,7 @@ export async function RecordActivity({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="size-4" />
-            Files
+            {t("activities.files")}
           </CardTitle>
         </CardHeader>
         <CardContent>

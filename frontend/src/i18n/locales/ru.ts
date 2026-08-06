@@ -433,6 +433,8 @@ const ru: Dictionary = {
     filterAll: "Все",
     filterNotes: "Заметки",
     filterEvents: "События",
+    timeline: "Хронология",
+    files: "Файлы",
   },
 
   reports: {

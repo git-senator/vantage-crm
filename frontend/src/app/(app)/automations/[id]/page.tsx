@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { RunStatusBadge } from "@/components/automations/run-status-badge";
 import { WorkflowBuilder } from "@/components/automations/workflow-builder";
@@ -29,6 +29,9 @@ export default async function WorkflowPage({
 }) {
   const { id } = await params;
   const session = await requireSession();
+  if (!session.permissions.includes("automations.view")) {
+    redirect("/dashboard");
+  }
   const t = await getTranslations();
   const canManage = session.permissions.includes("automations.manage");
 

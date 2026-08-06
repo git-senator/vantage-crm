@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Workflow as WorkflowIcon } from "lucide-react";
 
 import { NewWorkflowButton } from "@/components/automations/new-workflow-button";
@@ -29,6 +30,11 @@ export const metadata: Metadata = { title: "Workflows" };
  */
 export default async function AutomationsPage() {
   const session = await requireSession();
+  // A role without automations.view (e.g. agent) would 403 on every fetch below
+  // and crash into the error boundary. Send them somewhere they can be, instead.
+  if (!session.permissions.includes("automations.view")) {
+    redirect("/dashboard");
+  }
   const canManage = session.permissions.includes("automations.manage");
 
   const [workflows, runs, registries, t, locale] = await Promise.all([

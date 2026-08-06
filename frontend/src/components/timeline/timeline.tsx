@@ -42,11 +42,15 @@ function relativeTime(iso: string): string {
  * server (`/timeline?entity_type=&entity_id=`); this only renders it, so it can
  * live in a server component and stays free of client state.
  */
-export function Timeline({ items }: { items: TimelineItem[] }) {
+export function Timeline({
+  items,
+  emptyLabel = "Nothing logged yet.",
+}: {
+  items: TimelineItem[];
+  emptyLabel?: string;
+}) {
   if (items.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">Nothing logged yet.</p>
-    );
+    return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
   }
 
   return (

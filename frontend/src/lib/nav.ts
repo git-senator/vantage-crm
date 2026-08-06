@@ -33,6 +33,12 @@ export interface NavItem {
   badge?: string;
   /** A translated pill, e.g. `common.new`. Takes precedence over `badge`. */
   badgeKey?: string;
+  /**
+   * Permission required to see this item. When set, the sidebar hides the link
+   * for a user who lacks it — so a role like `agent` never sees (or lands on) a
+   * surface the API would 403. UX only; the route and API still enforce it.
+   */
+  permission?: string;
 }
 
 export interface NavGroup {
@@ -78,7 +84,14 @@ export const navigation: NavGroup[] = [
   },
   {
     labelKey: "nav.groupAutomation",
-    items: [{ titleKey: "nav.workflows", href: "/automations", icon: Workflow }],
+    items: [
+      {
+        titleKey: "nav.workflows",
+        href: "/automations",
+        icon: Workflow,
+        permission: "automations.view",
+      },
+    ],
   },
 ];
 

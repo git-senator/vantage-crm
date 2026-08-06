@@ -43,14 +43,24 @@ import type { SessionUser } from "@/types";
 export function AppSidebar({
   user,
   canManageUsers = false,
+  permissions = [],
 }: {
   user: SessionUser;
   /** Reveals the access-request queue. UX only — the route and API enforce it. */
   canManageUsers?: boolean;
+  /** The signed-in user's permissions, used to hide nav items they can't reach. */
+  permissions?: readonly string[];
 }) {
   const pathname = usePathname();
   const { t } = useTranslation();
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const canSee = (item: { permission?: string }) =>
+    !item.permission || permissions.includes(item.permission);
+
+  // Drop items the user lacks permission for, then any group left empty.
+  const visibleGroups = navigation
+    .map((group) => ({ ...group, items: group.items.filter(canSee) }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <Sidebar collapsible="icon" className="border-r">
@@ -67,7 +77,7 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-slim px-1">
-        {navigation.map((group) => (
+        {visibleGroups.map((group) => (
           <SidebarGroup key={group.labelKey}>
             <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>
             <SidebarGroupContent>

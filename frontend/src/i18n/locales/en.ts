@@ -456,6 +456,8 @@ const en = {
     filterAll: "All",
     filterNotes: "Notes",
     filterEvents: "Events",
+    timeline: "Timeline",
+    files: "Files",
   },
 
   // ----------------------------------------------------------------- reports
