@@ -26,12 +26,21 @@ import os
 import sys
 import time
 import urllib.request
+from pathlib import Path
 
-from telethon import TelegramClient, events, functions
+from telethon import TelegramClient, events, functions, utils
 from telethon.errors import UserNotParticipantError
-from telethon.tl.types import Channel, User
+from telethon.tl.types import Channel, Chat, User
 
-from config import SESSION, claim_session, load_env, looks_like_lead, need, watched_handles
+from config import (
+    SESSION,
+    claim_session,
+    load_env,
+    looks_like_lead,
+    need,
+    read_handles,
+    watched_handles,
+)
 
 log = logging.getLogger("rognar")
 
@@ -46,6 +55,23 @@ SCORE_FLOOR = 55
 # Как часто отчитываться, что живой. Без этого молчание в логе двусмысленно:
 # непонятно, то ли поток не идёт, то ли просто никто не писал про недвижимость.
 HEARTBEAT = 300
+
+# Как часто пересматривать, куда аккаунт вступил. Человек вступает в чаты
+# когда ему удобно; требовать за это перезапуск — значит требовать внимания
+# от того, кто как раз занят другим.
+RESCAN = 240
+
+# Слушать все групповые чаты аккаунта, а не только перечисленные в watchlist.
+# Личная переписка и каналы-вещания не берутся никогда.
+WATCH_JOINED = os.environ.get("ROGNAR_WATCH_JOINED", "true").strip().lower() not in {"0", "false", "no"}
+
+# Чаты, которые не слушать даже при WATCH_JOINED: свои рабочие, семейные и
+# прочие, где искать покупателей незачем. По одному хэндлу в строке.
+IGNORED = {h.lower() for h in read_handles(Path(__file__).resolve().parent / "ignore.txt")}
+
+# Живой набор наблюдаемых чатов: id → название. Пересобирается на ходу, чтобы
+# вступление в новый чат не требовало перезапуска.
+_watched: dict[int, str] = {}
 
 # `any` считает вообще все входящие апдейты аккаунта, `seen` — только из
 # наблюдаемых чатов. Вместе они отвечают на главный вопрос при тишине: связь
@@ -183,6 +209,65 @@ def render_alert(verdict: dict, *, author: str, mention: str, chat_title: str,
 # -------------------------------------------------------------- слушатель
 
 
+async def refresh_watched(client: TelegramClient, *, first: bool = False) -> None:
+    """Пересобрать набор наблюдаемых чатов из watchlist + вступлений аккаунта.
+
+    Ключ — `get_peer_id`, а не `entity.id`: у супергрупп события приходят с
+    «размеченным» идентификатором (-100…), и сравнение с сырым id молча не
+    совпадёт ни разу.
+    """
+    fresh: dict[int, str] = {}
+    pending: list[str] = []
+
+    for handle in watched_handles():
+        try:
+            entity = await client.get_entity(handle)
+        except Exception as exc:
+            if first:
+                log.warning("  ✗ @%-22s не открылся (%s)", handle, type(exc).__name__)
+            continue
+        if await is_member(client, entity):
+            fresh[utils.get_peer_id(entity)] = getattr(entity, "title", handle)
+        else:
+            pending.append(handle)
+
+    # Всё, куда аккаунт вступил сам: человек находит чаты по ходу дела, и
+    # заставлять его дублировать это в файл — лишний обряд. Личную переписку
+    # не трогаем, каналы-вещания тоже (там пишут только админы).
+    if WATCH_JOINED:
+        async for dialog in client.iter_dialogs():
+            entity = dialog.entity
+            if not isinstance(entity, (Channel, Chat)):
+                continue                       # личка
+            if isinstance(entity, Channel) and entity.broadcast:
+                continue                       # канал
+            title = getattr(entity, "title", "")
+            if (getattr(entity, "username", "") or "").lower() in IGNORED:
+                continue
+            fresh.setdefault(utils.get_peer_id(entity), title)
+
+    appeared = fresh.keys() - _watched.keys()
+    vanished = _watched.keys() - fresh.keys()
+
+    if first:
+        for title in sorted(fresh.values()):
+            log.info("  ✓ %s", title)
+        for handle in pending:
+            log.warning("  ⚠ %-24s — не вступил, событий отсюда не будет", f"@{handle}")
+        if pending:
+            log.warning("Вступишь — подхвачу сам, перезапуск не нужен.")
+    else:
+        for chat_id in appeared:
+            log.info("  + подхватил: %s", fresh[chat_id])
+        for chat_id in vanished:
+            log.info("  − больше не слушаю: %s", _watched[chat_id])
+
+    _watched.clear()
+    _watched.update(fresh)
+    if first or appeared or vanished:
+        log.info("Слушаю чатов: %d", len(_watched))
+
+
 async def is_member(client: TelegramClient, entity) -> bool:
     """Состоит ли аккаунт в этом чате/канале.
 
@@ -237,42 +322,19 @@ async def main() -> int:
     if not SESSION.exists():
         raise SystemExit("Нет сессии. Сначала выполни:  python rognar/login.py")
 
-    handles = watched_handles()
-    if not handles:
-        raise SystemExit("Пустой watchlist.txt — добавь хэндлы чатов, по одному в строке.")
-
     client = TelegramClient(str(SESSION), api_id, api_hash)
     await client.start()
 
     me = await client.get_me()
     log.info("Рогнар слушает от имени: %s", me.first_name)
 
-    watched, not_joined, missing = [], [], []
-    for handle in handles:
-        try:
-            entity = await client.get_entity(handle)
-        except Exception as exc:
-            missing.append(handle)
-            log.warning("  ✗ @%-22s не открылся (%s)", handle, type(exc).__name__)
-            continue
-
-        title = getattr(entity, "title", handle)
-        if await is_member(client, entity):
-            watched.append(entity)
-            log.info("  ✓ %s", title)
-        else:
-            not_joined.append(handle)
-            log.warning("  ⚠ %-24s — НЕ вступил, событий отсюда не будет", f"@{handle}")
-
-    if not watched:
+    await refresh_watched(client, first=True)
+    if not _watched:
         raise SystemExit(
-            "Аккаунт не состоит ни в одном чате из watchlist.txt.\n"
-            "Вступи в них вручную в Telegram и перезапусти."
+            "Пока слушать нечего: аккаунт не состоит ни в одном чате из watchlist.txt.\n"
+            "Вступи в них вручную в Telegram — перезапускать не нужно, Рогнар\n"
+            "подхватит их сам в течение нескольких минут."
         )
-    if not_joined:
-        log.warning("Вступи вручную, чтобы слушать: %s", ", ".join("@" + h for h in not_joined))
-
-    log.info("Реально слушаю: %d из %d. (Ctrl+C — выход)", len(watched), len(handles))
 
     async def pulse():
         """Периодически отчитываться, что поток идёт, а не просто тихо."""
@@ -283,16 +345,33 @@ async def main() -> int:
                 _stats["any"], _stats["seen"], _stats["matched"], _stats["sent"],
             )
 
+    async def rescan():
+        """Пересматривать список чатов, чтобы не требовать перезапуска.
+
+        Человек вступает в чаты тогда, когда ему удобно, а не когда удобно
+        программе. Раз в несколько минут перечитываем watchlist и сверяем
+        членство: вступил — начнём слушать, вышел — перестанем.
+        """
+        while True:
+            await asyncio.sleep(RESCAN)
+            try:
+                await refresh_watched(client)
+            except Exception as exc:
+                log.warning("пересмотр списка не удался: %s", exc)
+
     asyncio.create_task(pulse())
+    asyncio.create_task(rescan())
 
-    # Считаем весь входящий поток аккаунта — только количество, без чтения и
-    # записи содержимого: это диагностика связи, а не слежка за перепиской.
+    # Один обработчик на весь поток: набор наблюдаемых чатов меняется на ходу,
+    # а подписка `events.NewMessage(chats=…)` фиксируется навсегда при
+    # регистрации — с ней новый чат подхватить нельзя. Поэтому фильтруем
+    # внутри, по живому набору.
     @client.on(events.NewMessage())
-    async def on_any(event):
-        _stats["any"] += 1
-
-    @client.on(events.NewMessage(chats=watched))
     async def on_message(event):
+        _stats["any"] += 1
+        if event.chat_id not in _watched:
+            return
+
         _stats["seen"] += 1
         text = (event.raw_text or "").strip()
         if not looks_like_lead(text):
