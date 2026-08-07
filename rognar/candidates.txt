@@ -1,0 +1,25 @@
+# Кандидаты на проверку активности (ещё не вступали).
+# Проверка:  python rognar/scout.py rognar/candidates.txt
+
+# --- уже в watchlist, для сравнения ---
+brazilia_forum
+dubai_chat
+realestatmiami
+
+# --- русскоязычная диаспора: там, где обсуждают переезд, всплывает и жильё ---
+slavianskiy_forum
+Brazil_For_You
+rus_canada
+torontorus
+kazakhstan_chat
+russianmiami
+rusmiami
+
+# --- каналы: смотрим, есть ли у них группы обсуждений ---
+prian_property
+ageevarealestate
+axcapital_cis
+traniodubai
+nedvizha
+urbeme
+investidorbrasileiro

@@ -37,16 +37,26 @@ def need(key: str) -> str:
     return value
 
 
-def watched_handles() -> list[str]:
-    """Чаты и каналы под наблюдением — по одному хэндлу в строке."""
-    if not WATCHLIST.exists():
+def read_handles(path: Path) -> list[str]:
+    """Хэндлы из файла: по одному в строке.
+
+    Комментарий начинается с `#` и может стоять после хэндла — в списках
+    удобно держать рядом замеры («kazakhstan_chat  # 64.8/ч»), поэтому
+    хвост строки отрезаем, а не только целые строки-комментарии.
+    """
+    if not path.exists():
         return []
     out = []
-    for raw in WATCHLIST.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if line and not line.startswith("#"):
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
             out.append(line.lstrip("@"))
     return out
+
+
+def watched_handles() -> list[str]:
+    """Чаты под наблюдением слушателя."""
+    return read_handles(WATCHLIST)
 
 
 # --------------------------------------------------------------- триггеры
