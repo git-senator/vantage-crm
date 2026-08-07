@@ -30,7 +30,7 @@ from telethon.errors import FloodWaitError
 from telethon.tl.types import Channel
 
 from config import SESSION, claim_session, load_env, need
-from scout import PAUSE, Scan, scan
+from scout import Scan, scan
 
 SEARCH_PAUSE = 1.5      # пауза между поисковыми запросами
 MAX_MEASURE = 400       # потолок на замер: дальше это часы ожидания
@@ -99,29 +99,36 @@ async def search(client: TelegramClient, query: str) -> list[str]:
     return out
 
 
-def load_found() -> dict[str, Scan]:
+def load_found() -> tuple[dict[str, Scan], dict[str, str]]:
     """Прошлые замеры из found.csv — чтобы не мерить одно и то же дважды.
 
-    Строки с ошибкой не возвращаем: чат мог быть недоступен из-за флуда,
+    Возвращает сами замеры и запросы, по которым чаты когда-то нашлись:
+    второй заход ищет по другим регионам и без этого затёр бы колонку.
+
+    Строки с ошибкой пропускаем: чат мог быть недоступен из-за флуда,
     и в следующий заход его надо попробовать снова.
     """
-    out: dict[str, Scan] = {}
+    scans: dict[str, Scan] = {}
+    origins: dict[str, str] = {}
     try:
         fh = open(FOUND, encoding="utf-8-sig", newline="")
     except FileNotFoundError:
-        return out
+        return scans, origins
     with fh:
         for row in csv.DictReader(fh, delimiter=";"):
+            key = row["handle"].lower()
+            if row.get("нашёлся_по"):
+                origins[key] = row["нашёлся_по"]
             if row.get("ошибка"):
                 continue
             quiet = row.get("молчит_мин") or ""
-            out[row["handle"].lower()] = Scan(
+            scans[key] = Scan(
                 handle=row["handle"], title=row["название"], kind=row["тип"],
                 members=int(row["участников"] or 0), rate=float(row["сообщ_час"] or 0),
                 quiet_min=int(quiet) if quiet else 10**9,
                 linked=row.get("обсуждения") or None,
             )
-    return out
+    return scans, origins
 
 
 async def main() -> int:
@@ -148,19 +155,33 @@ async def main() -> int:
             print(f"  «{query}» → {len(hits)} найдено, {len(fresh)} новых")
             await asyncio.sleep(SEARCH_PAUSE)
 
-    handles = list(found)
+    known, origins = load_found()
+    origins.update(found)          # свежий запрос точнее старого
+    handles = [h for h in found if h not in known]
+    if known:
+        print(f"\nВ {FOUND} уже замерено {len(known)} — их пропускаю.")
     if len(handles) > MAX_MEASURE:
-        print(f"\nНашлось {len(handles)}, замерю первые {MAX_MEASURE}.")
+        print(f"Нашлось новых {len(handles)}, замерю первые {MAX_MEASURE}.")
         handles = handles[:MAX_MEASURE]
 
-    print(f"\nЗамеряю активность {len(handles)} чатов (~{len(handles) * PAUSE / 60:.0f} мин)…")
-    results: list[Scan] = []
+    print(f"\nЗамеряю активность {len(handles)} чатов "
+          f"(~{len(handles) * MEASURE_PAUSE / 60:.0f} мин)…")
+    results: list[Scan] = list(known.values())
     for i, handle in enumerate(handles, 1):
         s = await scan(client, handle)
+        # FloodWait — это стоп, а не ошибка одного чата: дальше по списку всё
+        # упадёт так же, и мы лишь размажем сотню чатов в мусорные строки.
+        # Сохраняем что успели и говорим, когда возвращаться.
+        if s.flood:
+            print(f"\n⛔ Telegram притормозил аккаунт на {s.flood // 60} мин "
+                  f"(осталось непроверенных: {len(handles) - i + 1}).")
+            print(f"   Запусти ту же команду после {s.flood // 60} минут — "
+                  f"замеренное уже в {FOUND}, продолжит с этого места.")
+            break
         results.append(s)
         if i % 25 == 0:
             print(f"  {i}/{len(handles)}…")
-        await asyncio.sleep(PAUSE)
+        await asyncio.sleep(MEASURE_PAUSE)
     await client.disconnect()
 
     results.sort(key=lambda s: s.rate, reverse=True)
@@ -172,14 +193,14 @@ async def main() -> int:
         members = f"{s.members:,}".replace(",", " ") if s.members else "—"
         print(f"{s.verdict:<3}{s.title:<40}{members:>11}{s.quiet_human:>9}{s.rate:>11.1f}")
 
-    with open("found.csv", "w", newline="", encoding="utf-8-sig") as fh:
+    with open(FOUND, "w", newline="", encoding="utf-8-sig") as fh:
         w = csv.writer(fh, delimiter=";")
         w.writerow(["handle", "название", "тип", "участников", "сообщ_час",
                     "молчит_мин", "нашёлся_по", "обсуждения", "ошибка"])
         for s in results:
             w.writerow([s.handle, s.title, s.kind, s.members, f"{s.rate:.2f}",
                         "" if s.quiet_min > 10**8 else s.quiet_min,
-                        found.get(s.handle.lower(), ""), s.linked or "", s.error])
+                        origins.get(s.handle.lower(), ""), s.linked or "", s.error])
 
     out = ["# Найдено автоматически, отсортировано по сообщениям в час.",
            "# Проверь глазами 2-3 верхних, прежде чем вступать.", ""]

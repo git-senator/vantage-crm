@@ -90,6 +90,9 @@ def classify(text: str) -> dict | None:
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
+            # Без внятного User-Agent Cloudflare перед Groq отдаёт 403: дефолт
+            # urllib («Python-urllib/3.x») он считает ботом и не пускает.
+            "User-Agent": "Rognar/1.0",
         },
     )
     try:
@@ -136,7 +139,9 @@ def notify(text: str) -> bool:
         return False
 
 
-def heat(score: int) -> str:
+def heat(score: int, unverified: bool = False) -> str:
+    if unverified:
+        return "⚠️ <b>Не проверено AI</b>"
     if score >= 80:
         return "🔥 <b>Горячий лид</b>"
     if score >= 65:
@@ -148,10 +153,11 @@ def render_alert(verdict: dict, *, author: str, mention: str, chat_title: str,
                  text: str, link: str | None) -> str:
     """Собрать то самое сообщение, которое увидит владелец."""
     score = int(verdict.get("score", 0))
+    unverified = bool(verdict.get("unverified"))
     esc = html.escape
 
     lines = [
-        f"{heat(score)} · {score}/100",
+        heat(score, unverified) if unverified else f"{heat(score)} · {score}/100",
         "",
         f"👤 {esc(mention)}" + (f" ({esc(author)})" if author else ""),
         f"📍 {esc(chat_title)}",
@@ -308,13 +314,27 @@ async def main() -> int:
         log.info("совпадение в «%s» — спрашиваю модель…", chat_title)
 
         verdict = await asyncio.to_thread(classify, text)
-        if not verdict or not verdict.get("is_lead"):
+
+        # Отказ модели — это не вердикт «не лид». Молча выбрасывать сообщение
+        # при сбое AI недопустимо: пропущенный покупатель стоит дороже лишнего
+        # уведомления, поэтому шлём как есть и честно помечаем, что не проверено.
+        if verdict is None:
+            verdict = {
+                "score": 50,
+                "intent": "не проверено",
+                "language": "—",
+                "summary": "⚠️ AI не ответил — зацепка по ключевым словам, посмотри сам.",
+                "unverified": True,
+            }
+            log.warning("  → модель недоступна, шлю без проверки")
+        elif not verdict.get("is_lead"):
             log.info("  → модель: не лид")
             return
-        score = int(verdict.get("score", 0))
-        if score < SCORE_FLOOR:
-            log.info("  → слабый сигнал (%d), пропускаю", score)
+        elif int(verdict.get("score", 0)) < SCORE_FLOOR:
+            log.info("  → слабый сигнал (%d), пропускаю", int(verdict.get("score", 0)))
             return
+
+        score = int(verdict.get("score", 0))
 
         author, mention = describe_author(sender)
         alert = render_alert(
