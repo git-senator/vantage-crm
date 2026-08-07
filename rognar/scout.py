@@ -49,6 +49,7 @@ class Scan:
     quiet_min: int = 10**9    # сколько молчит, в минутах
     linked: str | None = None  # группа обсуждений у канала
     error: str = ""
+    flood: int = 0            # Telegram велел ждать столько секунд
 
     @property
     def verdict(self) -> str:
@@ -82,6 +83,7 @@ async def scan(client: TelegramClient, handle: str) -> Scan:
         entity = await client.get_entity(handle)
     except FloodWaitError as exc:
         out.error = f"ждать {exc.seconds}с"
+        out.flood = exc.seconds
         return out
     except Exception as exc:
         out.error = type(exc).__name__.replace("Error", "")
@@ -108,6 +110,10 @@ async def scan(client: TelegramClient, handle: str) -> Scan:
 
     try:
         messages = await client.get_messages(entity, limit=SAMPLE)
+    except FloodWaitError as exc:
+        out.error = f"ждать {exc.seconds}с"
+        out.flood = exc.seconds
+        return out
     except Exception as exc:
         out.error = type(exc).__name__.replace("Error", "")
         return out

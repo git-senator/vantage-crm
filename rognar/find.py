@@ -35,6 +35,12 @@ from scout import PAUSE, Scan, scan
 SEARCH_PAUSE = 1.5      # пауза между поисковыми запросами
 MAX_MEASURE = 400       # потолок на замер: дальше это часы ожидания
 KEEP = 100              # сколько лучших выписать в candidates_found.txt
+FOUND = "found.csv"     # накопитель: сюда пишем и отсюда же возобновляем
+
+# Замер одного чата — это три обращения к Telegram (resolve, инфо, история),
+# и на паузе 1.2с аккаунт ловит FloodWait на час где-то после 170-го чата.
+# Три секунды дают пройти весь список за один заход, не разозлив сервер.
+MEASURE_PAUSE = 3.0
 
 # Запросы намеренно на языке аудитории: чат бразильских инвесторов называется
 # «investimento imobiliário», а не «real estate», и по-английски не найдётся.
@@ -90,6 +96,31 @@ async def search(client: TelegramClient, query: str) -> list[str]:
         # Нас интересуют только публичные: без username в чат не зайти.
         if isinstance(chat, Channel) and getattr(chat, "username", None):
             out.append(chat.username)
+    return out
+
+
+def load_found() -> dict[str, Scan]:
+    """Прошлые замеры из found.csv — чтобы не мерить одно и то же дважды.
+
+    Строки с ошибкой не возвращаем: чат мог быть недоступен из-за флуда,
+    и в следующий заход его надо попробовать снова.
+    """
+    out: dict[str, Scan] = {}
+    try:
+        fh = open(FOUND, encoding="utf-8-sig", newline="")
+    except FileNotFoundError:
+        return out
+    with fh:
+        for row in csv.DictReader(fh, delimiter=";"):
+            if row.get("ошибка"):
+                continue
+            quiet = row.get("молчит_мин") or ""
+            out[row["handle"].lower()] = Scan(
+                handle=row["handle"], title=row["название"], kind=row["тип"],
+                members=int(row["участников"] or 0), rate=float(row["сообщ_час"] or 0),
+                quiet_min=int(quiet) if quiet else 10**9,
+                linked=row.get("обсуждения") or None,
+            )
     return out
 
 
