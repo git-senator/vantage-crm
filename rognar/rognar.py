@@ -27,8 +27,9 @@ import sys
 import time
 import urllib.request
 
-from telethon import TelegramClient, events
-from telethon.tl.types import Channel, Chat, User
+from telethon import TelegramClient, events, functions
+from telethon.errors import UserNotParticipantError
+from telethon.tl.types import Channel, User
 
 from config import SESSION, load_env, looks_like_lead, need, watched_handles
 
@@ -41,6 +42,15 @@ _seen: dict[int, float] = {}
 
 # Ниже этого модель считает разговор пустым — сигнал не шлём.
 SCORE_FLOOR = 55
+
+# Как часто отчитываться, что живой. Без этого молчание в логе двусмысленно:
+# непонятно, то ли поток не идёт, то ли просто никто не писал про недвижимость.
+HEARTBEAT = 300
+
+# `any` считает вообще все входящие апдейты аккаунта, `seen` — только из
+# наблюдаемых чатов. Вместе они отвечают на главный вопрос при тишине: связь
+# отвалилась или просто в этих чатах никто не пишет.
+_stats = {"any": 0, "seen": 0, "matched": 0, "sent": 0}
 
 SYSTEM_PROMPT = """Ты — фильтр входящих для агентства недвижимости Rossa (Бразилия, работаем с русско-, англо- и португалоязычными клиентами).
 
@@ -167,6 +177,29 @@ def render_alert(verdict: dict, *, author: str, mention: str, chat_title: str,
 # -------------------------------------------------------------- слушатель
 
 
+async def is_member(client: TelegramClient, entity) -> bool:
+    """Состоит ли аккаунт в этом чате/канале.
+
+    Telegram шлёт события только из диалогов аккаунта, так что «хэндл
+    резолвится» ещё ничего не значит. Спрашиваем напрямую про своё участие:
+    список диалогов для этого ненадёжен — свежевступившие чаты попадают в
+    него не сразу, и галочка успевает соврать.
+    """
+    if isinstance(entity, Channel):
+        try:
+            await client(functions.channels.GetParticipantRequest(entity, "me"))
+            return True
+        except UserNotParticipantError:
+            return False
+        except Exception:
+            pass  # приватный/ограниченный — решаем по диалогам ниже
+
+    async for dialog in client.iter_dialogs():
+        if dialog.entity.id == entity.id:
+            return True
+    return False
+
+
 def message_link(chat, message_id: int) -> str | None:
     """Прямая ссылка на сообщение — работает только в публичных чатах."""
     username = getattr(chat, "username", None)
@@ -207,31 +240,57 @@ async def main() -> int:
     me = await client.get_me()
     log.info("Рогнар слушает от имени: %s", me.first_name)
 
-    # Резолвим хэндлы заранее: так подписка на события точная, а заодно сразу
-    # видно, куда аккаунт ещё не вступил.
-    watched, missing = [], []
+    watched, not_joined, missing = [], [], []
     for handle in handles:
         try:
             entity = await client.get_entity(handle)
-            watched.append(entity)
-            title = getattr(entity, "title", handle)
-            log.info("  ✓ %s", title)
         except Exception as exc:
             missing.append(handle)
-            log.warning("  ✗ @%s — %s", handle, type(exc).__name__)
+            log.warning("  ✗ @%-22s не открылся (%s)", handle, type(exc).__name__)
+            continue
+
+        title = getattr(entity, "title", handle)
+        if await is_member(client, entity):
+            watched.append(entity)
+            log.info("  ✓ %s", title)
+        else:
+            not_joined.append(handle)
+            log.warning("  ⚠ %-24s — НЕ вступил, событий отсюда не будет", f"@{handle}")
 
     if not watched:
-        raise SystemExit("Ни один чат не доступен — вступи в них и перезапусти.")
-    if missing:
-        log.warning("Недоступны (нужно вступить вручную): %s", ", ".join(missing))
+        raise SystemExit(
+            "Аккаунт не состоит ни в одном чате из watchlist.txt.\n"
+            "Вступи в них вручную в Telegram и перезапусти."
+        )
+    if not_joined:
+        log.warning("Вступи вручную, чтобы слушать: %s", ", ".join("@" + h for h in not_joined))
 
-    log.info("Под наблюдением: %d. Жду сообщений… (Ctrl+C — выход)", len(watched))
+    log.info("Реально слушаю: %d из %d. (Ctrl+C — выход)", len(watched), len(handles))
+
+    async def pulse():
+        """Периодически отчитываться, что поток идёт, а не просто тихо."""
+        while True:
+            await asyncio.sleep(HEARTBEAT)
+            log.info(
+                "· жив: апдейтов всего %d, из наблюдаемых %d, зацепок %d, отправлено %d",
+                _stats["any"], _stats["seen"], _stats["matched"], _stats["sent"],
+            )
+
+    asyncio.create_task(pulse())
+
+    # Считаем весь входящий поток аккаунта — только количество, без чтения и
+    # записи содержимого: это диагностика связи, а не слежка за перепиской.
+    @client.on(events.NewMessage())
+    async def on_any(event):
+        _stats["any"] += 1
 
     @client.on(events.NewMessage(chats=watched))
     async def on_message(event):
+        _stats["seen"] += 1
         text = (event.raw_text or "").strip()
         if not looks_like_lead(text):
             return
+        _stats["matched"] += 1
 
         sender = await event.get_sender()
         if isinstance(sender, User) and (sender.bot or sender.is_self):
@@ -267,6 +326,7 @@ async def main() -> int:
         )
         if await asyncio.to_thread(notify, alert):
             _seen[key] = now
+            _stats["sent"] += 1
             log.info("  → 📨 отправлено владельцу (%d/100)", score)
 
     await client.run_until_disconnected()
