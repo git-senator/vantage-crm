@@ -11,10 +11,15 @@ import os
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-SESSION = Path(__file__).resolve().parent / "rognar.session"
-WATCHLIST = Path(__file__).resolve().parent / "watchlist.txt"
-LOCK = Path(__file__).resolve().parent / "rognar.lock"
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+
+# В контейнере сессия должна лежать на постоянном томе, иначе после пересборки
+# образа Рогнар потребует вход по коду заново. На машине разработчика путь по
+# умолчанию рядом с кодом — так ничего настраивать не нужно.
+SESSION = Path(os.environ.get("ROGNAR_SESSION") or HERE / "rognar.session")
+WATCHLIST = HERE / "watchlist.txt"
+LOCK = SESSION.with_suffix(".lock")   # замок рядом с сессией: он её и стережёт
 
 
 # --------------------------------------------------------------- монополия
