@@ -73,6 +73,12 @@ IGNORED = {h.lower() for h in read_handles(Path(__file__).resolve().parent / "ig
 # вступление в новый чат не требовало перезапуска.
 _watched: dict[int, str] = {}
 
+# Уже обработанные сообщения. Telegram при догоне пропущенного присылает одно
+# и то же сообщение повторно, и без этой памяти каждый повтор стоит лишнего
+# вызова модели — а при удачном вердикте ещё и дубля уведомления.
+_handled: set[tuple[int, int]] = set()
+HANDLED_MAX = 5000
+
 # `any` считает вообще все входящие апдейты аккаунта, `seen` — только из
 # наблюдаемых чатов. Вместе они отвечают на главный вопрос при тишине: связь
 # отвалилась или просто в этих чатах никто не пишет.
@@ -372,6 +378,13 @@ async def main() -> int:
         if event.chat_id not in _watched:
             return
 
+        stamp = (event.chat_id, event.id)
+        if stamp in _handled:
+            return
+        if len(_handled) >= HANDLED_MAX:
+            _handled.clear()          # память ограничена: старое уже неактуально
+        _handled.add(stamp)
+
         _stats["seen"] += 1
         text = (event.raw_text or "").strip()
         if not looks_like_lead(text):
@@ -406,11 +419,17 @@ async def main() -> int:
                 "unverified": True,
             }
             log.warning("  → модель недоступна, шлю без проверки")
+        # Отклонённое показываем куском текста: без него не понять, модель
+        # права или перестраховывается, и фильтр нечем настраивать. В лог
+        # попадает только то, что уже прошло отбор по словам о недвижимости.
         elif not verdict.get("is_lead"):
-            log.info("  → модель: не лид")
+            log.info("  → не лид: «%s»", text[:90].replace("\n", " "))
             return
         elif int(verdict.get("score", 0)) < SCORE_FLOOR:
-            log.info("  → слабый сигнал (%d), пропускаю", int(verdict.get("score", 0)))
+            log.info(
+                "  → слабо (%d): «%s»",
+                int(verdict.get("score", 0)), text[:90].replace("\n", " "),
+            )
             return
 
         score = int(verdict.get("score", 0))
