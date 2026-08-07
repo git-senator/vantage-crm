@@ -31,7 +31,7 @@ from telethon import TelegramClient, events, functions
 from telethon.errors import UserNotParticipantError
 from telethon.tl.types import Channel, User
 
-from config import SESSION, load_env, looks_like_lead, need, watched_handles
+from config import SESSION, claim_session, load_env, looks_like_lead, need, watched_handles
 
 log = logging.getLogger("rognar")
 
@@ -224,6 +224,7 @@ async def main() -> int:
     logging.getLogger("telethon").setLevel(logging.WARNING)
 
     load_env()
+    claim_session("слушатель")
     api_id = int(need("ROGNAR_API_ID"))
     api_hash = need("ROGNAR_API_HASH")
 

@@ -33,7 +33,7 @@ from telethon import TelegramClient, functions
 from telethon.errors import FloodWaitError
 from telethon.tl.types import Channel, Chat
 
-from config import SESSION, WATCHLIST, load_env, need, read_handles
+from config import SESSION, WATCHLIST, claim_session, load_env, need, read_handles
 
 SAMPLE = 60          # сколько последних сообщений брать для замера темпа
 PAUSE = 1.2          # пауза между чатами — не частим запросами к Telegram
@@ -118,13 +118,18 @@ async def scan(client: TelegramClient, handle: str) -> Scan:
     now = datetime.now(timezone.utc)
     out.quiet_min = int((now - messages[0].date).total_seconds() // 60)
     if len(messages) > 1:
-        span = max((messages[0].date - messages[-1].date).total_seconds() / 3600, 0.01)
+        # Окно считаем ДО СЕЙЧАС, а не до последнего сообщения. Иначе чат, где
+        # два месяца назад за час выплеснули 60 сообщений и с тех пор тишина,
+        # получает 586/ч и уезжает на первое место. Молчание — это тоже часть
+        # темпа, и в знаменателе оно должно учитываться.
+        span = max((now - messages[-1].date).total_seconds() / 3600, 0.01)
         out.rate = len(messages) / span
     return out
 
 
 async def main() -> int:
     load_env()
+    claim_session("разведчик")
     path = Path(sys.argv[1]) if len(sys.argv) > 1 else WATCHLIST
     handles = read_handles(path)
 

@@ -14,6 +14,61 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SESSION = Path(__file__).resolve().parent / "rognar.session"
 WATCHLIST = Path(__file__).resolve().parent / "watchlist.txt"
+LOCK = Path(__file__).resolve().parent / "rognar.lock"
+
+
+# --------------------------------------------------------------- монополия
+#
+# Файл сессии — обычная база SQLite, и второй клиент, открывший её
+# параллельно, роняет первому цикл обновлений с «database is locked».
+# Проверять живость по PID нельзя: на Windows os.kill(pid, 0) не опрашивает
+# процесс, а убивает его. Поэтому берём настоящий файловый замок ОС — он
+# снимается сам, когда процесс умирает, и устаревших замков не остаётся.
+
+# Замок берём НЕ на нулевом байте, а далеко за текстом: msvcrt.locking
+# блокирует область от текущей позиции, и запись имени владельца в неё же
+# падает с PermissionError — процесс не может писать в собственный замок.
+# Имя живёт в начале файла, замок — на LOCK_BYTE, области не пересекаются.
+LOCK_BYTE = 4096
+
+try:                                   # Windows
+    import msvcrt
+
+    def _take(handle) -> None:
+        handle.seek(LOCK_BYTE)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+
+except ImportError:                    # POSIX
+    import fcntl
+
+    def _take(handle) -> None:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+_lock_handle = None
+
+
+def claim_session(who: str) -> None:
+    """Занять сессию под себя или объяснить, кто её держит, и выйти."""
+    global _lock_handle
+    handle = open(LOCK, "r+", encoding="utf-8") if LOCK.exists() \
+        else open(LOCK, "w+", encoding="utf-8")
+    holder = handle.read(64).strip() or "другой процесс"   # читаем до захвата
+    try:
+        _take(handle)
+    except OSError:
+        handle.close()
+        raise SystemExit(
+            f"Сессию уже держит «{holder}» — «{who}» запустить нельзя.\n"
+            "Одновременно работать они не могут: это один аккаунт и один файл\n"
+            "сессии, второй клиент роняет первому поток обновлений.\n\n"
+            "Останови слушателя (Ctrl+C в его окне) и повтори."
+        )
+    handle.seek(0)
+    handle.truncate()
+    handle.write(who)
+    handle.flush()
+    _lock_handle = handle          # держим открытым: закроется — снимется замок
 
 
 def load_env() -> None:

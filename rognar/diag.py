@@ -16,11 +16,12 @@ from datetime import datetime, timezone
 
 from telethon import TelegramClient
 
-from config import SESSION, load_env, need, watched_handles
+from config import SESSION, claim_session, load_env, need, watched_handles
 
 
 async def main() -> int:
     load_env()
+    claim_session("диагностика")
     client = TelegramClient(str(SESSION), int(need("ROGNAR_API_ID")), need("ROGNAR_API_HASH"))
     await client.start()
 
