@@ -1,25 +1,27 @@
-# Кандидаты на проверку активности (ещё не вступали).
-# Проверка:  python rognar/scout.py rognar/candidates.txt
+# СЮДА КИДАЙ ЧАТЫ, КОТОРЫЕ ХОЧЕШЬ ПРОВЕРИТЬ — по одному в строке.
+#
+# Можно в любом виде, как скопировал из Telegram:
+#   https://t.me/dubai_chat
+#   t.me/dubai_chat
+#   @dubai_chat
+#   dubai_chat
+#
+# Строки, начинающиеся с #, скрипт пропускает — это заметки для себя.
+#
+# Как узнать адрес чата: открой чат в Telegram → нажми на название сверху →
+# там будет ссылка вида t.me/что-то. Скопируй её целиком и вставь сюда.
+#
+# Потом запусти в PowerShell:
+#   python rognar/scout.py rognar/candidates.txt
+#
+# Скрипт скажет по каждому: сколько там людей, когда последнее сообщение и
+# сколько сообщений в час. ВСТУПАТЬ ДЛЯ ЭТОГО НЕ НАДО.
+#   🔥 >10/ч — поток, брать обязательно
+#   🟢 2-10/ч — живой, брать
+#   🟡 <2/ч — вяло, на твоё усмотрение
+#   💀 — мёртвый, не тратить лимит
+#   📢 — канал, покупателей там нет (но скрипт покажет его чат обсуждений)
 
-# --- уже в watchlist, для сравнения ---
-brazilia_forum
-dubai_chat
-realestatmiami
-
-# --- русскоязычная диаспора: там, где обсуждают переезд, всплывает и жильё ---
-slavianskiy_forum
-Brazil_For_You
-rus_canada
-torontorus
-kazakhstan_chat
-russianmiami
-rusmiami
-
-# --- каналы: смотрим, есть ли у них группы обсуждений ---
-prian_property
-ageevarealestate
-axcapital_cis
-traniodubai
-nedvizha
-urbeme
-investidorbrasileiro
+https://t.me/kazakhstan_chat
+https://t.me/rus_canada
+https://t.me/russianmiami

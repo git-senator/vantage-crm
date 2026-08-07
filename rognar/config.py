@@ -43,14 +43,22 @@ def read_handles(path: Path) -> list[str]:
     Комментарий начинается с `#` и может стоять после хэндла — в списках
     удобно держать рядом замеры («kazakhstan_chat  # 64.8/ч»), поэтому
     хвост строки отрезаем, а не только целые строки-комментарии.
+
+    Строку принимаем в любом виде, в каком её обычно копируют из Telegram:
+    `dubai_chat`, `@dubai_chat`, `t.me/dubai_chat`, полная ссылка с https —
+    заставлять человека вручную вырезать имя из ссылки незачем.
     """
     if not path.exists():
         return []
     out = []
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.split("#", 1)[0].strip()
-        if line:
-            out.append(line.lstrip("@"))
+        if not line:
+            continue
+        for prefix in ("https://", "http://", "www.", "t.me/", "telegram.me/"):
+            if line.lower().startswith(prefix):
+                line = line[len(prefix):]
+        out.append(line.split("?")[0].strip("/").lstrip("@"))
     return out
 
 
