@@ -65,6 +65,11 @@ Thumbs.db
 docker-compose.override.yml
 
 # Рогнар: файл сессии Telegram равен доступу к аккаунту-слушателю
-rognar/*.session
+rognar/*.session*
 rognar/*.session-journal
 rognar/*.lock
+# Рогнар: выгрузки разведки — результат прогона, не исходник
+rognar/*.csv
+found.csv
+scout.csv
+rognar/candidates_found.txt
