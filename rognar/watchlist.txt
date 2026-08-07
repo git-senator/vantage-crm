@@ -1,0 +1,18 @@
+# Чаты и каналы под наблюдением Рогнара — по одному хэндлу в строке.
+# В ЧАТЫ аккаунт должен вступить вручную, иначе они будут помечены ✗.
+# КАНАЛЫ читаются и без подписки.
+#
+# Проверить живость перед добавлением:  python tg_probe.py watchlist.txt
+
+# --- чаты: вступить вручную ---
+brazilia_forum
+realestatmiami
+dubai_rus
+miami_chat
+dubai_chat
+
+# --- каналы: читаются без вступления ---
+prian_property
+ageevarealestate
+axcapital_cis
+traniodubai

@@ -63,3 +63,7 @@ Thumbs.db
 
 # Local-only compose override (publishes API port for host scripts; not for prod)
 docker-compose.override.yml
+
+# Рогнар: файл сессии Telegram равен доступу к аккаунту-слушателю
+rognar/*.session
+rognar/*.session-journal
