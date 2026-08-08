@@ -1345,6 +1345,7 @@ const en = {
     propShowing: "Showing {n} listings",
     propSearchPlaceholder: "Search by address, MLS ID or neighbourhood…",
     propAnyType: "Any type",
+    propAnyDeal: "Sale or rent",
     propStatus_active: "Active",
     propStatus_pending: "Pending",
     propStatus_sold: "Sold",

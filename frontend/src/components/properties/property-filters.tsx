@@ -99,11 +99,13 @@ export function PropertyFilterBar({
 
   const status = params.get("status") ?? "all";
   const propertyType = params.get("property_type") ?? "any";
+  const listingKind = params.get("listing_kind") ?? "any";
   const band = bandFor(params.get("min_price"), params.get("max_price"));
   const isFiltered = Boolean(
     params.get("search") ||
       params.get("status") ||
       params.get("property_type") ||
+      params.get("listing_kind") ||
       params.get("min_price") ||
       params.get("max_price"),
   );
@@ -145,6 +147,25 @@ export function PropertyFilterBar({
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
+
+        {/* Sale or rent is the first cut a person makes — a buyer's budget and
+            a tenant's budget are different numbers, so mixing them makes the
+            price band below meaningless. */}
+        <Select
+          value={listingKind}
+          onValueChange={(value) =>
+            apply({ listing_kind: value === "any" ? null : value })
+          }
+        >
+          <SelectTrigger size="sm" className="w-[150px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="any">{t("body.propAnyDeal")}</SelectItem>
+            <SelectItem value="sale">{t("body.dealSale")}</SelectItem>
+            <SelectItem value="rent">{t("body.dealRent")}</SelectItem>
+          </SelectContent>
+        </Select>
 
         <Select
           value={propertyType}
@@ -199,6 +220,7 @@ export function PropertyFilterBar({
                 search: null,
                 status: null,
                 property_type: null,
+                listing_kind: null,
                 min_price: null,
                 max_price: null,
               });

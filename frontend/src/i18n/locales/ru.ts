@@ -1314,6 +1314,7 @@ const ru: Dictionary = {
     propShowing: "Показано объектов: {n}",
     propSearchPlaceholder: "Поиск по адресу, MLS ID или району…",
     propAnyType: "Любой тип",
+    propAnyDeal: "Любая сделка",
     propStatus_active: "В продаже",
     propStatus_pending: "В ожидании",
     propStatus_sold: "Продано",

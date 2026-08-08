@@ -1314,6 +1314,7 @@ const ptBR: Dictionary = {
     propShowing: "Exibindo {n} imóveis",
     propSearchPlaceholder: "Buscar por endereço, MLS ID ou bairro…",
     propAnyType: "Qualquer tipo",
+    propAnyDeal: "Venda ou aluguel",
     propStatus_active: "Ativo",
     propStatus_pending: "Pendente",
     propStatus_sold: "Vendido",

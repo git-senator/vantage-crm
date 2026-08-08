@@ -60,6 +60,7 @@ export default async function PropertiesPage({
     search: params.search,
     status: params.status as PropertyFilters["status"],
     property_type: params.property_type as PropertyFilters["property_type"],
+    listing_kind: params.listing_kind as PropertyFilters["listing_kind"],
     min_price: params.min_price,
     max_price: params.max_price,
     cursor: params.cursor,
@@ -73,7 +74,11 @@ export default async function PropertiesPage({
 
   const canManage = hasPermission(session, "properties.manage");
   const isFiltered = Boolean(
-    params.search || params.status || params.property_type || params.min_price,
+    params.search ||
+      params.status ||
+      params.property_type ||
+      params.listing_kind ||
+      params.min_price,
   );
 
   return (
