@@ -35,10 +35,11 @@ from telethon.tl.types import Channel, Chat, User
 from config import (
     SESSION,
     claim_session,
+    ignore_rules,
+    is_ignored,
     load_env,
     looks_like_lead,
     need,
-    read_handles,
     watched_handles,
 )
 
@@ -66,8 +67,8 @@ RESCAN = 240
 WATCH_JOINED = os.environ.get("ROGNAR_WATCH_JOINED", "true").strip().lower() not in {"0", "false", "no"}
 
 # Чаты, которые не слушать даже при WATCH_JOINED: свои рабочие, семейные и
-# прочие, где искать покупателей незачем. По одному хэндлу в строке.
-IGNORED = {h.lower() for h in read_handles(Path(__file__).resolve().parent / "ignore.txt")}
+# прочие, где искать покупателей незачем. Читаются при каждом пересмотре, так
+# что правку файла на сервере видно без перезапуска.
 
 # Живой набор наблюдаемых чатов: id → название. Пересобирается на ходу, чтобы
 # вступление в новый чат не требовало перезапуска.
@@ -241,6 +242,8 @@ async def refresh_watched(client: TelegramClient, *, first: bool = False) -> Non
     # заставлять его дублировать это в файл — лишний обряд. Личную переписку
     # не трогаем, каналы-вещания тоже (там пишут только админы).
     if WATCH_JOINED:
+        rules = ignore_rules()          # перечитываем: правку файла видно сразу
+        skipped = 0
         async for dialog in client.iter_dialogs():
             entity = dialog.entity
             if not isinstance(entity, (Channel, Chat)):
@@ -248,9 +251,12 @@ async def refresh_watched(client: TelegramClient, *, first: bool = False) -> Non
             if isinstance(entity, Channel) and entity.broadcast:
                 continue                       # канал
             title = getattr(entity, "title", "")
-            if (getattr(entity, "username", "") or "").lower() in IGNORED:
+            if is_ignored(getattr(entity, "username", None), title, rules):
+                skipped += 1
                 continue
             fresh.setdefault(utils.get_peer_id(entity), title)
+        if first and skipped:
+            log.info("  (пропущено по ignore.txt: %d)", skipped)
 
     appeared = fresh.keys() - _watched.keys()
     vanished = _watched.keys() - fresh.keys()

@@ -127,6 +127,36 @@ def watched_handles() -> list[str]:
     return read_handles(WATCHLIST)
 
 
+def ignore_rules() -> list[str]:
+    """Строки из ignore.txt в нижнем регистре.
+
+    Читаем сырыми, без разбора ссылок: у личных и рабочих групп часто нет
+    публичного хэндла вовсе, и единственное, чем их можно назвать, — это
+    название, которое человек видит в списке чатов.
+    """
+    path = HERE / "ignore.txt"
+    if not path.exists():
+        return []
+    out = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.split("#", 1)[0].strip().lstrip("@").lower()
+        if line:
+            out.append(line)
+    return out
+
+
+def is_ignored(username: str | None, title: str | None, rules: list[str]) -> bool:
+    """Совпадает ли чат с любым правилом — по хэндлу или по куску названия."""
+    handle = (username or "").lower()
+    name = (title or "").lower()
+    for rule in rules:
+        if handle and (rule == handle or rule.endswith("/" + handle)):
+            return True
+        if name and rule in name:
+            return True
+    return False
+
+
 # --------------------------------------------------------------- триггеры
 #
 # Дешёвый предфильтр: он не решает, лид это или нет, а лишь отбирает
