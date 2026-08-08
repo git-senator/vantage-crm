@@ -158,7 +158,18 @@ export function PropertyFilterBar({
           }
         >
           <SelectTrigger size="sm" className="w-[150px]">
-            <SelectValue />
+            {/* Base UI puts the raw value in the trigger unless handed a
+                formatter — without this the bar reads "any" three times over,
+                in every language. */}
+            <SelectValue>
+              {(selected) =>
+                selected === "sale"
+                  ? t("body.dealSale")
+                  : selected === "rent"
+                    ? t("body.dealRent")
+                    : t("body.propAnyDeal")
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="any">{t("body.propAnyDeal")}</SelectItem>
@@ -174,7 +185,13 @@ export function PropertyFilterBar({
           }
         >
           <SelectTrigger size="sm" className="w-[160px]">
-            <SelectValue />
+            <SelectValue>
+              {(selected) =>
+                selected && selected !== "any"
+                  ? t(`body.propType_${selected}`)
+                  : t("body.propAnyType")
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="any">{t("body.propAnyType")}</SelectItem>
@@ -199,7 +216,9 @@ export function PropertyFilterBar({
           }}
         >
           <SelectTrigger size="sm" className="w-[150px]">
-            <SelectValue />
+            <SelectValue>
+              {(selected) => t(`body.priceBand_${selected ?? "any"}`)}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {PRICE_BANDS.map((entry) => (

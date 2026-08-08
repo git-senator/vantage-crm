@@ -21,6 +21,7 @@ export function PropertyThumb({
   property,
   className,
   priceLabel,
+  statusLabel,
 }: {
   property: Property;
   className?: string;
@@ -32,6 +33,8 @@ export function PropertyThumb({
    * test that renders a card.
    */
   priceLabel?: string;
+  /** The status in words, translated. Same reasoning as `priceLabel`. */
+  statusLabel?: string;
 }) {
   const hue = hueFor(property.id);
   const cover = property.cover_url;
@@ -92,6 +95,7 @@ export function PropertyThumb({
       <div className="absolute top-3 left-3 flex gap-1.5">
         <StatusBadge
           status={property.status}
+          label={statusLabel}
           className="bg-white/90 text-neutral-900 backdrop-blur-sm dark:bg-neutral-900/85 dark:text-white"
         />
       </div>

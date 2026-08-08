@@ -427,7 +427,12 @@ function Choice({
         disabled={disabled}
       >
         <SelectTrigger id={name} className="w-full">
-          <SelectValue />
+          {/* Base UI renders the raw value unless given a formatter, so without
+              this the trigger reads "condo" and "coming_soon" in every
+              language. */}
+          <SelectValue>
+            {(selected) => labelFor(String(selected ?? defaultValue))}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (

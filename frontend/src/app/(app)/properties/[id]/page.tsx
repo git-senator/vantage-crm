@@ -103,6 +103,8 @@ export default async function PropertyDetailPage({
               <PropertyThumb
                 property={property}
                 className="relative aspect-[21/9] overflow-hidden"
+                priceLabel={listingPrice(property, t)}
+                statusLabel={t(`body.propStatus_${property.status}`)}
               />
             </Card>
           )}

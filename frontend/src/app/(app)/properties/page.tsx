@@ -14,7 +14,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getStatusCounts, listProperties } from "@/lib/api/properties";
 import type { PropertyFilters } from "@/lib/api/types";
-import { formatArea, formatNumber, titleize } from "@/lib/format";
+import { formatArea, formatNumber } from "@/lib/format";
 import { listingPrice } from "@/lib/listing";
 import { getTranslations } from "@/i18n/server";
 import type { TranslateFn } from "@/i18n/translate";
@@ -128,6 +128,7 @@ export default async function PropertiesPage({
                   <PropertyThumb
                     property={property}
                     priceLabel={listingPrice(property, t)}
+                    statusLabel={t(`body.propStatus_${property.status}`)}
                   />
                 </Link>
 
@@ -166,7 +167,7 @@ export default async function PropertiesPage({
                   <div className="mt-3 flex items-center gap-1.5">
                     <StatusBadge
                       status={property.property_type}
-                      label={titleize(property.property_type)}
+                      label={t(`body.propType_${property.property_type}`)}
                       tone="neutral"
                       dot={false}
                     />

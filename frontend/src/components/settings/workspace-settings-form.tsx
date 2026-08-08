@@ -135,7 +135,16 @@ export function WorkspaceSettingsForm({
               <Label htmlFor="timezone">{t("settings.timezone")}</Label>
               <Select value={timezone} onValueChange={(v) => setTimezone(v ?? timezone)}>
                 <SelectTrigger id="timezone">
-                  <SelectValue />
+                  {/* Base UI shows the raw value unless handed a formatter,
+                      which here would be "America/Sao_Paulo". */}
+                  <SelectValue>
+                    {(selected) =>
+                      t(
+                        TIMEZONES.find((tz) => tz.value === selected)?.labelKey ??
+                          "body.tzSaoPaulo",
+                      )
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {TIMEZONES.map((tz) => (
@@ -170,7 +179,15 @@ export function WorkspaceSettingsForm({
                 }
               >
                 <SelectTrigger id="measurement_system">
-                  <SelectValue />
+                  <SelectValue>
+                    {(selected) =>
+                      t(
+                        selected === "imperial"
+                          ? "settings.unitsImperial"
+                          : "settings.unitsMetric",
+                      )
+                    }
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="metric">{t("settings.unitsMetric")}</SelectItem>
