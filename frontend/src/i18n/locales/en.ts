@@ -123,6 +123,8 @@ const en = {
 
   // -------------------------------------------------------------------- forms
   forms: {
+    listingKind: "Offered as",
+    rentPeriod: "Rent period",
     firstName: "First name",
     lastName: "Last name",
     fullName: "Full name",
@@ -618,6 +620,9 @@ const en = {
     brokerageLicense: "Brokerage license",
     timezone: "Time zone",
     currency: "Currency",
+    units: "Area units",
+    unitsMetric: "Metric (m²)",
+    unitsImperial: "Imperial (sq ft)",
 
     languageTitle: "Language & region",
     languageDesc: "Choose the language the interface is shown in.",
@@ -976,6 +981,16 @@ const en = {
     pfBathrooms: "Bathrooms",
     pfBathsHint: "Half-baths allowed",
     pfSquareFeet: "Square feet",
+    pfAreaM2: "Area (m²)",
+    pfRent: "Rent",
+    dealSale: "For sale",
+    dealRent: "To rent",
+    perMonth: "/mo",
+    perWeek: "/wk",
+    perDay: "/day",
+    rentPeriod_month: "Per month",
+    rentPeriod_week: "Per week",
+    rentPeriod_day: "Per day",
     pfYearBuilt: "Year built",
     pfFeatures: "Features",
     pfDescription: "Description",

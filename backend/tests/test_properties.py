@@ -18,6 +18,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -907,3 +908,70 @@ class TestAudit:
             )
         ).scalars().all()
         assert entries == []
+
+
+class TestRentAndSale:
+    """A rent and a price are different quantities in the same column.
+
+    Before `listing_kind` existed a rental's monthly figure sat in `price`
+    beside a villa's asking price, so a filter for "under 100 000" answered
+    with both and any average over the column was meaningless. These pin down
+    that the two can no longer be confused for one another.
+    """
+
+    async def test_a_rental_gets_a_period_without_being_asked(
+        self, db: AsyncSession, admin
+    ) -> None:  # type: ignore[no-untyped-def]
+        """"Per month" is what a rental means unless it says otherwise, so
+        requiring the word would only make every caller type it."""
+        user, auth = admin
+        listing = await PropertyService(db, auth).create_property(
+            _payload(listing_kind="rent", price=Decimal("4900.00")), user
+        )
+        assert listing.listing_kind == "rent"
+        assert listing.rent_period == "month"
+
+    async def test_a_sale_may_not_carry_a_period(self, db: AsyncSession, admin) -> None:  # type: ignore[no-untyped-def]
+        """Not a shorthand for anything — it is two listings confused."""
+        with pytest.raises(ValidationError):
+            _payload(listing_kind="sale", rent_period="month")
+
+    async def test_listings_default_to_sale(self, db: AsyncSession, admin) -> None:  # type: ignore[no-untyped-def]
+        user, auth = admin
+        listing = await PropertyService(db, auth).create_property(_payload(), user)
+        assert listing.listing_kind == "sale"
+        assert listing.rent_period is None
+
+    async def test_rentals_can_be_filtered_out_of_the_sale_book(
+        self, db: AsyncSession, admin
+    ) -> None:  # type: ignore[no-untyped-def]
+        user, auth = admin
+        service = PropertyService(db, auth)
+        await service.create_property(_payload(title="For sale"), user)
+        await service.create_property(
+            _payload(title="To rent", listing_kind="rent", price=Decimal("4900.00")),
+            user,
+        )
+
+        rentals, _ = await service.list_properties(
+            filters=PropertyFilters(listing_kind="rent"), limit=10, cursor=None
+        )
+        assert [row.title for row in rentals] == ["To rent"]
+
+
+class TestOptionalPostcode:
+    async def test_a_listing_may_have_no_postcode(
+        self, db: AsyncSession, admin
+    ) -> None:  # type: ignore[no-untyped-def]
+        """Plenty genuinely have none — a Brazilian development is known by its
+        neighbourhood long before a CEP is issued. The column used to be NOT
+        NULL, which meant such a listing had to be given a placeholder, and a
+        placeholder prints on an export looking like a real postcode."""
+        user, auth = admin
+        listing = await PropertyService(db, auth).create_property(
+            _payload(postal_code=None), user
+        )
+        assert listing.postal_code is None
+        # And the composed address simply ends after the state, rather than
+        # trailing whatever stood in for the missing value.
+        assert listing.full_address.endswith("CA")

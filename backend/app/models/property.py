@@ -57,6 +57,17 @@ PROPERTY_TYPES = (
     "commercial",
 )
 
+#: Whether the listing is offered for sale or to rent. Separate from
+#: `property_type`, which says what the building *is* — the same apartment can
+#: be either, and a filter for "under 100 000" must not put a villa's monthly
+#: rent beside a studio's asking price.
+LISTING_KINDS = ("sale", "rent")
+
+#: What a rental price is per. Null on a sale, and required on a rental — the
+#: number alone is meaningless, as "4900" is a bargain per month and absurd per
+#: day.
+RENT_PERIODS = ("month", "week", "day")
+
 
 class Property(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "properties"
@@ -107,13 +118,22 @@ class Property(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     property_type: Mapped[str] = mapped_column(
         String(20), nullable=False, default="single_family"
     )
+    listing_kind: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="sale", server_default="sale"
+    )
+    rent_period: Mapped[str | None] = mapped_column(String(10), nullable=True)
 
     # ------------------------------------------------------------- address
     address_line1: Mapped[str] = mapped_column(String(200), nullable=False)
     address_line2: Mapped[str | None] = mapped_column(String(200), nullable=True)
     city: Mapped[str] = mapped_column(String(100), nullable=False)
     state: Mapped[str] = mapped_column(String(50), nullable=False)
-    postal_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    # Nullable, because plenty of listings genuinely have no postcode to give:
+    # a Brazilian development is identified by neighbourhood long before a CEP
+    # is issued. The column used to be NOT NULL, which forced a placeholder
+    # into it — and a placeholder in a postcode field is worse than a blank,
+    # since it prints on an export or a contract looking like a real value.
+    postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
     country: Mapped[str] = mapped_column(String(2), nullable=False, default="US")
 
     # Precision 9 scale 6: ±180.000000 fits, and 6 decimal places is ~11cm —
@@ -197,6 +217,21 @@ class Property(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
             "'multi_family', 'land', 'commercial')",
             name="ck_properties_type",
         ),
+        CheckConstraint(
+            "listing_kind IN ('sale', 'rent')", name="ck_properties_listing_kind"
+        ),
+        # A rental states its period and a sale has none. Written as an
+        # equivalence rather than two separate rules so neither half can be
+        # satisfied on its own: a rent with no period is an unreadable price,
+        # and a sale with one is a contradiction.
+        CheckConstraint(
+            "(listing_kind = 'rent') = (rent_period IS NOT NULL)",
+            name="ck_properties_rent_period",
+        ),
+        CheckConstraint(
+            "rent_period IS NULL OR rent_period IN ('month', 'week', 'day')",
+            name="ck_properties_rent_period_value",
+        ),
         CheckConstraint("price IS NULL OR price >= 0", name="ck_properties_price"),
         CheckConstraint(
             "bedrooms IS NULL OR (bedrooms >= 0 AND bedrooms <= 100)",
@@ -279,7 +314,7 @@ class Property(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     def full_address(self) -> str:
         parts = [self.address_line1, self.address_line2, self.city, self.state]
         joined = ", ".join(part for part in parts if part)
-        return f"{joined} {self.postal_code}".strip()
+        return f"{joined} {self.postal_code or ''}".strip()
 
     @property
     def days_on_market(self) -> int | None:

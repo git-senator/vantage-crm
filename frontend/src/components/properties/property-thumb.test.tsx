@@ -11,6 +11,8 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
     mls_number: null,
     status: "active",
     property_type: "single_family",
+    listing_kind: "sale",
+    rent_period: null,
     address_line1: "1428 Sanchez Street",
     address_line2: null,
     city: "San Francisco",

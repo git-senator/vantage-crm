@@ -45,6 +45,8 @@ AUDITED_FIELDS = (
     "mls_number",
     "status",
     "property_type",
+    "listing_kind",
+    "rent_period",
     "address_line1",
     "city",
     "state",

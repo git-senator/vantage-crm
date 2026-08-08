@@ -14,7 +14,8 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getStatusCounts, listProperties } from "@/lib/api/properties";
 import type { PropertyFilters } from "@/lib/api/types";
-import { formatNumber, titleize } from "@/lib/format";
+import { formatArea, formatNumber, titleize } from "@/lib/format";
+import { listingPrice } from "@/lib/listing";
 import { getTranslations } from "@/i18n/server";
 import type { TranslateFn } from "@/i18n/translate";
 import { hasPermission, requireSession } from "@/lib/auth/session";
@@ -51,6 +52,7 @@ export default async function PropertiesPage({
   const session = await requireSession();
   const params = await searchParams;
   const t = await getTranslations();
+  const units = session.organization.measurement_system;
 
   // Filters come from the URL, so a filtered view is shareable and the
   // filtering happens in the database rather than in the browser.
@@ -118,7 +120,10 @@ export default async function PropertiesPage({
                 className="gap-0 overflow-hidden py-0 transition-shadow hover:shadow-lg"
               >
                 <Link href={`/properties/${property.id}`} className="block">
-                  <PropertyThumb property={property} />
+                  <PropertyThumb
+                    property={property}
+                    priceLabel={listingPrice(property, t)}
+                  />
                 </Link>
 
                 <CardContent className="p-4">
@@ -148,7 +153,7 @@ export default async function PropertiesPage({
                     {property.square_feet ? (
                       <span className="flex items-center gap-1.5">
                         <Ruler className="size-4" />
-                        {t("body.propSqft", { n: formatNumber(property.square_feet) })}
+                        {formatArea(property.square_feet, units)}
                       </span>
                     ) : null}
                   </div>
@@ -160,6 +165,14 @@ export default async function PropertiesPage({
                       tone="neutral"
                       dot={false}
                     />
+                    {property.listing_kind === "rent" && (
+                      <StatusBadge
+                        status="rent"
+                        label={t("body.dealRent")}
+                        tone="neutral"
+                        dot={false}
+                      />
+                    )}
                     {property.days_on_market !== null && (
                       <span className="text-xs text-muted-foreground">
                         {t("body.propDaysOnMarket", { n: property.days_on_market })}

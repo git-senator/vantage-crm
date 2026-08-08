@@ -66,6 +66,9 @@ export function WorkspaceSettingsForm({
   const [license, setLicense] = useState(s.license ?? "");
   const [timezone, setTimezone] = useState(s.timezone ?? "America/Sao_Paulo");
   const [currency, setCurrency] = useState(s.currency ?? "BRL (R$)");
+  // Metric by default: the column is called `square_feet` for historical
+  // reasons, but the markets this is sold into measure property in m².
+  const [units, setUnits] = useState(s.measurement_system ?? "metric");
   const [weekend, setWeekend] = useState(s.weekend_notifications ?? false);
   const [autoAssign, setAutoAssign] = useState(s.auto_assign ?? true);
   const [dealApproval, setDealApproval] = useState(s.deal_approval ?? true);
@@ -82,6 +85,7 @@ export function WorkspaceSettingsForm({
       license,
       timezone,
       currency,
+      measurement_system: units,
       weekend_notifications: weekend,
       auto_assign: autoAssign,
       deal_approval: dealApproval,
@@ -154,6 +158,25 @@ export function WorkspaceSettingsForm({
                       {c}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="measurement_system">{t("settings.units")}</Label>
+              <Select
+                value={units}
+                onValueChange={(v) =>
+                  setUnits((v as WorkspaceSettings["measurement_system"]) ?? units)
+                }
+              >
+                <SelectTrigger id="measurement_system">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="metric">{t("settings.unitsMetric")}</SelectItem>
+                  <SelectItem value="imperial">
+                    {t("settings.unitsImperial")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

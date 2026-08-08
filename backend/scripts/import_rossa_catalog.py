@@ -179,6 +179,8 @@ class Listing:
     slug: str
     title: str
     property_type: str
+    listing_kind: str
+    rent_period: str | None
     address_line1: str
     city: str
     state: str
@@ -215,17 +217,25 @@ def build_listing(raw: dict[str, Any], base: str) -> Listing:
     usd = price_block.get("usd")
     per_month = bool(raw.get("perMonth"))
 
+    # The catalogue says "rent" two ways — a `deal` of "rent" and a `perMonth`
+    # flag on the price — and they agree on every current entry. Either alone
+    # is taken as a rental: a price that is per month is a rent whatever the
+    # other field says.
+    is_rental = per_month or (raw.get("deal") or ["buy"])[0] == "rent"
+
     return Listing(
         slug=str(raw["slug"]),
         title=str(raw.get("title") or raw["slug"])[:200],
         property_type=PROPERTY_TYPES.get((raw.get("type") or ["apartment"])[0], "condo"),
+        listing_kind="rent" if is_rental else "sale",
+        rent_period="month" if is_rental else None,
         address_line1=neighbourhood[:200],
         city=city,
         state=state,
         price=Decimal(str(usd)) if usd else None,
         bedrooms=_bedrooms(searchable),
         square_feet=round(area_m2 * SQFT_PER_M2) if area_m2 else None,
-        description=_describe(raw, lead, facts, per_month, usd),
+        description=_describe(raw, lead, facts),
         features=_features(raw, facts),
         custom_fields={
             "source": "rossagroupbrazil.com",
@@ -252,20 +262,20 @@ def _describe(
     raw: dict[str, Any],
     lead: str,
     facts: list[dict[str, Any]],
-    per_month: bool,
-    usd: Any,
 ) -> str:
     """Flatten the site's structured facts into readable prose.
 
     The structure is kept verbatim in `custom_fields.facts` as well — this copy
     exists so the text is searchable and so an agent reading the record sees
     everything the customer saw, in the same order.
+
+    The rental period is deliberately *not* written in here: it lives in
+    `rent_period` and is rendered next to the price, so a sentence saying it
+    again would only be a second place for the two to disagree.
     """
     parts: list[str] = []
     if lead:
         parts.append(lead)
-    if per_month and usd:
-        parts.append(f"Аренда: ${int(usd):,}".replace(",", " ") + " в месяц.")
 
     for group in facts:
         rows = group.get("rows") or []
@@ -412,12 +422,16 @@ async def import_listing(
             status="active",
             currency="USD",
             country="BR",
-            # No CEP in the catalogue and none invented: a fabricated postcode
-            # would look authoritative in an export or a contract.
-            postal_code="-",
         )
         row.title = listing.title
         row.property_type = listing.property_type
+        row.listing_kind = listing.listing_kind
+        row.rent_period = listing.rent_period
+        # The catalogue carries no CEP and none is invented — a fabricated
+        # postcode would look authoritative in an export or a contract. Cleared
+        # rather than left alone, so rows imported before the column allowed
+        # NULL lose the placeholder they were given.
+        row.postal_code = None
         row.address_line1 = listing.address_line1
         row.city = listing.city
         row.state = listing.state

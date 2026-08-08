@@ -51,6 +51,8 @@ class PropertyRepository(BaseRepository[Property]):
             query = query.where(Property.status == filters.status)
         if filters.property_type:
             query = query.where(Property.property_type == filters.property_type)
+        if filters.listing_kind:
+            query = query.where(Property.listing_kind == filters.listing_kind)
         if filters.listing_agent_id:
             # Narrows within the caller's scope; it cannot widen it, because
             # the scope predicate is already applied.

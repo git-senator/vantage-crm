@@ -13,6 +13,9 @@ export interface OrganizationSummary {
   id: string;
   name: string;
   slug: string;
+  /** Which units this workspace reads areas in. Carried on the session so any
+   *  page can format an area without fetching the organization. */
+  measurement_system: "metric" | "imperial";
 }
 
 /** The workspace settings the CRM persists on `organizations.settings` (JSONB).
@@ -22,6 +25,8 @@ export interface WorkspaceSettings {
   license?: string;
   timezone?: string;
   currency?: string;
+  /** Which units areas are read in. Defaults to metric when unset. */
+  measurement_system?: "metric" | "imperial";
   weekend_notifications?: boolean;
   auto_assign?: boolean;
   deal_approval?: boolean;
@@ -283,6 +288,8 @@ export type PropertyType =
   | "multi_family"
   | "land"
   | "commercial";
+export type ListingKind = "sale" | "rent";
+export type RentPeriod = "month" | "week" | "day";
 
 export interface Property {
   id: string;
@@ -290,12 +297,18 @@ export interface Property {
   mls_number: string | null;
   status: PropertyStatus;
   property_type: PropertyType;
+  /** For sale, or to rent. Separate from the type of building. */
+  listing_kind: ListingKind;
+  /** What a rental price is per. Null on a sale. */
+  rent_period: RentPeriod | null;
 
   address_line1: string;
   address_line2: string | null;
   city: string;
   state: string;
-  postal_code: string;
+  /** Absent on plenty of listings — a placeholder here would print on
+   *  contracts as though it were real. */
+  postal_code: string | null;
   country: string;
   /** Server-composed single-line address. Always set. */
   full_address: string;
@@ -353,12 +366,15 @@ export interface PropertyInput {
   mls_number?: string | null;
   status?: PropertyStatus;
   property_type?: PropertyType;
+  listing_kind?: ListingKind;
+  /** Omit on a sale; defaults to "month" on a rental. */
+  rent_period?: RentPeriod | null;
 
   address_line1: string;
   address_line2?: string | null;
   city: string;
   state: string;
-  postal_code: string;
+  postal_code?: string | null;
   country?: string;
 
   latitude?: string | null;
@@ -384,6 +400,7 @@ export interface PropertyFilters {
   search?: string;
   status?: PropertyStatus;
   property_type?: PropertyType;
+  listing_kind?: ListingKind;
   listing_agent_id?: string;
   client_id?: string;
   city?: string;

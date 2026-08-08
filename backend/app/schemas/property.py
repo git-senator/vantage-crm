@@ -26,6 +26,8 @@ PropertyStatus = Literal["active", "pending", "sold", "off_market", "coming_soon
 PropertyType = Literal[
     "single_family", "condo", "townhouse", "multi_family", "land", "commercial"
 ]
+ListingKind = Literal["sale", "rent"]
+RentPeriod = Literal["month", "week", "day"]
 
 Money = Annotated[Decimal, Field(ge=0, le=Decimal("99999999999.99"), decimal_places=2)]
 Bathrooms = Annotated[Decimal, Field(ge=0, le=Decimal("100"), decimal_places=1)]
@@ -64,12 +66,16 @@ class PropertyBase(BaseModel):
     mls_number: str | None = Field(default=None, max_length=40)
     status: PropertyStatus = "active"
     property_type: PropertyType = "single_family"
+    listing_kind: ListingKind = "sale"
+    rent_period: RentPeriod | None = None
 
     address_line1: str = Field(min_length=1, max_length=200)
     address_line2: str | None = Field(default=None, max_length=200)
     city: str = Field(min_length=1, max_length=100)
     state: str = Field(min_length=1, max_length=50)
-    postal_code: str = Field(min_length=1, max_length=20)
+    #: Optional: many listings genuinely have no postcode, and a placeholder in
+    #: this field prints on exports and contracts as if it were real.
+    postal_code: str | None = Field(default=None, max_length=20)
     country: str = Field(default="US", min_length=2, max_length=2)
 
     latitude: Latitude | None = None
@@ -103,6 +109,22 @@ class PropertyBase(BaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def _rentals_state_their_period(self) -> PropertyBase:
+        """A rent needs a period; a sale must not carry one.
+
+        Defaulted rather than rejected in the first case: "per month" is what a
+        rental means everywhere unless it says otherwise, and refusing the
+        payload would only make every caller type the same word. The reverse is
+        an error, because a sale price per month is not a shorthand for
+        anything — it is two different listings confused with each other.
+        """
+        if self.listing_kind == "rent" and self.rent_period is None:
+            self.rent_period = "month"
+        if self.listing_kind == "sale" and self.rent_period is not None:
+            raise ValueError("rent_period only applies to a rental listing")
+        return self
+
 
 class PropertyCreate(PropertyBase):
     """New listing. Listing agent defaults to the creator when omitted."""
@@ -117,12 +139,14 @@ class PropertyUpdate(BaseModel):
     mls_number: str | None = Field(default=None, max_length=40)
     status: PropertyStatus | None = None
     property_type: PropertyType | None = None
+    listing_kind: ListingKind | None = None
+    rent_period: RentPeriod | None = None
 
     address_line1: str | None = Field(default=None, min_length=1, max_length=200)
     address_line2: str | None = Field(default=None, max_length=200)
     city: str | None = Field(default=None, min_length=1, max_length=100)
     state: str | None = Field(default=None, min_length=1, max_length=50)
-    postal_code: str | None = Field(default=None, min_length=1, max_length=20)
+    postal_code: str | None = Field(default=None, max_length=20)
     country: str | None = Field(default=None, min_length=2, max_length=2)
 
     latitude: Latitude | None = None
@@ -153,12 +177,14 @@ class PropertyRead(BaseModel):
     mls_number: str | None
     status: str
     property_type: str
+    listing_kind: str
+    rent_period: str | None
 
     address_line1: str
     address_line2: str | None
     city: str
     state: str
-    postal_code: str
+    postal_code: str | None
     country: str
     full_address: str
 
@@ -208,6 +234,7 @@ class PropertyFilters(BaseModel):
     search: str | None = Field(default=None, max_length=200)
     status: PropertyStatus | None = None
     property_type: PropertyType | None = None
+    listing_kind: ListingKind | None = None
     listing_agent_id: UUID | None = None
     client_id: UUID | None = None
     city: str | None = Field(default=None, max_length=100)

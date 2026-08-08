@@ -66,6 +66,11 @@ class OrganizationSummary(BaseModel):
     id: UUID
     name: str
     slug: str
+    #: `metric` or `imperial` — which units the workspace reads areas in.
+    #: Carried on the session because every page that shows an area needs it,
+    #: and fetching the organization on each of them would be a round trip to
+    #: learn one word.
+    measurement_system: str = "metric"
 
 
 class UserProfile(BaseModel):

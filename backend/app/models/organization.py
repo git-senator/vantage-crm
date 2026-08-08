@@ -40,6 +40,23 @@ class Organization(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         back_populates="organization", cascade="all, delete-orphan"
     )
 
+    @property
+    def measurement_system(self) -> str:
+        """Which units this workspace reads areas in — `metric` or `imperial`.
+
+        Areas are stored in square feet, because that is what the column is
+        called and a column named `square_feet` holding square metres is a
+        lie waiting to be found. Which unit a *person* sees is a workspace
+        preference, resolved here so the session carries it and every page can
+        format without another round trip.
+
+        Metric is the default. The column's name is a North-American
+        inheritance; most of the world, and every market this is sold into,
+        measures property in square metres.
+        """
+        value = (self.settings or {}).get("measurement_system")
+        return "imperial" if value == "imperial" else "metric"
+
     __table_args__ = (
         # Enforced in the database, not only in Pydantic: a slug written by a
         # script or a future admin tool must obey the same rule.

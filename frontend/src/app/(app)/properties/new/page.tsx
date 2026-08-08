@@ -28,7 +28,7 @@ export default async function NewPropertyPage() {
       />
       <Card className="max-w-3xl">
         <CardContent className="pt-6">
-          <PropertyForm />
+          <PropertyForm units={session.organization.measurement_system} />
         </CardContent>
       </Card>
     </div>

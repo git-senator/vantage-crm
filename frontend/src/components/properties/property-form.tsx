@@ -18,7 +18,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { ClientApiError } from "@/lib/api/client";
 import { useTranslation } from "@/i18n/language-provider";
 import { createProperty, updateProperty } from "@/lib/api/properties-client";
-import type { Property, PropertyInput } from "@/lib/api/types";
+import type { ListingKind, Property, PropertyInput } from "@/lib/api/types";
+import {
+  areaFromSquareFeet,
+  areaToSquareFeet,
+  type MeasurementSystem,
+} from "@/lib/format";
 
 const STATUSES = [
   "active",
@@ -35,6 +40,8 @@ const TYPES = [
   "land",
   "commercial",
 ] as const;
+const LISTING_KINDS = ["sale", "rent"] as const;
+const RENT_PERIODS = ["month", "week", "day"] as const;
 
 /**
  * Create and edit form.
@@ -42,7 +49,14 @@ const TYPES = [
  * One component for both because the fields are identical — a separate edit
  * form is two places to add the next field to, and they drift.
  */
-export function PropertyForm({ property }: { property?: Property }) {
+export function PropertyForm({
+  property,
+  units = "metric",
+}: {
+  property?: Property;
+  /** The workspace's unit system, from the session on the page above. */
+  units?: MeasurementSystem;
+}) {
   const router = useRouter();
   const { t } = useTranslation();
   const isEdit = property !== undefined;
@@ -50,6 +64,11 @@ export function PropertyForm({ property }: { property?: Property }) {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
+  // Held in state because the period field only makes sense on a rental, and
+  // a sale that carries one is rejected by the API.
+  const [kind, setKind] = useState<ListingKind>(
+    property?.listing_kind ?? "sale",
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,6 +88,8 @@ export function PropertyForm({ property }: { property?: Property }) {
       const parsed = Number(raw);
       return Number.isFinite(parsed) ? parsed : null;
     };
+    const withUnits = (area: number | null): number | null =>
+      area === null ? null : areaToSquareFeet(area, units);
 
     const payload: PropertyInput = {
       title: value("title") ?? "",
@@ -76,18 +97,28 @@ export function PropertyForm({ property }: { property?: Property }) {
       status: (value("status") ?? "active") as PropertyInput["status"],
       property_type: (value("property_type") ??
         "single_family") as PropertyInput["property_type"],
+      listing_kind: kind,
+      // A sale must send no period at all; a rental sends what was chosen and
+      // the API fills in "month" if that is somehow blank.
+      rent_period:
+        kind === "rent"
+          ? ((value("rent_period") ?? "month") as PropertyInput["rent_period"])
+          : null,
       address_line1: value("address_line1") ?? "",
       address_line2: value("address_line2"),
       city: value("city") ?? "",
       state: value("state") ?? "",
-      postal_code: value("postal_code") ?? "",
+      postal_code: value("postal_code"),
       // Money and coordinates stay strings end to end: parsing them into a
       // JS number here would round a price and silently move a pin.
       price: value("price"),
       bedrooms: asNumber("bedrooms"),
       bathrooms: value("bathrooms"),
-      square_feet: asNumber("square_feet"),
-      lot_size_sqft: asNumber("lot_size_sqft"),
+      // The box is labelled in the workspace's unit; the column stores square
+      // feet, so what a person typed is converted here rather than anywhere
+      // that could forget to.
+      square_feet: withUnits(asNumber("square_feet")),
+      lot_size_sqft: withUnits(asNumber("lot_size_sqft")),
       year_built: asNumber("year_built"),
       listed_at: value("listed_at"),
       description: value("description"),
@@ -202,12 +233,13 @@ export function PropertyForm({ property }: { property?: Property }) {
             error={fieldErrors.state}
             disabled={pending}
           />
+          {/* Not required: a listing with no postcode is a normal listing, and
+              insisting on one is what puts a placeholder onto a contract. */}
           <Field
             name="postal_code"
             label={t("body.pfZip")}
-            required
-            placeholder="94131"
-            defaultValue={property?.postal_code}
+            placeholder="88061-000"
+            defaultValue={property?.postal_code ?? ""}
             error={fieldErrors.postal_code}
             disabled={pending}
           />
@@ -215,9 +247,28 @@ export function PropertyForm({ property }: { property?: Property }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        <Choice
+          name="listing_kind"
+          label={t("forms.listingKind")}
+          options={LISTING_KINDS}
+          defaultValue={kind}
+          onValueChange={(next) => setKind(next as ListingKind)}
+          labelFor={(o) => t(o === "rent" ? "body.dealRent" : "body.dealSale")}
+          disabled={pending}
+        />
+        {kind === "rent" && (
+          <Choice
+            name="rent_period"
+            label={t("forms.rentPeriod")}
+            options={RENT_PERIODS}
+            defaultValue={property?.rent_period ?? "month"}
+            labelFor={(o) => t(`body.rentPeriod_${o}`)}
+            disabled={pending}
+          />
+        )}
         <Field
           name="price"
-          label={t("body.pfPrice")}
+          label={t(kind === "rent" ? "body.pfRent" : "body.pfPrice")}
           type="number"
           placeholder="1895000"
           hint={t("body.pfPriceHint")}
@@ -256,9 +307,13 @@ export function PropertyForm({ property }: { property?: Property }) {
         />
         <Field
           name="square_feet"
-          label={t("body.pfSquareFeet")}
+          label={t(units === "imperial" ? "body.pfSquareFeet" : "body.pfAreaM2")}
           type="number"
-          defaultValue={property?.square_feet ?? ""}
+          defaultValue={
+            property?.square_feet != null
+              ? areaFromSquareFeet(property.square_feet, units)
+              : ""
+          }
           error={fieldErrors.square_feet}
           disabled={pending}
         />
@@ -343,6 +398,7 @@ function Choice({
   defaultValue,
   labelFor,
   disabled,
+  onValueChange,
 }: {
   name: string;
   label: string;
@@ -350,6 +406,8 @@ function Choice({
   defaultValue: string;
   labelFor: (option: string) => string;
   disabled?: boolean;
+  /** For a choice the rest of the form has to react to, such as sale vs rent. */
+  onValueChange?: (value: string) => void;
 }) {
   // Controlled via a hidden input: Base UI's Select does not submit a native
   // form value, and FormData is what the handler reads.
@@ -361,7 +419,11 @@ function Choice({
       <input type="hidden" name={name} value={value} />
       <Select
         value={value}
-        onValueChange={(next) => setValue(next ?? defaultValue)}
+        onValueChange={(next) => {
+          const resolved = next ?? defaultValue;
+          setValue(resolved);
+          onValueChange?.(resolved);
+        }}
         disabled={disabled}
       >
         <SelectTrigger id={name} className="w-full">

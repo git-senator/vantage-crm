@@ -50,7 +50,10 @@ export default async function EditPropertyPage({
       />
       <Card className="max-w-3xl">
         <CardContent className="pt-6">
-          <PropertyForm property={property} />
+          <PropertyForm
+            property={property}
+            units={session.organization.measurement_system}
+          />
         </CardContent>
       </Card>
     </div>

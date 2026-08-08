@@ -20,9 +20,18 @@ export function hueFor(id: string): number {
 export function PropertyThumb({
   property,
   className,
+  priceLabel,
 }: {
   property: Property;
   className?: string;
+  /**
+   * The price as the page wants it worded — translated, and carrying "/month"
+   * on a rental. Passed in rather than resolved here: this component sits
+   * inside server pages that already hold the translator, and reaching for one
+   * would make it a client component and drag a language provider into every
+   * test that renders a card.
+   */
+  priceLabel?: string;
 }) {
   const hue = hueFor(property.id);
   const cover = property.cover_url;
@@ -88,9 +97,10 @@ export function PropertyThumb({
       </div>
 
       <p className="absolute bottom-3 left-3 text-lg font-semibold text-white drop-shadow-sm">
-        {property.price
-          ? formatCurrency(Number(property.price))
-          : "Price on application"}
+        {priceLabel ??
+          (property.price
+            ? formatCurrency(Number(property.price))
+            : "Price on application")}
       </p>
     </div>
   );

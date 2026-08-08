@@ -18,7 +18,8 @@ import { ApiError } from "@/lib/api/server";
 import { RecordActivity } from "@/components/shared/record-activity";
 import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatArea } from "@/lib/format";
+import { listingPrice } from "@/lib/listing";
 
 export const metadata: Metadata = { title: "Property" };
 
@@ -30,6 +31,7 @@ export default async function PropertyDetailPage({
   const session = await requireSession();
   const { id } = await params;
   const t = await getTranslations();
+  const units = session.organization.measurement_system;
 
   let property;
   try {
@@ -112,10 +114,20 @@ export default async function PropertyDetailPage({
             <CardContent className="space-y-0">
               <Detail label={t("forms.price")}>
                 <span className="tabular font-medium">
-                  {property.price
-                    ? formatCurrency(Number(property.price))
-                    : t("body.dvOnApplication")}
+                  {listingPrice(property, t)}
                 </span>
+              </Detail>
+              <Detail label={t("forms.listingKind")}>
+                <StatusBadge
+                  status={property.listing_kind}
+                  label={t(
+                    property.listing_kind === "rent"
+                      ? "body.dealRent"
+                      : "body.dealSale",
+                  )}
+                  tone="neutral"
+                  dot={false}
+                />
               </Detail>
               <Detail label={t("forms.status")}>
                 <StatusBadge
@@ -144,9 +156,7 @@ export default async function PropertyDetailPage({
               {property.lot_size_sqft && (
                 <Detail label={t("body.dvLotSize")}>
                   <span className="tabular">
-                    {t("body.propSqft", {
-                      n: formatNumber(property.lot_size_sqft),
-                    })}
+                    {formatArea(property.lot_size_sqft, units)}
                   </span>
                 </Detail>
               )}
@@ -199,7 +209,7 @@ export default async function PropertyDetailPage({
                 {property.square_feet ? (
                   <span className="flex items-center gap-1.5">
                     <Ruler className="size-4 text-muted-foreground" />
-                    {t("body.propSqft", { n: formatNumber(property.square_feet) })}
+                    {formatArea(property.square_feet, units)}
                   </span>
                 ) : null}
               </div>
