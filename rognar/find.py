@@ -66,10 +66,18 @@ QUERIES: dict[str, list[str]] = {
         "Лос-Анджелес чат", "Miami real estate", "New York real estate",
         "US real estate investing", "real estate investors chat",
     ],
-    "br": [  # Бразилия, португальский
+    "br": [  # Бразилия, португальский — основной рынок
+        # Общие
         "imóveis", "investimento imobiliário", "comprar apartamento",
-        "investidores imóveis", "mercado imobiliário", "imóveis São Paulo",
-        "imóveis Rio de Janeiro", "russos no Brasil",
+        "investidores imóveis", "mercado imobiliário", "corretor de imóveis",
+        "apartamento à venda", "casa própria", "financiamento imobiliário",
+        # Города, где работает агентство и где живут покупатели
+        "imóveis São Paulo", "imóveis Rio de Janeiro", "imóveis Florianópolis",
+        "imóveis Balneário Camboriú", "imóveis Curitiba", "imóveis Porto Alegre",
+        "Florianópolis chat", "Balneário Camboriú", "Floripa grupo",
+        # Приезжие: им жильё нужно сразу
+        "russos no Brasil", "estrangeiros no Brasil", "morar no Brasil",
+        "expats Brazil", "vistos Brasil",
     ],
     "es": [  # Испаноязычная Латинская Америка
         "bienes raíces", "inversión inmobiliaria", "inmuebles chat",
