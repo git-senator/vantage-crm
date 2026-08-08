@@ -85,6 +85,21 @@ class Property(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         nullable=True,
     )
 
+    # The main photo. A nullable FK to an attachment rather than a flag on the
+    # attachment itself: "which photo leads" is a fact about the *listing*, and
+    # a flag would let two rows claim the lead at once with nothing to stop
+    # them. SET NULL because deleting the photo must not delete the listing —
+    # the card falls back to its generated gradient until a new cover is set.
+    #
+    # The rest of the gallery needs no column: an attachment already knows the
+    # record it hangs off (`entity_type='property'`, `entity_id`), so the
+    # remaining photos *are* that list minus the cover.
+    cover_attachment_id: Mapped[UUID | None] = mapped_column(
+        postgresql.UUID(as_uuid=True),
+        ForeignKey("attachments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     # ------------------------------------------------------------- listing
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     mls_number: Mapped[str | None] = mapped_column(String(40), nullable=True)

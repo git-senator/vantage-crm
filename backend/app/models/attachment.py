@@ -42,6 +42,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    SmallInteger,
     String,
     text,
 )
@@ -112,6 +113,17 @@ class Attachment(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         nullable=False,
         default="pending_upload",
         server_default="pending_upload",
+    )
+
+    #: Where this file sits among its siblings on the same record. Zero for
+    #: everything that has no meaningful order — documents are read one at a
+    #: time and listed newest-first, which needs no column.
+    #:
+    #: A gallery does need one. Photos written in a single transaction all share
+    #: `created_at` to the microsecond, so ordering by it alone breaks the tie on
+    #: a random UUID and shuffles the set the photographer arranged.
+    sort_order: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=0, server_default="0"
     )
 
     #: When the registration stops being claimable. The presigned PUT is

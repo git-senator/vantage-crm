@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { ArrowLeft, Bath, Bed, MapPin, Pencil, Ruler, User } from "lucide-react";
 
 import { DeletePropertyButton } from "@/components/properties/delete-property-button";
+import { PropertyGallery } from "@/components/properties/property-gallery";
 import { PropertyIntelligence } from "@/components/properties/property-intelligence";
 import { PropertyThumb } from "@/components/properties/property-thumb";
 import { PageHeader } from "@/components/shared/page-header";
@@ -12,7 +13,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { getProperty } from "@/lib/api/properties";
+import { getProperty, getPropertyPhotos } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/server";
 import { RecordActivity } from "@/components/shared/record-activity";
 import { getTranslations } from "@/i18n/server";
@@ -38,6 +39,15 @@ export default async function PropertyDetailPage({
       notFound();
     }
     throw error;
+  }
+
+  // Photography is decoration, not the record: a storage hiccup must leave the
+  // listing readable rather than turning the whole page into an error.
+  let photos: Awaited<ReturnType<typeof getPropertyPhotos>> = [];
+  try {
+    photos = await getPropertyPhotos(id);
+  } catch {
+    photos = [];
   }
 
   // Listings are shared inventory: every agent can open this page, but only
@@ -84,12 +94,16 @@ export default async function PropertyDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-6">
-          <Card className="overflow-hidden p-0">
-            <PropertyThumb
-              property={property}
-              className="relative aspect-[21/9] overflow-hidden"
-            />
-          </Card>
+          {photos.length > 0 ? (
+            <PropertyGallery photos={photos} title={property.title} />
+          ) : (
+            <Card className="overflow-hidden p-0">
+              <PropertyThumb
+                property={property}
+                className="relative aspect-[21/9] overflow-hidden"
+              />
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

@@ -31,6 +31,11 @@ dist/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+
+# Photos pulled down by scripts/import_rossa_catalog.py. Kept between runs so
+# a re-import costs no bandwidth; a hundred megabytes of someone else's CDN
+# does not belong in the history.
+.cache/
 htmlcov/
 .coverage
 .coverage.*

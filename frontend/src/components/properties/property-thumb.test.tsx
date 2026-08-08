@@ -36,6 +36,8 @@ function makeProperty(overrides: Partial<Property> = {}): Property {
     custom_fields: {},
     client_id: null,
     listing_agent: null,
+    cover_attachment_id: null,
+    cover_url: null,
     created_at: "2026-07-21T10:00:00Z",
     updated_at: "2026-07-21T10:00:00Z",
     ...overrides,
@@ -80,5 +82,31 @@ describe("PropertyThumb", () => {
   it("renders the status badge with the API's snake_case value", () => {
     render(<PropertyThumb property={makeProperty({ status: "off_market" })} />);
     expect(screen.getByText("Off market")).toBeInTheDocument();
+  });
+
+  it("shows the cover photo when the listing has one", () => {
+    const { container } = render(
+      <PropertyThumb
+        property={makeProperty({
+          cover_attachment_id: "019f8584-c0d2-7eae-885a-000000000001",
+          cover_url: "https://files.example.test/cover.webp?sig=abc",
+        })}
+      />,
+    );
+    const image = container.querySelector("img");
+    expect(image).toHaveAttribute(
+      "src",
+      "https://files.example.test/cover.webp?sig=abc",
+    );
+  });
+
+  it("falls back to the generated gradient with no cover", () => {
+    // Every listing looked like this before photography existed, so the
+    // fallback is a design, not an error state.
+    const { container } = render(<PropertyThumb property={makeProperty()} />);
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.firstElementChild?.getAttribute("style")).toContain(
+      "linear-gradient",
+    );
   });
 });

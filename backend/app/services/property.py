@@ -30,6 +30,7 @@ from app.repositories.user import UserRepository
 from app.schemas.common import Cursor
 from app.schemas.property import PropertyCreate, PropertyFilters, PropertyUpdate
 from app.services.audit import AuditService, build_diff
+from app.services.property_photo import PropertyPhotoService
 from app.services.rbac import AuthorizationContext, RbacService
 
 logger = get_logger(__name__)
@@ -316,6 +317,45 @@ class PropertyService:
                 }
             },
         )
+        return await self._reload(listing)
+
+    async def set_cover(
+        self, property_id: UUID, attachment_id: UUID, actor: User
+    ) -> Property:
+        """Promote one of the listing's photos to its cover.
+
+        Ordinary edit authorisation — `_load_for_write`, so an agent sets the
+        cover on their own listings and gets the same 403 as any other edit on a
+        colleague's. Which photos are eligible is the photo service's rule, not
+        this one's; it owns the "belongs to this listing and is renderable"
+        check that keeps a listing from pointing at a stranger's file.
+        """
+        listing = await self._load_for_write(property_id)
+
+        previous = listing.cover_attachment_id
+        await PropertyPhotoService(self.session, self.auth).set_cover(
+            listing, attachment_id
+        )
+        listing.updated_by = actor.id
+        await self.session.flush()
+
+        if previous != listing.cover_attachment_id:
+            await self.audit.record(
+                action=AuditAction.RECORD_UPDATED,
+                organization_id=self.auth.organization_id,
+                actor_id=actor.id,
+                actor_email=actor.email,
+                entity_type=ENTITY_TYPE,
+                entity_id=listing.id,
+                metadata={
+                    "changes": {
+                        "cover_attachment_id": {
+                            "old": str(previous) if previous else None,
+                            "new": str(listing.cover_attachment_id),
+                        }
+                    }
+                },
+            )
         return await self._reload(listing)
 
     # ------------------------------------------------------------ helpers

@@ -232,6 +232,13 @@ class Settings(BaseSettings):
     S3_PRESIGN_TTL_SECONDS: int = 300
     S3_DOWNLOAD_TTL_SECONDS: int = 120
 
+    #: Listing photos are rendered by the browser, not saved by a person, so
+    #: their URLs live longer than a download link: a gallery left open while
+    #: someone reads the description must not turn into broken images. Still a
+    #: bearer credential, hence minutes rather than hours — and it grants only a
+    #: photo, which the caller was already shown on the page it was minted for.
+    PHOTO_URL_TTL_SECONDS: int = 900
+
     #: Hard ceiling, enforced at finalization from the size storage reports —
     #: never from a client-declared number. 25 MB covers contracts, floor plans
     #: and photo sets; larger media is a different product decision.

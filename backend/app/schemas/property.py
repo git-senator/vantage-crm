@@ -44,6 +44,21 @@ class PropertyAgent(BaseModel):
     avatar_hue: int
 
 
+class PropertyPhoto(BaseModel):
+    """One image of a listing, with a URL the browser can render right away.
+
+    `url` is short-lived (`PHOTO_URL_TTL_SECONDS`) and minted per response, so
+    it is never stored, cached in our own database, or handed to a client that
+    was not already authorised for the listing.
+    """
+
+    id: UUID
+    filename: str
+    content_type: str
+    url: str
+    is_cover: bool
+
+
 class PropertyBase(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     mls_number: str | None = Field(default=None, max_length=40)
@@ -171,6 +186,13 @@ class PropertyRead(BaseModel):
 
     client_id: UUID | None
     listing_agent: PropertyAgent | None
+
+    #: The main photo, ready to render. Null when the listing has none — the
+    #: card then draws its generated gradient, which is what every listing
+    #: looked like before photography existed.
+    cover_attachment_id: UUID | None = None
+    cover_url: str | None = None
+
     created_at: datetime
     updated_at: datetime
 

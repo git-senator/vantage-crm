@@ -28,20 +28,26 @@ from app.schemas.property import (
     PropertyAssign,
     PropertyCreate,
     PropertyFilters,
+    PropertyPhoto,
     PropertyRead,
     PropertyUpdate,
 )
 from app.services.property import PropertyService
+from app.services.property_photo import PropertyPhotoService
 
 router = APIRouter()
 
 
-def _to_read(listing) -> PropertyRead:  # type: ignore[no-untyped-def]
+def _to_read(listing, cover_url: str | None = None) -> PropertyRead:  # type: ignore[no-untyped-def]
     """Project an ORM row onto the response contract.
 
     Explicit rather than `from_attributes` alone, because `full_address` and
     `days_on_market` are Python properties and `listing_agent` needs
     flattening.
+
+    `cover_url` is passed in rather than read off the row: it is a freshly
+    signed URL, not a stored field, and minting it needs the storage adapter
+    this function has no business holding.
     """
     return PropertyRead(
         id=listing.id,
@@ -83,6 +89,8 @@ def _to_read(listing) -> PropertyRead:  # type: ignore[no-untyped-def]
             if listing.listing_agent
             else None
         ),
+        cover_attachment_id=listing.cover_attachment_id,
+        cover_url=cover_url,
         created_at=listing.created_at,
         updated_at=listing.updated_at,
     )
@@ -144,8 +152,11 @@ async def list_properties(
         if rows and has_more
         else None
     )
+    # One extra query for the whole page, then local signing — see
+    # `PropertyPhotoService.covers_for`.
+    covers = await PropertyPhotoService(session, auth).covers_for(rows)
     return Page[PropertyRead](
-        data=[_to_read(row) for row in rows],
+        data=[_to_read(row, covers.get(row.id)) for row in rows],
         meta=PageMeta(next_cursor=next_cursor, has_more=has_more, limit=limit),
     )
 
@@ -168,7 +179,67 @@ async def get_property(
     _user: CurrentUser,
 ) -> PropertyRead:
     """One listing. 404 when outside the caller's view scope."""
-    return _to_read(await PropertyService(session, auth).get_property(property_id))
+    listing = await PropertyService(session, auth).get_property(property_id)
+    covers = await PropertyPhotoService(session, auth).covers_for([listing])
+    return _to_read(listing, covers.get(listing.id))
+
+
+@router.get("/{property_id}/photos", response_model=list[PropertyPhoto])
+async def list_property_photos(
+    property_id: UUID,
+    session: TenantSessionDep,
+    auth: Annotated[Authorization, Depends(require("properties.view"))],
+    _user: CurrentUser,
+) -> list[PropertyPhoto]:
+    """The listing's gallery, cover first.
+
+    Gated on `properties.view` and nothing else: a photo is part of the listing
+    a caller has already been shown, not a document they went looking for.
+    `get_property` runs first so an unreadable listing 404s here exactly as it
+    does everywhere else, before any URL is minted.
+    """
+    listing = await PropertyService(session, auth).get_property(property_id)
+    photos = PropertyPhotoService(session, auth)
+
+    out: list[PropertyPhoto] = []
+    for photo in await photos.list_photos(listing.id):
+        url = photos.view_url(photo)
+        if url is None:  # unrenderable — skip rather than break the gallery
+            continue
+        out.append(
+            PropertyPhoto(
+                id=photo.id,
+                filename=photo.filename,
+                content_type=photo.content_type,
+                url=url,
+                is_cover=photo.id == listing.cover_attachment_id,
+            )
+        )
+    return out
+
+
+@router.put(
+    "/{property_id}/photos/{attachment_id}/cover",
+    response_model=PropertyRead,
+    dependencies=[Depends(verify_csrf)],
+)
+async def set_property_cover(
+    property_id: UUID,
+    attachment_id: UUID,
+    session: TenantSessionDep,
+    auth: Annotated[Authorization, Depends(require("properties.manage"))],
+    user: CurrentUser,
+) -> PropertyRead:
+    """Choose which photo leads the listing.
+
+    PUT, not POST: naming the cover twice leaves the same listing in the same
+    state. Write authorisation comes from the service — a listing agent may set
+    the cover on their own listings only, the same rule as any other edit.
+    """
+    service = PropertyService(session, auth)
+    listing = await service.set_cover(property_id, attachment_id, user)
+    covers = await PropertyPhotoService(session, auth).covers_for([listing])
+    return _to_read(listing, covers.get(listing.id))
 
 
 @router.post(

@@ -326,8 +326,26 @@ export interface Property {
   /** The seller this listing belongs to. */
   client_id: string | null;
   listing_agent: OwnerSummary | null;
+
+  /** The main photo. Null on a listing with no photography. */
+  cover_attachment_id: string | null;
+  /**
+   * A ready-to-render URL for the cover, signed per response and short-lived.
+   * Never store it — re-fetch the listing instead.
+   */
+  cover_url: string | null;
+
   created_at: string;
   updated_at: string;
+}
+
+/** One image of a listing, with a URL the browser can use immediately. */
+export interface PropertyPhoto {
+  id: string;
+  filename: string;
+  content_type: string;
+  url: string;
+  is_cover: boolean;
 }
 
 export interface PropertyInput {
