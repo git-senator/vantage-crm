@@ -199,7 +199,18 @@ services:
       api:
         condition: service_started
     ports:
-      - "3000:3000" # the only publicly exposed service
+      # Loopback only, and the bind address is the whole point of the line.
+      #
+      # `"3000:3000"` publishes on 0.0.0.0, and Docker writes its iptables rules
+      # ahead of UFW — so a host firewall that allows only 22/80/443 lets it
+      # through anyway. In production that served the CRM over plain HTTP,
+      # around Caddy and around TLS, and a password typed into that page crossed
+      # the network in clear text.
+      #
+      # Nothing legitimate needs the published port: in production Caddy reaches
+      # this container over the compose network, and in development the browser
+      # is on the same machine.
+      - "127.0.0.1:3000:3000"
     restart: unless-stopped
 
 volumes:
