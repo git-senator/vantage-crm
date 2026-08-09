@@ -21,6 +21,7 @@ from app.api.v1 import (
     analytics,
     api_keys,
     attachments,
+    attention,
     audit,
     auth,
     automations,
@@ -150,6 +151,7 @@ api_router.include_router(
     whatsapp.router, prefix="/whatsapp", tags=["whatsapp"]
 )
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
+api_router.include_router(attention.router, prefix="/attention", tags=["attention"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])

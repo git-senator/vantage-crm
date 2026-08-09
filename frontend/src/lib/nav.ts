@@ -34,6 +34,14 @@ export interface NavItem {
   /** A translated pill, e.g. `common.new`. Takes precedence over `badge`. */
   badgeKey?: string;
   /**
+   * Which attention count lights a dot on this item, if any.
+   *
+   * Declared here rather than matched on `href` in the sidebar, so adding a
+   * dot to a new section is one field on the item that already exists — and so
+   * nothing silently stops working when a route is renamed.
+   */
+  attention?: "messages" | "tasks" | "requests" | "notifications";
+  /**
    * Permission required to see this item. When set, the sidebar hides the link
    * for a user who lacks it — so a role like `agent` never sees (or lands on) a
    * surface the API would 403. UX only; the route and API still enforce it.
@@ -73,8 +81,13 @@ export const navigation: NavGroup[] = [
     labelKey: "nav.groupWork",
     items: [
       { titleKey: "nav.calendar", href: "/calendar", icon: CalendarDays },
-      { titleKey: "nav.tasks", href: "/tasks", icon: FileText },
-      { titleKey: "nav.messages", href: "/messages", icon: MessageSquare },
+      { titleKey: "nav.tasks", href: "/tasks", icon: FileText, attention: "tasks" },
+      {
+        titleKey: "nav.messages",
+        href: "/messages",
+        icon: MessageSquare,
+        attention: "messages",
+      },
       { titleKey: "nav.documents", href: "/documents", icon: FileText },
     ],
   },
@@ -96,7 +109,12 @@ export const navigation: NavGroup[] = [
 ];
 
 export const secondaryNavigation: NavItem[] = [
-  { titleKey: "nav.notifications", href: "/notifications", icon: Bell },
+  {
+    titleKey: "nav.notifications",
+    href: "/notifications",
+    icon: Bell,
+    attention: "notifications",
+  },
   { titleKey: "nav.profile", href: "/profile", icon: CircleUser },
   { titleKey: "nav.settings", href: "/settings", icon: Settings },
   // Admin-only. Listed here rather than in the sidebar groups because it is an

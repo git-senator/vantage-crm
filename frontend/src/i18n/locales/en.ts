@@ -73,6 +73,7 @@ const en = {
     settings: "Settings",
     system: "System",
     requests: "Requests",
+    attentionWaiting: "{n} waiting for you",
   },
 
   // ------------------------------------------------------------------ buttons

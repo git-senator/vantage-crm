@@ -46,6 +46,19 @@ export interface Organization {
   created_at: string;
 }
 
+/**
+ * Work waiting on the signed-in person, one number per navigation item.
+ *
+ * A count the caller may not see comes back as 0 — the API refuses to tell a
+ * sidebar what its owner is not allowed to know.
+ */
+export interface AttentionCounts {
+  messages: number;
+  tasks: number;
+  requests: number;
+  notifications: number;
+}
+
 export interface IntegrationsStatus {
   calendar_connected: boolean;
   calendar_id: string | null;

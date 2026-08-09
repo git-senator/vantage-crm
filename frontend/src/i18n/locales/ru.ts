@@ -69,6 +69,7 @@ const ru: Dictionary = {
     settings: "Настройки",
     system: "Система",
     requests: "Заявки",
+    attentionWaiting: "Ждёт вас: {n}",
   },
 
   buttons: {

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ChevronsUpDown, Inbox, Plus, Settings, UserRound } from "lucide-react";
 
 import { SignOutItem } from "@/components/auth/sign-out-item";
+import { AttentionDot } from "@/components/layout/attention-dot";
 import { LanguageMenu } from "@/components/layout/language-menu";
 import { BrandLockup } from "@/components/shared/brand";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -32,6 +33,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { useTranslation } from "@/i18n/language-provider";
+import { useAttention } from "@/lib/api/attention-client";
 import { navigation, secondaryNavigation } from "@/lib/nav";
 import type { SessionUser } from "@/types";
 
@@ -53,6 +55,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const { t } = useTranslation();
+  const attention = useAttention();
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const canSee = (item: { permission?: string }) =>
     !item.permission || permissions.includes(item.permission);
@@ -85,6 +88,7 @@ export function AppSidebar({
                 {group.items.map((item) => {
                   const title = t(item.titleKey);
                   const badge = item.badgeKey ? t(item.badgeKey) : item.badge;
+                  const waiting = item.attention ? attention[item.attention] : 0;
                   return (
                     <SidebarMenuItem key={item.href}>
                       <SidebarMenuButton
@@ -97,7 +101,15 @@ export function AppSidebar({
                           </Link>
                         }
                       />
-                      {badge && <SidebarMenuBadge>{badge}</SidebarMenuBadge>}
+                      {/* A pill and a dot would fight for the same slot; the
+                          pill is the louder of the two, so it wins. */}
+                      {badge ? (
+                        <SidebarMenuBadge>{badge}</SidebarMenuBadge>
+                      ) : waiting > 0 ? (
+                        <SidebarMenuBadge>
+                          <AttentionDot count={waiting} />
+                        </SidebarMenuBadge>
+                      ) : null}
                     </SidebarMenuItem>
                   );
                 })}
@@ -122,6 +134,11 @@ export function AppSidebar({
                       </Link>
                     }
                   />
+                  {attention.requests > 0 && (
+                    <SidebarMenuBadge>
+                      <AttentionDot count={attention.requests} />
+                    </SidebarMenuBadge>
+                  )}
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
@@ -131,21 +148,29 @@ export function AppSidebar({
 
       <SidebarFooter className="gap-2">
         <SidebarMenu>
-          {secondaryNavigation.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                isActive={isActive(item.href)}
-                tooltip={t(item.titleKey)}
-                size="sm"
-                render={
-                  <Link href={item.href}>
-                    <item.icon />
-                    <span>{t(item.titleKey)}</span>
-                  </Link>
-                }
-              />
-            </SidebarMenuItem>
-          ))}
+          {secondaryNavigation.map((item) => {
+            const waiting = item.attention ? attention[item.attention] : 0;
+            return (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  isActive={isActive(item.href)}
+                  tooltip={t(item.titleKey)}
+                  size="sm"
+                  render={
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{t(item.titleKey)}</span>
+                    </Link>
+                  }
+                />
+                {waiting > 0 && (
+                  <SidebarMenuBadge>
+                    <AttentionDot count={waiting} />
+                  </SidebarMenuBadge>
+                )}
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
 
         <DropdownMenu>

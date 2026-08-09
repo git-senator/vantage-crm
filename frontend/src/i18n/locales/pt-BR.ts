@@ -69,6 +69,7 @@ const ptBR: Dictionary = {
     settings: "Configurações",
     system: "Sistema",
     requests: "Solicitações",
+    attentionWaiting: "{n} aguardando você",
   },
 
   buttons: {
