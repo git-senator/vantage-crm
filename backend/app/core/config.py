@@ -350,6 +350,14 @@ class Settings(BaseSettings):
     ACCESS_REQUEST_NOTIFY_EMAILS: list[str] = Field(default_factory=list)
     #: How long an invitation link stays valid.
     INVITE_TTL_HOURS: int = 72
+    #: How long a *decided* request stays in the queue before it is deleted.
+    #: A rejected applicant is not a customer: their name, email and message
+    #: are personal data we hold with no relationship to justify it, and a
+    #: queue that only ever grows stops being a queue. The decision itself
+    #: survives in the audit log, under the tenant's own retention policy.
+    #: Pending requests are never purged — that would hide work, not tidy it.
+    #: Zero disables the purge.
+    ACCESS_REQUEST_RETENTION_DAYS: int = 90
 
     # -------------------------------------------------------- messaging
     #: Shared secret for the inbound-mail webhook's HMAC. Unset means inbound

@@ -154,3 +154,48 @@ async def test_rejecting_marks_the_request(db, settings, admin):
 
     assert rejected.status == "rejected"
     assert rejected.reviewed_at is not None
+
+
+async def test_purge_removes_only_old_decided_requests(db, settings, admin):
+    """The queue must shrink, but never lose outstanding work.
+
+    Three rows: a stale rejection, a fresh rejection, and an ancient one nobody
+    has looked at. Only the first is the purge's business — the fresh decision
+    is still worth showing, and the old pending one is work, not clutter.
+    """
+    _account, auth = admin
+    service = AccessRequestService(db, settings)
+    long_ago = datetime.now(UTC) - timedelta(
+        days=settings.ACCESS_REQUEST_RETENTION_DAYS + 1
+    )
+
+    stale = await service.reject(
+        (await service.submit(_form("stale@example.com"))).id, auth, CONTEXT
+    )
+    stale.reviewed_at = long_ago
+    fresh = await service.reject(
+        (await service.submit(_form("fresh@example.com"))).id, auth, CONTEXT
+    )
+    forgotten = await service.submit(_form("forgotten@example.com"))
+    forgotten.created_at = long_ago
+    await db.flush()
+
+    assert await service.purge_decided() == 1
+
+    surviving = {r.email for r in await service.list_requests()}
+    assert surviving == {fresh.email, forgotten.email}
+
+
+async def test_purge_is_disabled_by_a_zero_window(db, settings, admin):
+    _account, auth = admin
+    settings.ACCESS_REQUEST_RETENTION_DAYS = 0
+    service = AccessRequestService(db, settings)
+
+    decided = await service.reject(
+        (await service.submit(_form())).id, auth, CONTEXT
+    )
+    decided.reviewed_at = datetime.now(UTC) - timedelta(days=3650)
+    await db.flush()
+
+    assert await service.purge_decided() == 0
+    assert len(await service.list_requests()) == 1

@@ -23,7 +23,7 @@ import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit_actions import AuditAction
@@ -188,6 +188,42 @@ class AccessRequestService:
             user_agent=context.user_agent,
         )
         return request
+
+    # ------------------------------------------------------------- purge
+
+    async def purge_decided(self) -> int:
+        """Delete requests decided longer ago than the retention window.
+
+        Two problems, one fix. A queue that only grows stops being a queue: the
+        rejected entry from months ago sits under today's work forever, because
+        nothing ever removed it. And a rejected applicant is a stranger — we
+        hold their name, email and message with no relationship that justifies
+        keeping them, which is exactly what data-protection law asks us not to
+        do.
+
+        Only *decided* requests go. A pending one, however old, is outstanding
+        work and deleting it would hide the work rather than tidy it. The
+        decision itself is not lost either: approve and reject each write an
+        audit entry, which lives under the tenant's own retention policy.
+        """
+        days = self.settings.ACCESS_REQUEST_RETENTION_DAYS
+        if days <= 0:
+            return 0
+
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        result = await self.session.execute(
+            delete(AccessRequest).where(
+                AccessRequest.status != "pending",
+                # reviewed_at is set on every decision; created_at is the
+                # fallback for any row predating that column being populated.
+                func.coalesce(AccessRequest.reviewed_at, AccessRequest.created_at)
+                < cutoff,
+            )
+        )
+        deleted = result.rowcount or 0
+        if deleted:
+            logger.info("access_requests_purged", extra={"deleted": deleted})
+        return deleted
 
     # ------------------------------------------------------------- accept
 

@@ -4,6 +4,9 @@ Thin orchestration over the enterprise services. A data request is the durable
 record — the fast path enqueues it, and the retention sweep re-finds any pending
 request whose enqueue was lost, so a request is at most one sweep late rather
 than stuck. Retention deletion honours legal hold inside the service.
+
+The sweep also purges decided access requests, which are tenant-less and so
+sit outside the per-tenant retention policies.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ from uuid import UUID
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.repositories.enterprise import DataRequestRepository
+from app.services.access import AccessRequestService
 from app.services.enterprise import DataRequestProcessor, RetentionService
 from app.workers.context import (
     active_organization_ids,
@@ -77,5 +81,11 @@ async def sweep_data_retention(ctx: dict[str, Any]) -> int:
                 str(organization),
                 job_id=f"datareq:{request_id}",
             )
+
+    # Access requests are tenant-less by design — a person asking to be let in
+    # belongs to no organization yet — so they cannot ride the per-tenant loop
+    # above and get their own unscoped pass.
+    async with unscoped_scope() as session:
+        deleted_total += await AccessRequestService(session, settings).purge_decided()
 
     return deleted_total
