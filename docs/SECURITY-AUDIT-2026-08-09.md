@@ -301,8 +301,30 @@ Still open, and why:
   Google Cloud console. Nobody else holds that access.
 * **The CSP nonce** and the **Next major upgrade** are ordinary development
   work, not incident response.
-* **Off-site backups.** The dumps live on the machine they protect. Closing that
-  needs somewhere to put them, which needs the owner's account.
+
+### Closed since: off-site backups (10 August)
+
+The dumps no longer live only on the machine they protect. `backup-local.sh`
+now pushes each night's dump and its checksum to a Cloudflare R2 bucket
+(`rossa-backups`, private, 30-day rotation) using an API token scoped to that
+one bucket with object read/write and nothing else.
+
+Two things were done deliberately rather than assumed. The upload **verifies
+itself** — after the copy it asks R2 what it actually stored and compares the
+byte count, because `aws s3 cp` exiting 0 is not the same as the object being
+there, and nobody looks at an off-site copy until the day it has to work. And
+the whole path was **rehearsed end to end** before being trusted: dump, upload,
+download back, checksum verified, `pg_restore` into a scratch database, 41
+properties and schema `b5d7e9f1a3c5` confirmed present, rotation exercised with
+a seeded old object, then everything deleted.
+
+`restore-from-r2.sh` is the other half — it lists what is in the vault and
+restores a chosen dump, from any machine with Docker and the keys, including
+one that is not the machine that was lost.
+
+Remaining: the API token should be restricted to the server's IP
+(`179.198.106.11`) in the Cloudflare dashboard once the nightly upload is
+running in production. Until then a leaked token is usable from anywhere.
 
 ## Order I would fix these in
 
