@@ -137,11 +137,19 @@ plan; it was never finished.
 
 | Package | Version | Advisory | Fix |
 |---|---|---|---|
-| cryptography | 49.0.0 | PYSEC-2026-3552 | 50.0.0 |
+| ~~cryptography~~ | ~~49.0.0~~ | ~~PYSEC-2026-3552~~ | **not affected — see below** |
 | postcss | ≤8.5.22 (via Next) | 4 advisories, incl. arbitrary `.map` file read | Next 16.3 |
 | sharp | <0.35.0 (via Next) | libvips CVEs (4) | Next 16.3 |
 
-`cryptography` is the one to take seriously — it is in the authentication path.
+**Correction after checking the running container:** `cryptography` was flagged
+from the local development virtualenv, which had 49.0.0 installed months ago.
+The dependency is pinned `>=44.0`, so the production image built fresh and runs
+**50.0.0 — the fixed version**. Production was never exposed to this. The local
+environment has since been upgraded to match.
+
+The lesson is worth keeping: auditing a checked-out repository tells you what a
+developer's machine has, not what production runs. The two answers differed here.
+
 The two npm packages arrive through Next.js and both fixes require a Next major
 bump, so they are a planned upgrade rather than a quick patch. postcss runs at
 build time; sharp only matters if image optimisation is used, which the photo
@@ -213,6 +221,53 @@ pending.
 **The repository is private.**
 
 ---
+
+## Remediation — applied the same day
+
+The owner authorised fixing what was found. Done, in this order, each verified
+after the change rather than assumed:
+
+**Port 3000 closed.** `docker-compose.yml` now publishes `127.0.0.1:3000:3000`.
+Verified from outside the network: the port no longer answers at all, while
+`rossacrm.tech` and `n8n.rossacrm.tech` continue to serve normally over TLS.
+Commit `84f073d`.
+
+**SSH is key-only.** `PasswordAuthentication no`, `PermitRootLogin
+prohibit-password`, `KbdInteractiveAuthentication no`, `X11Forwarding no`.
+
+The first attempt did not take, and the reason is worth recording: sshd honours
+the **first** value it reads for a keyword, and cloud-init ships a
+`50-cloud-init.conf` that re-enables password logins — so a file numbered 99
+loses. The hardening now lives in `00-hardening.conf`, ahead of it, which also
+survives cloud-init regenerating its own file. Verified both ways: a fresh key
+login succeeds, a password login is refused with `Permission denied
+(publickey)`.
+
+**fail2ban installed** with an sshd jail (5 failures in 10 minutes, one-hour
+ban). Passwords are already refused, so what this buys is the scanning noise and
+the resource cost, not the credential.
+
+**Nightly backups scheduled.** A systemd timer runs the existing
+`deploy/backup/backup-local.sh` at 03:20 UTC with `Persistent=true`, so a night
+missed while the machine was down runs at the next boot instead of being skipped.
+Retention is 14 days, in `/var/backups/vantage`.
+
+**And the restore was rehearsed**, which is the part that makes it a backup
+rather than a hope: the dump was restored into a scratch database, checked for
+6 users and schema version `b5d7e9f1a3c5`, and the scratch database dropped.
+
+**`cryptography`** needed nothing — see the correction in §7.
+
+Still open, and why:
+
+* **The Google service-account key** can only be rotated by the owner, in the
+  Google Cloud console. Nobody else holds that access.
+* **Malware scanning** needs a ClamAV container — a new service on the box, with
+  memory and update costs. A decision, not a config flip.
+* **The CSP nonce** and the **Next major upgrade** are ordinary development
+  work, not incident response.
+* **Off-site backups.** The dumps live on the machine they protect. Closing that
+  needs somewhere to put them, which needs the owner's account.
 
 ## Order I would fix these in
 
