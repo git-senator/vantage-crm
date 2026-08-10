@@ -78,10 +78,10 @@ find "$DIR" -name 'vantage-*.dump.part' -mtime +1 -delete
 # --------------------------------------------------------------- off-site
 if [ -f "$ENV_FILE" ]; then
   set -a
-  # Only the R2 keys, not the whole environment file: sourcing that wholesale
-  # would drag in every application secret and any stray shell metacharacter
-  # with it.
-  . <(grep -E '^R2_[A-Z0-9_]+=' "$ENV_FILE" || true)
+  # Only the backup keys, not the whole environment file: sourcing that
+  # wholesale would drag in every application secret and any stray shell
+  # metacharacter with it.
+  . <(grep -E '^(R2_[A-Z0-9_]+|BACKUP_AGE_RECIPIENT)=' "$ENV_FILE" || true)
   set +a
 fi
 
@@ -91,6 +91,40 @@ if [ -z "${R2_ACCOUNT_ID:-}" ] || [ -z "${R2_ACCESS_KEY_ID:-}" ] ||
   echo "         Set R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY /" >&2
   echo "         R2_BUCKET in ${ENV_FILE} to keep an off-site copy." >&2
   exit 0
+fi
+
+# ------------------------------------------------------- encrypt for off-site
+# The local copy stays as-is: it is on a root-only path on the machine that
+# already holds the live database, so encrypting it would protect nothing and
+# would slow down the restore you actually reach for.
+#
+# The off-site copy is different. It leaves the building. Cloudflare encrypts
+# objects at rest, but with *their* key — which means the bucket's contents are
+# readable by anyone holding the R2 token, and that token lives in a file on
+# this server and has been handled by humans. Encrypting to an age recipient
+# changes what a stolen token is worth: the thief gets ciphertext, because the
+# private key deliberately does not exist on this machine.
+#
+# The consequence is deliberate and must be understood before trusting it: this
+# server can WRITE backups it cannot READ. Losing the private key means losing
+# every off-site copy. It belongs in a password manager, not only on a laptop.
+UPLOAD_NAME="$NAME"
+
+if [ -n "${BACKUP_AGE_RECIPIENT:-}" ]; then
+  if ! command -v age >/dev/null 2>&1; then
+    echo "FAILED: BACKUP_AGE_RECIPIENT is set but 'age' is not installed." >&2
+    echo "        apt-get install -y age — refusing to upload in the clear" >&2
+    echo "        when the configuration says the copy should be encrypted." >&2
+    exit 1
+  fi
+  echo "encrypting for ${BACKUP_AGE_RECIPIENT}"
+  age -r "$BACKUP_AGE_RECIPIENT" -o "${ART}.age" "$ART"
+  UPLOAD_NAME="${NAME}.age"
+  ( cd "$DIR" && sha256sum "$UPLOAD_NAME" > "${UPLOAD_NAME}.sha256" )
+  SIZE=$(stat -c %s "${DIR}/${UPLOAD_NAME}")
+else
+  echo "WARNING: BACKUP_AGE_RECIPIENT is not set — the off-site copy will be" >&2
+  echo "         readable by anyone who obtains the R2 token." >&2
 fi
 
 r2() {
@@ -105,21 +139,29 @@ r2() {
     --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 }
 
-echo "uploading to r2://${R2_BUCKET}/${R2_PREFIX}/${NAME}"
-r2 s3 cp "/backups/${NAME}"        "s3://${R2_BUCKET}/${R2_PREFIX}/${NAME}"
-r2 s3 cp "/backups/${NAME}.sha256" "s3://${R2_BUCKET}/${R2_PREFIX}/${NAME}.sha256"
+echo "uploading to r2://${R2_BUCKET}/${R2_PREFIX}/${UPLOAD_NAME}"
+r2 s3 cp "/backups/${UPLOAD_NAME}"        "s3://${R2_BUCKET}/${R2_PREFIX}/${UPLOAD_NAME}"
+r2 s3 cp "/backups/${UPLOAD_NAME}.sha256" "s3://${R2_BUCKET}/${R2_PREFIX}/${UPLOAD_NAME}.sha256"
 
 # Ask R2 what it actually stored. `aws s3 cp` reporting success is not the same
 # as the object being there at the right length, and the whole point of the
 # off-site copy is that nobody looks at it until the day it has to work.
 # Matched on the exact name: `s3 ls <key>` is a prefix search, so it also
 # returns <key>.sha256 and an unfiltered read would compare against two sizes.
-REMOTE_SIZE=$(r2 s3 ls "s3://${R2_BUCKET}/${R2_PREFIX}/${NAME}" | awk -v n="$NAME" '$4 == n {print $3}')
+REMOTE_SIZE=$(r2 s3 ls "s3://${R2_BUCKET}/${R2_PREFIX}/${UPLOAD_NAME}" |
+  awk -v n="$UPLOAD_NAME" '$4 == n {print $3}')
 if [ "$REMOTE_SIZE" != "$SIZE" ]; then
   echo "FAILED: R2 holds ${REMOTE_SIZE:-nothing} bytes, expected ${SIZE}" >&2
   exit 1
 fi
-echo "offsite ok: r2://${R2_BUCKET}/${R2_PREFIX}/${NAME} (${REMOTE_SIZE} bytes, verified)"
+echo "offsite ok: r2://${R2_BUCKET}/${R2_PREFIX}/${UPLOAD_NAME} (${REMOTE_SIZE} bytes, verified)"
+
+# The ciphertext was only ever a shipping container. Now that R2 has confirmed
+# it holds the object, keeping a local copy this machine cannot decrypt would
+# be storage spent on a file of no use to anyone standing here.
+if [ "$UPLOAD_NAME" != "$NAME" ]; then
+  rm -f "${DIR}/${UPLOAD_NAME}" "${DIR}/${UPLOAD_NAME}.sha256"
+fi
 
 # ------------------------------------------------------- off-site rotation
 # Keys are vantage-YYYYmmddTHHMMSSZ.dump, so the date sorts lexically and the

@@ -78,3 +78,6 @@ rognar/*.csv
 found.csv
 scout.csv
 rognar/candidates_found.txt
+
+# Private key for backup encryption. Never in git, never on the server.
+.secrets/

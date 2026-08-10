@@ -12,9 +12,17 @@
 #     ./restore-from-r2.sh vantage-20260810T032000Z.dump vantage_restore
 #
 #   Restore over production (deliberate, and it will ask):
-#     ./restore-from-r2.sh vantage-20260810T032000Z.dump vantage
+#     ./restore-from-r2.sh vantage-20260810T032000Z.dump.age vantage
 #
 # Credentials come from the same R2_* keys in .env that the backup uses.
+#
+# Dumps ending in .age are encrypted, and this machine cannot decrypt them by
+# design — the private key is deliberately not here. Supply it at restore time:
+#
+#     AGE_IDENTITY=/path/to/rossa-backup-key.txt ./restore-from-r2.sh <name>.age
+#
+# Copy the key file in, restore, then delete it. It should live in a password
+# manager and on the owner's machine, not on the server that writes backups.
 set -euo pipefail
 
 VANTAGE_DIR="${VANTAGE_DIR:-/opt/vantage}"
@@ -90,6 +98,31 @@ if [ -f "${WORK}/${NAME}.sha256" ]; then
   ( cd "$WORK" && sha256sum -c "${NAME}.sha256" )
 fi
 
+# ---------------------------------------------------------------- decrypt
+# The checksum above is taken over the ciphertext, which is what was stored and
+# therefore what can be verified against tampering in transit. Decryption comes
+# after: age fails loudly on a corrupted or wrong-key file, so a silent bad
+# restore is not on the table.
+DUMP="${WORK}/${NAME}"
+case "$NAME" in
+  *.age)
+    if [ -z "${AGE_IDENTITY:-}" ]; then
+      echo >&2
+      echo "This backup is encrypted and the private key is not on this machine —" >&2
+      echo "which is the point: a stolen R2 token buys ciphertext, nothing more." >&2
+      echo >&2
+      echo "Restore it with the key file the owner holds:" >&2
+      echo "  AGE_IDENTITY=/path/to/rossa-backup-key.txt $0 ${NAME} ${TARGET}" >&2
+      exit 3
+    fi
+    [ -f "$AGE_IDENTITY" ] || { echo "No such key file: ${AGE_IDENTITY}" >&2; exit 3; }
+    command -v age >/dev/null 2>&1 || { echo "'age' is not installed here." >&2; exit 3; }
+    echo "Decrypting"
+    age -d -i "$AGE_IDENTITY" -o "${WORK}/${NAME%.age}" "${WORK}/${NAME}"
+    DUMP="${WORK}/${NAME%.age}"
+    ;;
+esac
+
 # shellcheck disable=SC2086
 COMPOSE="docker compose ${COMPOSE_FILES} --env-file .env"
 
@@ -98,7 +131,7 @@ $COMPOSE exec -T postgres psql -U "$PGUSER" -c "CREATE DATABASE ${TARGET};" 2>/d
   echo "  (database ${TARGET} already exists — restoring into it)"
 
 $COMPOSE exec -T postgres pg_restore -U "$PGUSER" --dbname="$TARGET" \
-  --no-owner --no-privileges --clean --if-exists < "${WORK}/${NAME}"
+  --no-owner --no-privileges --clean --if-exists < "$DUMP"
 
 echo
 echo "Restored. What is in there now:"
