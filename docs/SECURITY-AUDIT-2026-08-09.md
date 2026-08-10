@@ -18,10 +18,25 @@ $ curl -o /dev/null -w '%{http_code}' http://179.198.106.11:3000/
 307
 ```
 
-**Why it happened.** `docker-compose.yml` publishes the web container as
-`0.0.0.0:3000`, and Docker writes its own iptables rules *ahead* of UFW. The
-firewall says only 22, 80 and 443 are open, and the firewall is telling the
-truth about itself — Docker simply is not asking it.
+**Why it happened — and this is the uncomfortable part.** The deployment was
+*designed* correctly: `deploy/compose/docker-compose.prod.yml` resets the web
+container's port list to empty precisely so nothing is published, and Caddy
+reaches it over the compose network. Production is meant to run with both files.
+
+Earlier the same evening I deployed with `docker compose up -d api web worker`
+from `/opt/vantage` — the base file only. That silently dropped the override,
+web came up under the development rule, and the port opened. Container labels
+confirm it: Caddy still carries both config files from its last proper deploy;
+the web container I recreated carries only the base one.
+
+So the hole was hours old and self-inflicted, not a long-standing oversight. The
+audit found it because the audit checked the running system rather than reading
+the intended configuration — which is the entire argument for doing it that way.
+
+Docker's role is still worth knowing: it writes its iptables rules *ahead* of
+UFW, so a host firewall allowing only 22/80/443 does not stop a published
+container port. The firewall was telling the truth about itself; Docker simply
+never asked it.
 
 **What it costs.** A password typed into that page crosses the network in
 clear text. Anyone on the path — a café router, an ISP, a compromised hop —
@@ -227,10 +242,25 @@ pending.
 The owner authorised fixing what was found. Done, in this order, each verified
 after the change rather than assumed:
 
-**Port 3000 closed.** `docker-compose.yml` now publishes `127.0.0.1:3000:3000`.
-Verified from outside the network: the port no longer answers at all, while
-`rossacrm.tech` and `n8n.rossacrm.tech` continue to serve normally over TLS.
-Commit `84f073d`.
+**Port 3000 closed, twice over.** The base `docker-compose.yml` now publishes
+`127.0.0.1:3000:3000` instead of `0.0.0.0` (commit `84f073d`), and production was
+redeployed with the override it should always have had, so the web container
+publishes nothing at all. Either fix alone would have been enough; both is
+deliberate, because the first protects a deploy that forgets the second.
+
+Verified from outside the network: the port does not answer, while
+`rossacrm.tech` and `n8n.rossacrm.tech` serve normally over TLS.
+
+**The deploy command is the real fix.** Production must always be brought up
+with both files:
+
+```bash
+cd /opt/vantage && docker compose \
+  -f docker-compose.yml -f deploy/compose/docker-compose.prod.yml \
+  --env-file .env up -d
+```
+
+Anything shorter drops Caddy and the port reset.
 
 **SSH is key-only.** `PasswordAuthentication no`, `PermitRootLogin
 prohibit-password`, `KbdInteractiveAuthentication no`, `X11Forwarding no`.
@@ -256,14 +286,19 @@ Retention is 14 days, in `/var/backups/vantage`.
 rather than a hope: the dump was restored into a scratch database, checked for
 6 users and schema version `b5d7e9f1a3c5`, and the scratch database dropped.
 
+**Malware scanning is on.** A ClamAV service now runs in the production
+overlay, `MALWARE_SCAN_ENABLED=true` with `MALWARE_SCANNER=clamav`, and the
+engine was proved to work rather than assumed: the EICAR test string comes back
+`infected / Eicar-Test-Signature`, an ordinary file comes back `clean`. The
+signature database persists in its own volume so a redeploy does not leave
+uploads unscannable while it re-downloads.
+
 **`cryptography`** needed nothing — see the correction in §7.
 
 Still open, and why:
 
 * **The Google service-account key** can only be rotated by the owner, in the
   Google Cloud console. Nobody else holds that access.
-* **Malware scanning** needs a ClamAV container — a new service on the box, with
-  memory and update costs. A decision, not a config flip.
 * **The CSP nonce** and the **Next major upgrade** are ordinary development
   work, not incident response.
 * **Off-site backups.** The dumps live on the machine they protect. Closing that
