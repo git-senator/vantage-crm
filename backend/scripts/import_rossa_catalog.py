@@ -424,6 +424,11 @@ async def import_listing(
             country="BR",
         )
         row.title = listing.title
+        # The catalogue is the Russian page — /rus is the only version that
+        # carries the listing data at all. Recording that is what stops the
+        # translator from "translating" Russian into Russian and leaving the
+        # Portuguese a Brazilian client actually reads permanently missing.
+        row.source_locale = "ru"
         row.property_type = listing.property_type
         row.listing_kind = listing.listing_kind
         row.rent_period = listing.rent_period
