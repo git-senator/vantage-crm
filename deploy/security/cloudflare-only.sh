@@ -29,7 +29,9 @@ CACHE_DIR="/etc/vantage"
 V4_CACHE="${CACHE_DIR}/cloudflare-ips-v4"
 V6_CACHE="${CACHE_DIR}/cloudflare-ips-v6"
 
-log() { printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*"; }
+# To stderr, always: fetch_ranges returns the list on stdout, and a log line
+# landing in that stream becomes a "range" that iptables rejects.
+log() { printf '%s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$*" >&2; }
 die() { log "ABORT: $*" >&2; exit 1; }
 
 # Fetch a range list, but only trust it if it still looks like one.
@@ -60,6 +62,18 @@ fetch_ranges() {
 
 apply() {
   local ipt="$1" ranges="$2" localnets="$3"
+
+  # Check every token before the first rule is written. Applying rules one at
+  # a time means a bad token halfway down leaves the chain flushed and half
+  # built — open, and looking configured. Validate first, then commit.
+  local tok
+  for tok in $ranges $localnets; do
+    case "$tok" in
+      *[!0-9a-fA-F:./]*|*/) die "not an address range: '$tok'" ;;
+      */*) ;;
+      *) die "not an address range: '$tok'" ;;
+    esac
+  done
 
   # Docker creates DOCKER-USER for the address families it manages. Where it
   # has not (an IPv6 stack Docker was not asked to handle), create the chain
