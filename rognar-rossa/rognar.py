@@ -263,7 +263,12 @@ async def refresh_watched(client: TelegramClient, *, first: bool = False) -> Non
             if isinstance(entity, Channel) and entity.broadcast:
                 continue                       # канал
             title = getattr(entity, "title", "")
+            # По хэндлу И по названию: у рабочих групп агентства хэндла нет
+            # вовсе — они приватные, — а слушать их незачем. Без сверки по
+            # названию исключить их было бы попросту нечем.
             if (getattr(entity, "username", "") or "").lower() in IGNORED:
+                continue
+            if title.strip().lower() in IGNORED:
                 continue
             fresh.setdefault(utils.get_peer_id(entity), title)
 
