@@ -34,6 +34,7 @@ from app.schemas.common import Cursor
 from app.schemas.property import PropertyCreate, PropertyFilters, PropertyUpdate
 from app.services.client import ClientService
 from app.services.property import PropertyService
+from app.services.property_translation import PropertyTranslationService
 from app.services.rbac import AuthorizationContext
 from tests.conftest import auth_for, make_user
 
@@ -975,3 +976,128 @@ class TestOptionalPostcode:
         # And the composed address simply ends after the state, rather than
         # trailing whatever stood in for the missing value.
         assert listing.full_address.endswith("CA")
+
+
+class TestTranslations:
+    """Multilingual listing content.
+
+    The rules that matter are about *not* losing work: a person's correction
+    survives regeneration, and a listing is never served with an empty
+    description because a translation has not been produced yet.
+    """
+
+    async def test_a_new_listing_records_the_language_it_was_written_in(
+        self, db: AsyncSession, admin
+    ) -> None:  # type: ignore[no-untyped-def]
+        user, auth = admin
+        listing = await PropertyService(db, auth).create_property(_payload(), user)
+        assert listing.source_locale == "en"
+
+    async def test_editing_a_translation_pins_it_against_the_machine(
+        self, db: AsyncSession, admin
+    ) -> None:  # type: ignore[no-untyped-def]
+        """The point of the whole design: once a person has written it, a
+        background job must not quietly replace it."""
+        user, auth = admin
+        service = PropertyService(db, auth)
+        listing = await service.create_property(_payload(), user)
+
+        row = await service.edit_translation(
+            listing.id,
+            "ru",
+            title="Отреставрированный особняк",
+            description="С садом.",
+            features=[],
+            actor=user,
+        )
+        assert row.is_machine is False
+        assert row.edited_by_id == user.id
+        assert row.edited_at is not None
+
+        # `pending_locales` is what the job asks before spending a token.
+        translations = PropertyTranslationService(db)
+        pending = await translations.pending_locales(listing)
+        assert "ru" not in pending
+        assert "pt-BR" in pending
+
+    async def test_a_source_edit_flags_human_text_instead_of_replacing_it(
+        self, db: AsyncSession, admin
+    ) -> None:  # type: ignore[no-untyped-def]
+        user, auth = admin
+        service = PropertyService(db, auth)
+        listing = await service.create_property(_payload(), user)
+        await service.edit_translation(
+            listing.id,
+            "ru",
+            title="Отреставрированный особняк",
+            description="С садом.",
+            features=[],
+            actor=user,
+        )
+
+        await service.update_property(
+            listing.id, PropertyUpdate(description="Now with a new roof."), user
+        )
+        listing = await service.get_property(listing.id)
+
+        translations = PropertyTranslationService(db)
+        flagged = await translations.mark_stale(listing)
+        assert flagged == 1
+
+        stored = await translations.for_property(listing.id)
+        # The text is still the agent's, and it is now marked for review.
+        assert stored["ru"].title == "Отреставрированный особняк"
+        assert stored["ru"].is_stale is True
+        # And it is still not something the machine may overwrite.
+        assert "ru" not in await translations.pending_locales(listing)
+
+    async def test_a_listing_cannot_translate_itself(
+        self, db: AsyncSession, admin
+    ) -> None:  # type: ignore[no-untyped-def]
+        """Writing the source language here would create a second, divergent
+        copy of the listing's own text with no rule for which wins."""
+        user, auth = admin
+        service = PropertyService(db, auth)
+        listing = await service.create_property(_payload(), user)
+
+        with pytest.raises(ConflictError, match="written in en"):
+            await service.edit_translation(
+                listing.id,
+                "en",
+                title="Anything",
+                description=None,
+                features=[],
+                actor=user,
+            )
+
+    async def test_unknown_locales_are_refused(
+        self, db: AsyncSession, admin
+    ) -> None:  # type: ignore[no-untyped-def]
+        user, auth = admin
+        service = PropertyService(db, auth)
+        listing = await service.create_property(_payload(), user)
+
+        with pytest.raises(ConflictError, match="Unknown locale"):
+            await service.edit_translation(
+                listing.id, "fr", title="x", description=None, features=[], actor=user
+            )
+
+    async def test_agents_cannot_translate_another_agents_listing(
+        self, db: AsyncSession, admin, agent
+    ) -> None:  # type: ignore[no-untyped-def]
+        """Translations are not a side door around the listing's write rule."""
+        owner_user, owner_auth = admin
+        other_user, other_auth = agent
+        listing = await PropertyService(db, owner_auth).create_property(
+            _payload(), owner_user
+        )
+
+        with pytest.raises(PermissionDeniedError):
+            await PropertyService(db, other_auth).edit_translation(
+                listing.id,
+                "ru",
+                title="x",
+                description=None,
+                features=[],
+                actor=other_user,
+            )

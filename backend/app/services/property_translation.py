@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -141,12 +142,24 @@ class PropertyTranslationService:
         self,
         session: AsyncSession,
         *,
-        ai: AIService,
+        ai: AIService | None = None,
         settings: Settings | None = None,
     ) -> None:
         self.session = session
-        self.ai = ai
+        # Optional because reading translations — which the properties list
+        # does on every request — has no business constructing an AI client or
+        # depending on one being configured.
+        self._ai = ai
         self.settings = settings or get_settings()
+
+    @property
+    def ai(self) -> AIService:
+        if self._ai is None:
+            raise RuntimeError(
+                "PropertyTranslationService was built without an AIService; "
+                "only the read paths are available."
+            )
+        return self._ai
 
     # ------------------------------------------------------------ deciding
 
@@ -286,9 +299,68 @@ class PropertyTranslationService:
 
     # -------------------------------------------------------------- reading
 
+    async def save_edit(
+        self,
+        listing: Property,
+        locale: str,
+        *,
+        title: str,
+        description: str | None,
+        features: list[str],
+        editor_id: UUID,
+    ) -> PropertyTranslation:
+        """Record a person's correction to one language.
+
+        The row is pinned against regeneration from here on: `is_machine`
+        goes false, and the fingerprint is set to the source as it stands, so
+        the edit is not immediately considered stale against the very text it
+        was made from.
+        """
+        now = datetime.now(UTC)
+        rows = await self._rows_for(listing.id)
+        row = next((item for item in rows if item.locale == locale), None)
+
+        if row is None:
+            row = PropertyTranslation(
+                organization_id=listing.organization_id,
+                property_id=listing.id,
+                locale=locale,
+            )
+            self.session.add(row)
+
+        row.title = title
+        row.description = description
+        row.features = features
+        row.is_machine = False
+        row.is_stale = False
+        row.source_hash = source_fingerprint(listing)
+        row.edited_by_id = editor_id
+        row.edited_at = now
+        await self.session.flush()
+        return row
+
     async def for_property(self, property_id: UUID) -> dict[str, PropertyTranslation]:
         """Every stored translation for one listing, keyed by locale."""
         return {row.locale: row for row in await self._rows_for(property_id)}
+
+    async def for_listings(
+        self, property_ids: Sequence[UUID], locale: str
+    ) -> dict[UUID, PropertyTranslation]:
+        """One locale's translations for a page of listings, in one query.
+
+        A page of twenty listings must not become twenty-one round trips: the
+        properties list is the hottest read in the product and this sits
+        directly in it.
+        """
+        if not property_ids:
+            return {}
+        result = await self.session.execute(
+            select(PropertyTranslation).where(
+                PropertyTranslation.property_id.in_(property_ids),
+                PropertyTranslation.locale == locale,
+            )
+        )
+        return {row.property_id: row for row in result.scalars().all()}
 
     async def _rows_for(self, property_id: UUID) -> list[PropertyTranslation]:
         result = await self.session.execute(

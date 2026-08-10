@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 
 from app.api.v1.dependencies import (
     Authorization,
@@ -23,6 +23,11 @@ from app.api.v1.dependencies import (
     require,
     verify_csrf,
 )
+from app.models.property_translation import (
+    DEFAULT_LOCALE,
+    LOCALES,
+    PropertyTranslation,
+)
 from app.schemas.common import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, Cursor, Page, PageMeta
 from app.schemas.property import (
     PropertyAssign,
@@ -30,15 +35,49 @@ from app.schemas.property import (
     PropertyFilters,
     PropertyPhoto,
     PropertyRead,
+    PropertyTranslationRead,
+    PropertyTranslationUpdate,
     PropertyUpdate,
 )
 from app.services.property import PropertyService
 from app.services.property_photo import PropertyPhotoService
+from app.services.property_translation import PropertyTranslationService
 
 router = APIRouter()
 
 
-def _to_read(listing, cover_url: str | None = None) -> PropertyRead:  # type: ignore[no-untyped-def]
+def requested_locale(
+    accept_language: Annotated[str | None, Header(alias="Accept-Language")] = None,
+) -> str:
+    """The language to answer in, from the standard header.
+
+    Deliberately not a query parameter: every client already sends this, it
+    caches correctly with `Vary`, and it keeps the API ignorant of the web
+    app's cookie names. The parse is the simple one — the first tag that is a
+    locale we ship — because there are three of them and the elaborate
+    q-value negotiation would be more code than the feature.
+    """
+    if not accept_language:
+        return DEFAULT_LOCALE
+    for part in accept_language.split(","):
+        tag = part.split(";")[0].strip()
+        if tag in LOCALES:
+            return tag
+        # `pt-br` and `PT-BR` are the same language as `pt-BR`.
+        for known in LOCALES:
+            if tag.lower() == known.lower():
+                return known
+    return DEFAULT_LOCALE
+
+
+LocaleDep = Annotated[str, Depends(requested_locale)]
+
+
+def _to_read(  # type: ignore[no-untyped-def]
+    listing,
+    cover_url: str | None = None,
+    translation: PropertyTranslation | None = None,
+) -> PropertyRead:
     """Project an ORM row onto the response contract.
 
     Explicit rather than `from_attributes` alone, because `full_address` and
@@ -48,10 +87,17 @@ def _to_read(listing, cover_url: str | None = None) -> PropertyRead:  # type: ig
     `cover_url` is passed in rather than read off the row: it is a freshly
     signed URL, not a stored field, and minting it needs the storage adapter
     this function has no business holding.
+
+    `translation` swaps the three translated fields in place, so every client
+    keeps reading `title` and `description` and simply receives them in the
+    language it asked for. When there is none the source text is returned
+    rather than nothing: a Portuguese page showing a Russian description is
+    imperfect, and a Portuguese page showing an empty one is broken.
     """
+    text = translation
     return PropertyRead(
         id=listing.id,
-        title=listing.title,
+        title=text.title if text else listing.title,
         mls_number=listing.mls_number,
         status=listing.status,
         property_type=listing.property_type,
@@ -77,9 +123,13 @@ def _to_read(listing, cover_url: str | None = None) -> PropertyRead:  # type: ig
         days_on_market=listing.days_on_market,
         view_count=listing.view_count,
         save_count=listing.save_count,
-        description=listing.description,
-        features=list(listing.features or []),
+        description=text.description if text else listing.description,
+        features=list((text.features if text else listing.features) or []),
         custom_fields=listing.custom_fields or {},
+        source_locale=listing.source_locale,
+        content_locale=text.locale if text else listing.source_locale,
+        content_is_machine=bool(text and text.is_machine),
+        content_is_stale=bool(text and text.is_stale),
         client_id=listing.client_id,
         listing_agent=(
             {
@@ -116,6 +166,7 @@ async def list_properties(
     feature: Annotated[str | None, Query(max_length=60)] = None,
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = DEFAULT_PAGE_SIZE,
     cursor: Annotated[str | None, Query(max_length=500)] = None,
+    locale: LocaleDep = DEFAULT_LOCALE,
 ) -> Page[PropertyRead]:
     """Cursor-paginated listings, newest first, scoped to the caller.
 
@@ -159,10 +210,30 @@ async def list_properties(
     # One extra query for the whole page, then local signing — see
     # `PropertyPhotoService.covers_for`.
     covers = await PropertyPhotoService(session, auth).covers_for(rows)
+    # One query for the page's translations, same shape as the covers above.
+    texts = await _translations_for(session, rows, locale)
     return Page[PropertyRead](
-        data=[_to_read(row, covers.get(row.id)) for row in rows],
+        data=[
+            _to_read(row, covers.get(row.id), texts.get(row.id)) for row in rows
+        ],
         meta=PageMeta(next_cursor=next_cursor, has_more=has_more, limit=limit),
     )
+
+
+async def _translations_for(  # type: ignore[no-untyped-def]
+    session, rows, locale: str
+) -> dict[UUID, PropertyTranslation]:
+    """The requested locale's text for a set of listings, or nothing.
+
+    Listings already written in the requested language are skipped rather than
+    looked up: there is no translation row for a listing's own locale, and
+    asking for one would be a guaranteed miss on every Russian listing viewed
+    in Russian.
+    """
+    wanted = [row.id for row in rows if row.source_locale != locale]
+    if not wanted:
+        return {}
+    return await PropertyTranslationService(session).for_listings(wanted, locale)
 
 
 @router.get("/stats/statuses", response_model=dict[str, int])
@@ -181,11 +252,13 @@ async def get_property(
     session: TenantSessionDep,
     auth: Annotated[Authorization, Depends(require("properties.view"))],
     _user: CurrentUser,
+    locale: LocaleDep = DEFAULT_LOCALE,
 ) -> PropertyRead:
     """One listing. 404 when outside the caller's view scope."""
     listing = await PropertyService(session, auth).get_property(property_id)
     covers = await PropertyPhotoService(session, auth).covers_for([listing])
-    return _to_read(listing, covers.get(listing.id))
+    texts = await _translations_for(session, [listing], locale)
+    return _to_read(listing, covers.get(listing.id), texts.get(listing.id))
 
 
 @router.get("/{property_id}/photos", response_model=list[PropertyPhoto])
@@ -220,6 +293,64 @@ async def list_property_photos(
             )
         )
     return out
+
+
+@router.get(
+    "/{property_id}/translations", response_model=list[PropertyTranslationRead]
+)
+async def list_property_translations(
+    property_id: UUID,
+    session: TenantSessionDep,
+    auth: Annotated[Authorization, Depends(require("properties.view"))],
+    _user: CurrentUser,
+) -> list[PropertyTranslationRead]:
+    """Every language this listing exists in, and how each was produced.
+
+    Gated on view rather than manage: knowing what a client would be shown in
+    Portuguese is part of reading the listing.
+    """
+    listing = await PropertyService(session, auth).get_property(property_id)
+    stored = await PropertyTranslationService(session).for_property(listing.id)
+    return [
+        PropertyTranslationRead.model_validate(stored[locale])
+        for locale in LOCALES
+        if locale in stored
+    ]
+
+
+@router.put(
+    "/{property_id}/translations/{locale}",
+    response_model=PropertyTranslationRead,
+    dependencies=[Depends(verify_csrf)],
+)
+async def edit_property_translation(
+    property_id: UUID,
+    locale: str,
+    payload: PropertyTranslationUpdate,
+    session: TenantSessionDep,
+    auth: Annotated[Authorization, Depends(require("properties.manage"))],
+    user: CurrentUser,
+) -> PropertyTranslationRead:
+    """Correct one language by hand.
+
+    PUT rather than PATCH: the body is the whole translation, and the write is
+    idempotent. From here the text is the agent's — regeneration will not
+    overwrite it, and a later change to the source flags it for review instead
+    of discarding the correction.
+
+    Editing a listing's own language is refused: that text lives on the
+    listing, and writing it here would create a second, divergent copy of the
+    source with no rule for which one wins.
+    """
+    row = await PropertyService(session, auth).edit_translation(
+        property_id,
+        locale,
+        title=payload.title,
+        description=payload.description,
+        features=payload.features,
+        actor=user,
+    )
+    return PropertyTranslationRead.model_validate(row)
 
 
 @router.put(

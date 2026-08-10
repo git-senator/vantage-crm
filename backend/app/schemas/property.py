@@ -210,6 +210,18 @@ class PropertyRead(BaseModel):
     features: list[str]
     custom_fields: dict[str, Any]
 
+    #: The language the listing was written in.
+    source_locale: str = "en"
+    #: The language `title`, `description` and `features` above are actually in.
+    #: Usually the requested one; falls back to `source_locale` when no
+    #: translation exists yet, because an empty description is worse than one
+    #: in the wrong language.
+    content_locale: str = "en"
+    #: The text above came from a model and no one has checked it.
+    content_is_machine: bool = False
+    #: A person wrote this translation and the source has changed since.
+    content_is_stale: bool = False
+
     client_id: UUID | None
     listing_agent: PropertyAgent | None
 
@@ -221,6 +233,41 @@ class PropertyRead(BaseModel):
 
     created_at: datetime
     updated_at: datetime
+
+
+class PropertyTranslationRead(BaseModel):
+    """One listing's text in one language, with where it came from.
+
+    The provenance is not decoration: an agent about to send this to a client
+    needs to know whether a person has ever read it.
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    locale: str
+    title: str
+    description: str | None
+    features: list[str]
+    #: No one has checked this text.
+    is_machine: bool
+    #: A person wrote it, and the listing has changed since.
+    is_stale: bool
+    translated_at: datetime | None
+    edited_at: datetime | None
+
+
+class PropertyTranslationUpdate(BaseModel):
+    """An agent's correction to one language.
+
+    Every field is required rather than patchable: a translation is one piece
+    of prose, and accepting a title without its description invites a listing
+    that is half corrected and half machine output with nothing to say which
+    is which.
+    """
+
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=20_000)
+    features: list[str] = Field(default_factory=list, max_length=40)
 
 
 class PropertyFilters(BaseModel):

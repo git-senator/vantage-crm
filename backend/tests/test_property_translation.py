@@ -160,3 +160,42 @@ class TestParseTranslation:
             expected_features=0,
         )
         assert result.description is None
+
+
+class TestRequestedLocale:
+    """Reading the language off the standard header.
+
+    Deliberately forgiving: a browser that sends `pt-br;q=0.9` or a long
+    Accept-Language chain must still land on Portuguese, and anything
+    unrecognised must land on a language we actually ship rather than on an
+    empty page.
+    """
+
+    def test_exact_match(self) -> None:
+        from app.api.v1.properties import requested_locale
+
+        assert requested_locale("pt-BR") == "pt-BR"
+        assert requested_locale("ru") == "ru"
+
+    def test_case_is_not_significant(self) -> None:
+        from app.api.v1.properties import requested_locale
+
+        assert requested_locale("pt-br") == "pt-BR"
+        assert requested_locale("PT-BR") == "pt-BR"
+
+    def test_takes_the_first_language_it_ships(self) -> None:
+        from app.api.v1.properties import requested_locale
+
+        assert requested_locale("fr-FR,fr;q=0.9,ru;q=0.8") == "ru"
+
+    def test_quality_values_are_ignored_not_parsed(self) -> None:
+        from app.api.v1.properties import requested_locale
+
+        assert requested_locale("ru;q=0.2") == "ru"
+
+    def test_unknown_and_missing_fall_back_to_the_default(self) -> None:
+        from app.api.v1.properties import requested_locale
+
+        assert requested_locale("fr,de") == "en"
+        assert requested_locale(None) == "en"
+        assert requested_locale("") == "en"

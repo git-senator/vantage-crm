@@ -23,6 +23,7 @@ from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedEr
 from app.core.logging import get_logger
 from app.core.permissions import Scope
 from app.models.property import Property
+from app.models.property_translation import LOCALES, PropertyTranslation
 from app.models.user import User
 from app.repositories.client import ClientRepository
 from app.repositories.property import PropertyRepository
@@ -31,6 +32,7 @@ from app.schemas.common import Cursor
 from app.schemas.property import PropertyCreate, PropertyFilters, PropertyUpdate
 from app.services.audit import AuditService, build_diff
 from app.services.property_photo import PropertyPhotoService
+from app.services.property_translation import PropertyTranslationService
 from app.services.rbac import AuthorizationContext, RbacService
 from app.workers.queue import JobName, enqueue
 
@@ -291,6 +293,42 @@ class PropertyService:
             await self._enqueue_translation(listing)
 
         return await self._reload(listing)
+
+    async def edit_translation(
+        self,
+        property_id: UUID,
+        locale: str,
+        *,
+        title: str,
+        description: str | None,
+        features: list[str],
+        actor: User,
+    ) -> PropertyTranslation:
+        """Record an agent's correction to one of a listing's languages.
+
+        Lives here rather than in the router because the write rule is the
+        listing's own: whoever may edit this listing may edit how it reads in
+        Portuguese. `_load_for_write` is that rule, and routing the call
+        through it means translations cannot become a side door around it.
+        """
+        if locale not in LOCALES:
+            raise ConflictError(f"Unknown locale '{locale}'.")
+
+        listing = await self._load_for_write(property_id)
+        if locale == listing.source_locale:
+            raise ConflictError(
+                f"This listing is written in {locale}. Edit the listing itself, "
+                "not its translation."
+            )
+
+        return await PropertyTranslationService(self.session).save_edit(
+            listing,
+            locale,
+            title=title,
+            description=description,
+            features=features,
+            editor_id=actor.id,
+        )
 
     async def _enqueue_translation(self, listing: Property) -> None:
         """Ask for this listing's other languages. Best-effort, by design.
