@@ -168,6 +168,17 @@ class Property(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     features: Mapped[list[str]] = mapped_column(
         postgresql.ARRAY(String(60)), nullable=False, default=list, server_default="{}"
     )
+
+    #: The language `title`, `description` and `features` above are written in.
+    #: Everything else is a translation, kept in `property_translations`.
+    #:
+    #: Recorded rather than detected: an agent writing "NATUS — Ponta das Canas"
+    #: has given a language detector almost nothing to work with, and guessing
+    #: wrong means translating a listing into the language it is already in.
+    #: The interface the author was using is the honest answer.
+    source_locale: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="en", server_default="en"
+    )
     custom_fields: Mapped[dict[str, Any]] = mapped_column(
         postgresql.JSONB, nullable=False, default=dict, server_default="{}"
     )
@@ -219,6 +230,10 @@ class Property(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
         ),
         CheckConstraint(
             "listing_kind IN ('sale', 'rent')", name="ck_properties_listing_kind"
+        ),
+        CheckConstraint(
+            "source_locale IN ('en', 'pt-BR', 'ru')",
+            name="ck_properties_source_locale",
         ),
         # A rental states its period and a sale has none. Written as an
         # equivalence rather than two separate rules so neither half can be

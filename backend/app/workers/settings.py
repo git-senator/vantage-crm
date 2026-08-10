@@ -73,6 +73,10 @@ from app.workers.jobs.reports import (
     sweep_expired_exports,
     sweep_scheduled_reports,
 )
+from app.workers.jobs.translations import (
+    sweep_property_translations,
+    translate_property,
+)
 from app.workers.jobs.webhooks import (
     deliver_webhook,
     dispatch_webhook_event,
@@ -133,6 +137,8 @@ class WorkerSettings:
         rescore_organization_deals,
         rescore_properties,
         rescore_organization_properties,
+        translate_property,
+        sweep_property_translations,
         recompute_growth,
         recompute_organization_growth,
         dispatch_webhook_event,
@@ -182,6 +188,19 @@ class WorkerSettings:
             cast(WorkerCoroutine, sweep_workflow_events),
             minute=set(range(60)),
             second=45,
+            run_at_startup=False,
+            max_tries=2,
+        ),
+        # Every ten minutes, off the quarter hours. This is the net under a
+        # lost enqueue, not the fast path — a listing saved now is translated
+        # in seconds — so the cadence only bounds how long a *failure* stays
+        # invisible. Ten minutes is short enough that a batch import finishes
+        # while someone is still watching it, and long enough that a model
+        # outage is not retried into a rate limit.
+        cron(
+            cast(WorkerCoroutine, sweep_property_translations),
+            minute={3, 13, 23, 33, 43, 53},
+            second=30,
             run_at_startup=False,
             max_tries=2,
         ),

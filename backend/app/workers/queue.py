@@ -69,6 +69,8 @@ class JobName:
     RESCORE_ORGANIZATION_DEALS: Final = "rescore_organization_deals"
     RESCORE_PROPERTIES: Final = "rescore_properties"
     RESCORE_ORGANIZATION_PROPERTIES: Final = "rescore_organization_properties"
+    TRANSLATE_PROPERTY: Final = "translate_property"
+    SWEEP_PROPERTY_TRANSLATIONS: Final = "sweep_property_translations"
     RECOMPUTE_GROWTH: Final = "recompute_growth"
     RECOMPUTE_ORGANIZATION_GROWTH: Final = "recompute_organization_growth"
 

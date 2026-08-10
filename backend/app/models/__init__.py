@@ -84,6 +84,7 @@ from app.models.plugin import (
 )
 from app.models.property import Property
 from app.models.property_score import PropertyScore
+from app.models.property_translation import PropertyTranslation
 from app.models.rbac import (
     Permission,
     Role,
@@ -181,6 +182,7 @@ __all__ = [
     "PostIncidentReview",
     "Property",
     "PropertyScore",
+    "PropertyTranslation",
     "QuestionnaireItem",
     "RefreshToken",
     "ReportDefinition",

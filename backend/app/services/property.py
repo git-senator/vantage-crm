@@ -11,7 +11,7 @@ inventory rather than a personal book of business. See `_load_for_write` and
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -32,10 +32,24 @@ from app.schemas.property import PropertyCreate, PropertyFilters, PropertyUpdate
 from app.services.audit import AuditService, build_diff
 from app.services.property_photo import PropertyPhotoService
 from app.services.rbac import AuthorizationContext, RbacService
+from app.workers.queue import JobName, enqueue
 
 logger = get_logger(__name__)
 
 ENTITY_TYPE = "property"
+
+#: The fields that exist in every language. Changing one invalidates the
+#: listing's translations; changing a price or a photo does not, and must not
+#: spend tokens re-translating text that did not move.
+TRANSLATED_FIELDS = frozenset({"title", "description", "features"})
+
+#: How long the translation job waits before running. The service enqueues
+#: before the request commits — the pattern this codebase already uses for
+#: virus scanning — so a job that started immediately could read the listing as
+#: it was, or not at all. A few seconds costs nothing a person notices and puts
+#: the read comfortably after the commit. If it still misses, the sweep is the
+#: net underneath.
+_TRANSLATION_DELAY = timedelta(seconds=5)
 
 # Fields worth recording a before/after for. Excludes the derived and the
 # noisy: `search_vector` is generated, `updated_at` changes on every write,
@@ -202,6 +216,7 @@ class PropertyService:
             actor_id=actor.id,
             by_automation=is_automation_actor(self.auth.role_keys),
         )
+        await self._enqueue_translation(listing)
         logger.info("property_created", extra={"property_id": str(listing.id)})
         return listing
 
@@ -268,7 +283,31 @@ class PropertyService:
                 "property_updated",
                 extra={"property_id": str(listing.id), "fields": sorted(diff)},
             )
+
+        # Keyed off `updates`, not off `diff`: `features` and `description` are
+        # not audited fields, so a description rewritten from scratch produces
+        # an empty diff and would never be re-translated.
+        if TRANSLATED_FIELDS & updates.keys():
+            await self._enqueue_translation(listing)
+
         return await self._reload(listing)
+
+    async def _enqueue_translation(self, listing: Property) -> None:
+        """Ask for this listing's other languages. Best-effort, by design.
+
+        A queue outage must not fail a save — the agent's work is already
+        committed and correct, it is merely monolingual for a few minutes until
+        the sweep notices. `enqueue` swallows its own connection errors for
+        that reason; the derived job id means a listing saved three times in a
+        minute is translated once.
+        """
+        await enqueue(
+            JobName.TRANSLATE_PROPERTY,
+            str(listing.id),
+            str(self.auth.organization_id),
+            job_id=f"translate:{listing.id}",
+            defer=_TRANSLATION_DELAY,
+        )
 
     async def delete_property(self, property_id: UUID, actor: User) -> None:
         """Soft delete. The row and its audit trail survive."""
