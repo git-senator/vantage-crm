@@ -41,6 +41,35 @@ services:
     expose:
       - "3000"
 
+  # Real malware scanning for uploaded files. Production only: the engine holds
+  # its signature database in memory (~1 GB) and re-downloads it daily, which is
+  # not a cost a laptop should pay to run the test suite.
+  #
+  # The API refuses to boot production with scanning enabled and the EICAR test
+  # scanner configured, so turning `MALWARE_SCAN_ENABLED` on without this
+  # service — or with `MALWARE_SCANNER=eicar` — fails loudly instead of quietly
+  # passing every file.
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    environment:
+      # Signature updates run inside the container; without them the engine is
+      # a month behind within a month.
+      CLAMAV_NO_FRESHCLAMD: "false"
+    volumes:
+      # Survives restarts, so a redeploy does not re-download the whole
+      # database and leave uploads unscannable while it does.
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      # `PING` answers only once the database is loaded, which takes minutes on
+      # first boot. Dependants wait for that rather than for the process.
+      test: ["CMD-SHELL", "clamdscan --ping 1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 5m
+
 volumes:
   caddy_data:
   caddy_config:
+  clamav_data:
