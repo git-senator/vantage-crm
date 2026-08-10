@@ -81,3 +81,6 @@ rognar/candidates_found.txt
 
 # Private key for backup encryption. Never in git, never on the server.
 .secrets/
+
+# Groq keys handed over for setup; deleted once applied.
+.groq-*.txt
