@@ -8,7 +8,8 @@ Files that make this work:
 - `compose/docker-compose.prod.yml` — prod overlay (adds Caddy, hides web:3000)
 - `compose/Caddyfile` — auto-HTTPS for `${DOMAIN}` and `files.${DOMAIN}`
 - `compose/.env.prod.example` — the production env template
-- `backup/backup.sh` — logical Postgres backup (schedule via cron)
+- `backup/backup-local.sh` — nightly Postgres dump, local + off-site to R2
+- `backup/restore-from-r2.sh` — list and restore those off-site dumps
 
 ## 0. Prerequisites
 - An Ubuntu 24.04 VPS (Hetzner CPX31: 4 vCPU / 8 GB / 160 GB is comfortable).
@@ -59,11 +60,47 @@ $COMPOSE exec api python -m app.cli.bootstrap \
 # $COMPOSE exec api python -m app.cli.seed_demo --scale 0.1
 ```
 
-## 6. Backups (daily)
-```bash
-# crontab -e  — logical dump at 03:30, keep 14 days
-30 3 * * * cd /opt/vantage && ./deploy/backup/backup.sh >> /var/log/vantage-backup.log 2>&1
+## 6. Backups (nightly)
+
+`backup/backup-local.sh` takes the dump and, if R2 is configured, pushes a copy
+off the machine. Add the four `R2_*` keys from `.env.example` to `/opt/vantage/.env`
+first — without them the dump still runs but warns that it is the only copy,
+and a backup living on the machine it protects is not a backup.
+
+A systemd timer rather than cron, for `Persistent=true`: a night missed while
+the box was down runs at the next boot instead of being skipped, and that is
+exactly the night you would want back.
+
+```ini
+# /etc/systemd/system/vantage-backup.service
+[Unit]
+Description=Vantage CRM nightly database backup
+After=docker.service
+Requires=docker.service
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/vantage/deploy/backup/backup-local.sh
+
+# /etc/systemd/system/vantage-backup.timer
+[Unit]
+Description=Run the Vantage CRM backup nightly
+[Timer]
+OnCalendar=*-*-* 03:20:00
+Persistent=true
+RandomizedDelaySec=5m
+[Install]
+WantedBy=timers.target
 ```
+
+```bash
+systemctl daemon-reload && systemctl enable --now vantage-backup.timer
+systemctl start vantage-backup.service   # run it once now, and read the output
+journalctl -u vantage-backup.service -n 30 --no-pager
+```
+
+Then rehearse the restore before you need it — `./deploy/backup/restore-from-r2.sh`
+with no arguments lists what is in the vault; with a dump name and a scratch
+database name it puts one back. An unrehearsed backup is a hope.
 
 ## 7. Verify
 - `https://crm.example.com` → login works over HTTPS.
