@@ -4,9 +4,16 @@
 # nothing to run by hand. {$DOMAIN} is read from the environment (set in .env
 # and passed by the compose overlay).
 #
-# Two names, both pointed at this VPS by an A-record:
+# Three names, all of which must be *proxied* by Cloudflare, not merely
+# pointed here by DNS:
 #   {$DOMAIN}        the app (Next.js, which proxies to the API internally)
 #   files.{$DOMAIN}  the S3/MinIO endpoint presigned upload/download URLs use
+#   n8n.{$DOMAIN}    the automation editor
+#
+# A grey-cloud record on any one of them publishes the origin address to the
+# world and undoes the firewall in deploy/security/cloudflare-only.sh, which
+# now drops anything on 80/443 that did not arrive from a Cloudflare range.
+# files. and n8n. were grey clouds until 2026-08-10 and gave the address away.
 #
 # Behind Cloudflare: trust CF's proxy ranges and read the real visitor IP from
 # CF-Connecting-Ip, so audit logs and rate limits see the client, not a CF edge.
@@ -39,6 +46,13 @@ files.{$DOMAIN} {
 	request_body {
 		max_size 60MB
 	}
+	# Now that this name is proxied, a CDN sits between the client and their
+	# documents. Presigned URLs carry their signature in the query string, so
+	# an edge cache would key on it — but it would also outlive the signature's
+	# expiry, leaving a passport scan retrievable by a link that should have
+	# died. Contracts and identity documents are not CDN material: tell
+	# Cloudflare to store none of it.
+	header Cache-Control "private, no-store"
 }
 
 n8n.{$DOMAIN} {

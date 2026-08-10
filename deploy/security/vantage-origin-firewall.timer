@@ -1,0 +1,13 @@
+[Unit]
+# Cloudflare adds ranges from time to time. A stale allow-list does not fail
+# loudly — it turns away a slice of real visitors, from one region, silently.
+# Weekly is far more often than the list actually changes, and costs nothing.
+Description=Refresh the Cloudflare range allow-list weekly
+
+[Timer]
+OnCalendar=Mon 04:40 UTC
+Persistent=true
+RandomizedDelaySec=20m
+
+[Install]
+WantedBy=timers.target

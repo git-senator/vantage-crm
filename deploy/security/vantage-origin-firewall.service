@@ -1,0 +1,21 @@
+[Unit]
+# iptables rules do not survive a reboot, and Docker rebuilds its chains when
+# the daemon restarts. Without this unit the origin would quietly go back to
+# answering the whole internet after the next reboot — the worst kind of
+# regression, because nothing appears to be wrong.
+Description=Restrict the origin's web ports to Cloudflare
+Documentation=file:/opt/vantage/deploy/security/cloudflare-only.sh
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/vantage/deploy/security/cloudflare-only.sh
+# The range list is fetched over the network; a cold boot may race DNS.
+Restart=on-failure
+RestartSec=30s
+
+[Install]
+WantedBy=multi-user.target
