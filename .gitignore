@@ -68,6 +68,12 @@ docker-compose.override.yml
 rognar/*.session*
 rognar/*.session-journal
 rognar/*.lock
+# Рогнар-Rossa: второй слушатель на аккаунте сотрудника — та же оговорка
+rognar-rossa/*.session*
+rognar-rossa/*.session-journal
+rognar-rossa/*.lock
+rognar-rossa/*.csv
+rognar-rossa/candidates_found.txt
 # Рогнар: выгрузки разведки — результат прогона, не исходник
 rognar/*.csv
 found.csv

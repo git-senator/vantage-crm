@@ -1,0 +1,47 @@
+# Рогнар-Rossa — самостоятельный проект, НЕ оверлей поверх CRM и не второй
+# сервис первого Рогнара.
+#
+# Своё имя проекта (`rognar-rossa`) — значит своя сеть, свой том сессии и свой
+# набор контейнеров. Поднять и уронить его можно, не трогая ни `/opt/rognar`,
+# ни `/opt/vantage`.
+#
+# Запускается своим файлом и своим именем проекта, поэтому получает
+# собственную сеть и не видит ни api, ни postgres, ни n8n. Наружу не слушает
+# ничего: весь трафик исходящий — Telegram и модель. Сломаться так, чтобы
+# задеть CRM, он физически не может.
+#
+#   docker compose up -d --build
+#   docker compose logs -f
+#   docker compose down
+#
+# Вход в аккаунт делается ОДИН раз и вручную (нужен код из Telegram):
+#   docker compose run --rm rognar python login.py
+#
+# Настройки — в файле .env рядом с этим (создаётся из .env.rossa + три
+# переменные модели из .env проекта; в git не попадает).
+
+name: rognar-rossa
+
+services:
+  rognar:
+    build: .
+    restart: unless-stopped
+    # Один файл рядом с compose: на сервер едет только то, что нужно Рогнару,
+    # а не весь .env CRM с паролями БД и ключами Google.
+    env_file:
+      - .env
+    environment:
+      TZ: America/Sao_Paulo
+    volumes:
+      - session:/data
+      # Списки чатов правятся на сервере без пересборки образа.
+      - ./watchlist.txt:/app/watchlist.txt:ro
+      - ./ignore.txt:/app/ignore.txt:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"       # лог не должен однажды забить диск сервера
+        max-file: "3"
+
+volumes:
+  session:
