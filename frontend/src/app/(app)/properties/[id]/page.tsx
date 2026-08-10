@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { getProperty, getPropertyPhotos } from "@/lib/api/properties";
 import { ApiError } from "@/lib/api/server";
 import { RecordActivity } from "@/components/shared/record-activity";
+import { TranslationNotice } from "@/components/properties/translation-notice";
 import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 import { formatArea } from "@/lib/format";
@@ -182,6 +183,7 @@ export default async function PropertyDetailPage({
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">
                   {property.description}
                 </p>
+                <TranslationNotice property={property} />
               </CardContent>
             </Card>
           )}

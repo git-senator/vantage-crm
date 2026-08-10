@@ -1,5 +1,6 @@
 "use client";
 
+import { LOCALE_COOKIE } from "@/i18n/config";
 import { CSRF_COOKIE, CSRF_HEADER } from "@/lib/api/constants";
 import type { ProblemDetail } from "@/lib/api/types";
 
@@ -28,12 +29,16 @@ export class ClientApiError extends Error {
   }
 }
 
-function readCsrfToken(): string | null {
+function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
   const match = document.cookie
     .split("; ")
-    .find((row) => row.startsWith(`${CSRF_COOKIE}=`));
+    .find((row) => row.startsWith(`${name}=`));
   return match ? decodeURIComponent(match.split("=")[1]) : null;
+}
+
+function readCsrfToken(): string | null {
+  return readCookie(CSRF_COOKIE);
 }
 
 interface ClientRequestOptions extends Omit<RequestInit, "body"> {
@@ -88,6 +93,15 @@ function sendOnce(
   const csrfToken = readCsrfToken();
   if (csrfToken && method !== "GET" && method !== "HEAD") {
     requestHeaders.set(CSRF_HEADER, csrfToken);
+  }
+
+  // The app's own language, not the browser's. `Accept-Language` would
+  // otherwise carry whatever the operating system is set to, and a Brazilian
+  // agent who switched the CRM to Russian would keep receiving Portuguese
+  // listing text — the toggle would move the labels and nothing else.
+  const locale = readCookie(LOCALE_COOKIE);
+  if (locale) {
+    requestHeaders.set("Accept-Language", locale);
   }
 
   return fetch(`/api${path}`, {

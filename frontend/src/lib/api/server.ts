@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { API_INTERNAL_URL, API_PREFIX } from "@/lib/api/config";
 import { ACCESS_COOKIE } from "@/lib/api/constants";
 import type { ProblemDetail } from "@/lib/api/types";
+import { LOCALE_COOKIE } from "@/i18n/config";
 
 /**
  * Server-side API client.
@@ -50,6 +51,17 @@ export async function apiFetch<T>(
 
   if (body !== undefined) {
     requestHeaders.set("Content-Type", "application/json");
+  }
+
+  // Content follows the toggle, not just the chrome. The API answers with a
+  // listing's text in the language asked for here, so a reader who switched to
+  // Portuguese gets a Portuguese description rather than Portuguese labels
+  // wrapped around Russian prose. Set unless the caller already chose one.
+  if (!requestHeaders.has("Accept-Language")) {
+    const locale = (await cookies()).get(LOCALE_COOKIE)?.value;
+    if (locale) {
+      requestHeaders.set("Accept-Language", locale);
+    }
   }
 
   if (authenticated) {

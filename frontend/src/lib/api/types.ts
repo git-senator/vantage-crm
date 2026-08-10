@@ -9,6 +9,8 @@
  * Safe to import from client components: types only, erased at compile time.
  */
 
+import type { Locale } from "@/i18n/config";
+
 export interface OrganizationSummary {
   id: string;
   name: string;
@@ -345,9 +347,21 @@ export interface Property {
   view_count: number;
   save_count: number;
 
+  /** In `content_locale`, which is usually the language the UI is set to. */
   description: string | null;
   features: string[];
   custom_fields: Record<string, unknown>;
+
+  /** The language the listing was originally written in. */
+  source_locale: Locale;
+  /** The language `title`, `description` and `features` above are in. Equals
+   *  `source_locale` when no translation exists yet — a description in the
+   *  wrong language beats an empty one. */
+  content_locale: Locale;
+  /** The text above came from a model and nobody has checked it. */
+  content_is_machine: boolean;
+  /** A person wrote this translation and the listing has changed since. */
+  content_is_stale: boolean;
 
   /** The seller this listing belongs to. */
   client_id: string | null;
