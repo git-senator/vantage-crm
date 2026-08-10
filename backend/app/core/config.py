@@ -356,8 +356,10 @@ class Settings(BaseSettings):
     #: queue that only ever grows stops being a queue. The decision itself
     #: survives in the audit log, under the tenant's own retention policy.
     #: Pending requests are never purged — that would hide work, not tidy it.
-    #: Zero disables the purge.
-    ACCESS_REQUEST_RETENTION_DAYS: int = 90
+    #: Zero disables the purge. Thirty days is the owner's call: long enough to
+    #: reconsider a refusal or answer "did you ever apply?", short enough that
+    #: strangers' details do not accumulate.
+    ACCESS_REQUEST_RETENTION_DAYS: int = 30
 
     # -------------------------------------------------------- messaging
     #: Shared secret for the inbound-mail webhook's HMAC. Unset means inbound
