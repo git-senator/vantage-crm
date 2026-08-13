@@ -40,6 +40,7 @@ from telethon.tl.types import Channel, Chat, User
 from config import (
     SESSION,
     claim_session,
+    is_priority,
     load_env,
     looks_like_lead,
     need,
@@ -56,6 +57,12 @@ _seen: dict[int, float] = {}
 
 # Ниже этого модель считает разговор пустым — сигнал не шлём.
 SCORE_FLOOR = 55
+
+# Для приоритетных формулировок владельца (config.PRIORITY) порог ниже.
+# «Посоветуйте риелтора» — уже клиент, даже если модель осторожничает из-за
+# короткого сообщения без деталей. Требовать здесь той же уверенности, что и
+# от случайного упоминания квартиры, значит терять на пороге лучших.
+PRIORITY_SCORE_FLOOR = 40
 
 # Как часто отчитываться, что живой. Без этого молчание в логе двусмысленно:
 # непонятно, то ли поток не идёт, то ли просто никто не писал про недвижимость.
@@ -427,7 +434,12 @@ async def main() -> int:
 
         chat = await event.get_chat()
         chat_title = getattr(chat, "title", "чат")
-        log.info("совпадение в «%s» — спрашиваю модель…", chat_title)
+        priority = is_priority(text)
+        floor = PRIORITY_SCORE_FLOOR if priority else SCORE_FLOOR
+        log.info(
+            "совпадение%s в «%s» — спрашиваю модель…",
+            " ⭐приоритетное" if priority else "", chat_title,
+        )
 
         verdict = await asyncio.to_thread(classify, text)
 
@@ -449,10 +461,10 @@ async def main() -> int:
         elif not verdict.get("is_lead"):
             log.info("  → не лид: «%s»", text[:90].replace("\n", " "))
             return
-        elif int(verdict.get("score", 0)) < SCORE_FLOOR:
+        elif int(verdict.get("score", 0)) < floor:
             log.info(
-                "  → слабо (%d): «%s»",
-                int(verdict.get("score", 0)), text[:90].replace("\n", " "),
+                "  → слабо (%d, порог %d): «%s»",
+                int(verdict.get("score", 0)), floor, text[:90].replace("\n", " "),
             )
             return
 
