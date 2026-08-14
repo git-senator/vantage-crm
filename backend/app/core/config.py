@@ -367,6 +367,14 @@ class Settings(BaseSettings):
     #: secret would accept anything that posted.
     INBOUND_WEBHOOK_SECRET: SecretStr = SecretStr("")
 
+    # ---------------------------------------------------------- showcase
+    #: The organization whose listings the public catalogue shows. Empty — the
+    #: default — means there is no public catalogue at all and the whole
+    #: surface answers 404, so a deployment that never opted in cannot leak by
+    #: accident. Naming it here rather than inferring "the only organization"
+    #: is deliberate: a second tenant must not become public by appearing.
+    SHOWCASE_ORGANIZATION_ID: str = ""
+
     # ------------------------------------- instagram / facebook messaging
     #: Shared by both surfaces — Meta versions the whole Graph API at once.
     META_API_BASE: str = "https://graph.facebook.com/v21.0"
