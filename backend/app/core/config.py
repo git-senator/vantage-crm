@@ -367,6 +367,19 @@ class Settings(BaseSettings):
     #: secret would accept anything that posted.
     INBOUND_WEBHOOK_SECRET: SecretStr = SecretStr("")
 
+    # ------------------------------------- instagram / facebook messaging
+    #: Shared by both surfaces — Meta versions the whole Graph API at once.
+    META_API_BASE: str = "https://graph.facebook.com/v21.0"
+    #: The Instagram professional account that owns the inbox, and a token with
+    #: `instagram_manage_messages`. Unset means the channel refuses to send
+    #: rather than failing at Meta with a permissions error.
+    INSTAGRAM_ACCOUNT_ID: str = ""
+    INSTAGRAM_ACCESS_TOKEN: SecretStr = SecretStr("")
+    #: The Facebook Page and its token. Separate from Instagram's because a
+    #: token is scoped to one surface even when one app serves both.
+    FACEBOOK_PAGE_ID: str = ""
+    FACEBOOK_ACCESS_TOKEN: SecretStr = SecretStr("")
+
     # --------------------------------------------------------- whatsapp
     #: Meta Cloud API. Unset means the channel refuses to send rather than
     #: failing at the provider — an agent should learn it is unavailable from

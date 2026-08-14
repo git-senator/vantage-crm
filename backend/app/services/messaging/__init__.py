@@ -17,16 +17,19 @@ from app.services.messaging.base import (
     OutboundMessage,
 )
 from app.services.messaging.email_channel import EmailChannel
+from app.services.messaging.meta_channel import META_CHANNELS, MetaMessagingChannel
 from app.services.messaging.social_channel import SOCIAL_CHANNELS, SocialChannel
 from app.services.messaging.whatsapp_channel import WhatsAppChannel, parse_inbound
 
 __all__ = [
+    "META_CHANNELS",
     "SOCIAL_CHANNELS",
     "DeliveryResult",
     "EmailChannel",
     "InboundMessage",
     "MessageChannel",
     "MessagingError",
+    "MetaMessagingChannel",
     "OutboundMessage",
     "SocialChannel",
     "WhatsAppChannel",
@@ -58,10 +61,14 @@ def build_channel(channel: str) -> MessageChannel:
             raise MessagingError(
                 "The sms channel is not available yet.", retryable=False
             )
+        case meta if meta in META_CHANNELS:
+            # Instagram and Facebook can now answer, not just listen. They keep
+            # SocialChannel's place in SOCIAL_CHANNELS for inbound identity;
+            # this arm sits ahead of it so `send` reaches a real provider.
+            adapter = MetaMessagingChannel(meta)
         case social if social in SOCIAL_CHANNELS:
-            # Website, Telegram, Instagram, Facebook, Google, YouTube — all
-            # inbound-only for now, all sharing one adapter because they share
-            # one identity rule.
+            # Website, Telegram, Google, YouTube — still inbound-only, all
+            # sharing one adapter because they share one identity rule.
             adapter = SocialChannel(social)
         case unknown:
             raise MessagingError(f"Unknown channel: {unknown}", retryable=False)
