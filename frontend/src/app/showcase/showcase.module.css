@@ -1,0 +1,543 @@
+/*
+ * The public catalogue — a royal black-and-gold treatment, deliberately
+ * unrelated to the CRM's light interface. This is a shop window, not a tool.
+ *
+ * A CSS module rather than the app's design tokens: those tokens describe a
+ * neutral working surface, and every one of them would have to be overridden
+ * here. Isolating the landing means restyling it can never disturb the CRM.
+ */
+
+.page {
+  --ink: #05050a;
+  --ink-2: #0b0b13;
+  --gold: #d4af37;
+  --gold-soft: #e8c766;
+  --gold-dim: #8a7327;
+  --paper: #f4efe4;
+  --muted: #a99f8c;
+  --line: rgba(212, 175, 55, 0.22);
+
+  --display: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+
+  position: relative;
+  min-height: 100vh;
+  background: var(--ink);
+  color: var(--paper);
+  overflow-x: hidden;
+}
+
+/* ------------------------------------------------------------------ sky */
+
+/*
+ * The drifting sky. Four blurred layers, each on its own duration and its own
+ * fade, so the composition never repeats exactly and there is no moment where
+ * everything returns to its start — that snap is what makes a looping GIF read
+ * as a GIF. The durations are deliberately coprime-ish for the same reason.
+ */
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% 0%, #17131f 0%, #08070d 55%, #05050a 100%);
+}
+
+.cloud {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.cloud1 {
+  width: 60vw;
+  height: 34vw;
+  top: 6%;
+  left: -20vw;
+  background: radial-gradient(closest-side, rgba(212, 175, 55, 0.20), transparent 70%);
+  animation:
+    drift 97s linear infinite,
+    breathe 41s ease-in-out infinite;
+}
+
+.cloud2 {
+  width: 46vw;
+  height: 26vw;
+  top: 28%;
+  left: -10vw;
+  background: radial-gradient(closest-side, rgba(232, 199, 102, 0.14), transparent 70%);
+  animation:
+    drift 143s linear infinite,
+    breathe 59s ease-in-out infinite 7s;
+}
+
+.cloud3 {
+  width: 72vw;
+  height: 40vw;
+  top: 52%;
+  left: -30vw;
+  background: radial-gradient(closest-side, rgba(120, 96, 200, 0.14), transparent 70%);
+  animation:
+    drift 181s linear infinite,
+    breathe 73s ease-in-out infinite 19s;
+}
+
+.cloud4 {
+  width: 38vw;
+  height: 22vw;
+  top: 74%;
+  left: -14vw;
+  background: radial-gradient(closest-side, rgba(212, 175, 55, 0.12), transparent 70%);
+  animation:
+    drift 113s linear infinite,
+    breathe 47s ease-in-out infinite 31s;
+}
+
+@keyframes drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(160vw, 0, 0); }
+}
+
+/* Opacity is animated separately from position so a layer is always invisible
+   while it wraps back to the left — the wrap itself is never seen. */
+@keyframes breathe {
+  0%, 100% { opacity: 0; }
+  18% { opacity: 0.85; }
+  50% { opacity: 1; }
+  82% { opacity: 0.7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cloud { animation: none; opacity: 0.5; }
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+}
+
+/* ----------------------------------------------------------------- chrome */
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px clamp(16px, 4vw, 48px);
+  backdrop-filter: blur(14px);
+  background: rgba(5, 5, 10, 0.55);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--display);
+  letter-spacing: 0.06em;
+  font-size: 15px;
+  color: var(--paper);
+  text-transform: uppercase;
+}
+
+.mark {
+  width: 30px;
+  height: 30px;
+  color: var(--gold);
+  flex: none;
+}
+
+.langs { display: flex; gap: 4px; }
+
+.lang {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.25s, border-color 0.25s;
+}
+.lang:hover { color: var(--gold-soft); }
+.langOn { color: var(--ink); background: var(--gold); border-color: var(--gold); }
+
+/* ------------------------------------------------------------------ hero */
+
+.hero {
+  text-align: center;
+  padding: clamp(64px, 12vh, 140px) clamp(16px, 5vw, 40px) 0;
+}
+
+.eyebrow {
+  font-family: var(--display);
+  font-size: 12px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 26px;
+}
+
+.title {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(40px, 8vw, 104px);
+  line-height: 0.98;
+  letter-spacing: -0.01em;
+  margin: 0 auto;
+  max-width: 14ch;
+  text-wrap: balance;
+  background: linear-gradient(180deg, #fffaf0 0%, var(--gold-soft) 62%, var(--gold-dim) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lede {
+  margin: 28px auto 0;
+  max-width: 58ch;
+  font-size: clamp(15px, 1.6vw, 19px);
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+.heroActions {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 36px;
+  flex-wrap: wrap;
+}
+
+.cta,
+.ghost {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 15px 30px;
+  border-radius: 2px;
+  text-decoration: none;
+  transition: transform 0.25s, background 0.25s, color 0.25s;
+}
+
+.cta {
+  background: linear-gradient(135deg, var(--gold-soft), var(--gold));
+  color: #17130a;
+  border: 1px solid var(--gold);
+}
+.cta:hover { transform: translateY(-2px); }
+
+.ghost {
+  border: 1px solid var(--line);
+  color: var(--paper);
+}
+.ghost:hover { border-color: var(--gold); color: var(--gold-soft); }
+
+/* ------------------------------------------------------------------- arc */
+
+/*
+ * The curved band of photographs. Each card is rotated around the Y axis by a
+ * share of the total sweep and pushed back along Z, so the row sits on the
+ * surface of a cylinder rather than being a flat strip with a skew on the
+ * ends. The perspective is deep — a shallow one makes the outer cards look
+ * folded rather than turned away.
+ */
+.arcWrap {
+  margin-top: clamp(48px, 8vh, 96px);
+  perspective: 2200px;
+  overflow: hidden;
+  padding: 30px 0 10px;
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.arc {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: clamp(8px, 1vw, 18px);
+  transform-style: preserve-3d;
+}
+
+.arcItem {
+  flex: none;
+  width: clamp(150px, 15vw, 260px);
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--ink-2);
+  transform-style: preserve-3d;
+  transition: filter 0.4s;
+}
+
+.arcItem img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: saturate(0.85) contrast(1.05) brightness(0.9);
+  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.5s;
+}
+
+.arcItem:hover img {
+  transform: scale(1.06);
+  filter: saturate(1) contrast(1.05) brightness(1);
+}
+
+/* ---------------------------------------------------------------- section */
+
+.section {
+  padding: clamp(72px, 12vh, 150px) clamp(16px, 5vw, 48px);
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.sectionHead {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  margin-bottom: clamp(34px, 5vh, 60px);
+}
+
+@media (min-width: 900px) {
+  .sectionHead { grid-template-columns: 1.4fr 1fr; align-items: end; gap: 48px; }
+}
+
+.h2 {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: clamp(28px, 4.4vw, 54px);
+  line-height: 1.06;
+  margin: 0;
+  color: var(--paper);
+  text-wrap: balance;
+}
+
+.sectionNote {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* ------------------------------------------------------------------ cards */
+
+.grid {
+  display: grid;
+  gap: clamp(16px, 2vw, 28px);
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+}
+
+.card {
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.3s, transform 0.4s;
+}
+
+.card:hover { border-color: var(--gold); transform: translateY(-4px); }
+
+.cardPhoto {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--ink-2);
+}
+
+.cardPhoto img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.card:hover .cardPhoto img { transform: scale(1.05); }
+
+.cardBody { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+
+.cardTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.cardName {
+  font-family: var(--display);
+  font-size: 19px;
+  margin: 0;
+  color: var(--paper);
+}
+
+.cardPrice {
+  font-family: var(--display);
+  font-size: 17px;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+.cardPlace {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ album */
+
+.album {
+  columns: 4 260px;
+  column-gap: clamp(8px, 1vw, 16px);
+}
+
+.albumItem {
+  break-inside: avoid;
+  margin-bottom: clamp(8px, 1vw, 16px);
+  border: 1px solid rgba(212, 175, 55, 0.12);
+  overflow: hidden;
+  display: block;
+}
+
+.albumItem img {
+  width: 100%;
+  display: block;
+  filter: saturate(0.9) brightness(0.92);
+  transition: filter 0.5s, transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.albumItem:hover img { filter: none; transform: scale(1.04); }
+
+/* ------------------------------------------------------------------- form */
+
+.formWrap {
+  border: 1px solid var(--line);
+  background: rgba(11, 11, 19, 0.72);
+  backdrop-filter: blur(8px);
+  padding: clamp(24px, 4vw, 52px);
+  display: grid;
+  gap: 28px;
+}
+
+@media (min-width: 940px) {
+  .formWrap { grid-template-columns: 1fr 1fr; gap: 56px; }
+}
+
+.form { display: grid; gap: 14px; align-content: start; }
+
+.field { display: grid; gap: 6px; }
+
+.label {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+}
+
+.input,
+.textarea {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--line);
+  color: var(--paper);
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 15px;
+  border-radius: 2px;
+  outline: none;
+  transition: border-color 0.25s;
+}
+
+.input:focus,
+.textarea:focus { border-color: var(--gold); }
+
+.textarea { min-height: 104px; resize: vertical; }
+
+.row { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; }
+
+.submit {
+  margin-top: 6px;
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 15px 24px;
+  border: 1px solid var(--gold);
+  border-radius: 2px;
+  background: linear-gradient(135deg, var(--gold-soft), var(--gold));
+  color: #17130a;
+  cursor: pointer;
+  transition: transform 0.25s, opacity 0.25s;
+}
+
+.submit:hover:not(:disabled) { transform: translateY(-2px); }
+.submit:disabled { opacity: 0.55; cursor: default; }
+
+.note { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.7; }
+
+.ok { color: var(--gold-soft); font-size: 15px; margin: 0; }
+.err { color: #e08c84; font-size: 14px; margin: 0; }
+
+.facts { display: grid; gap: 20px; align-content: start; }
+
+.fact { border-left: 2px solid var(--gold); padding-left: 16px; }
+
+.factNum {
+  font-family: var(--display);
+  font-size: clamp(24px, 3vw, 34px);
+  color: var(--gold-soft);
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.factLabel { font-size: 13px; color: var(--muted); }
+
+/* ----------------------------------------------------------------- footer */
+
+.footer {
+  border-top: 1px solid var(--line);
+  padding: 40px clamp(16px, 5vw, 48px) 60px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 40px;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.footer a { color: var(--gold-soft); text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
+
+/* ------------------------------------------------------------- scroll-in */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.9s cubic-bezier(0.2, 0.8, 0.2, 1),
+              transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.revealed { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+}
