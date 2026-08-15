@@ -99,13 +99,6 @@ def create_app() -> FastAPI:
     app.include_router(health_router)
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
-    # The public showcase: the only unauthenticated surface on this server.
-    # Mounted under /api so it inherits the same middleware as everything else,
-    # and it answers 404 unless SHOWCASE_ORGANIZATION_ID names an organization.
-    from app.api.showcase import router as showcase_router
-
-    app.include_router(showcase_router, prefix="/api")
-
     # The public, machine-facing API (Phase 7.2). A mounted sub-application so
     # it carries its own OpenAPI document and idempotency middleware; the
     # parent's correlation, rate-limit and security-header middleware still

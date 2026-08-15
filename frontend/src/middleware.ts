@@ -15,31 +15,13 @@ import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/api/constants";
  * before a redirect, and to keep signed-in users off the login page.
  */
 
-/** Reachable without a session, and redirected *away* from once signed in. */
+/** Reachable without a session. */
 const PUBLIC_PATHS = ["/login", "/request-access", "/accept-invite"];
 
-/**
- * Open to everyone, signed in or not.
- *
- * Distinct from PUBLIC_PATHS: those are the doors into the app, so a signed-in
- * visitor is sent to their dashboard instead. The public catalogue is not a
- * door — it is the shop window, and an agent looking at it should see what a
- * buyer sees, not be bounced to the dashboard.
- */
-const OPEN_PATHS = ["/showcase"];
-
-function matches(paths: string[], pathname: string): boolean {
-  return paths.some(
+function isPublic(pathname: string): boolean {
+  return PUBLIC_PATHS.some(
     (path) => pathname === path || pathname.startsWith(`${path}/`),
   );
-}
-
-function isPublic(pathname: string): boolean {
-  return matches(PUBLIC_PATHS, pathname);
-}
-
-function isOpen(pathname: string): boolean {
-  return matches(OPEN_PATHS, pathname);
 }
 
 export function middleware(request: NextRequest) {
@@ -51,10 +33,6 @@ export function middleware(request: NextRequest) {
   // 15-minute access token has expired. Treating that as signed-out would log
   // people out every quarter hour.
   const looksAuthenticated = hasAccess || hasRefresh;
-
-  if (isOpen(pathname)) {
-    return NextResponse.next();
-  }
 
   if (isPublic(pathname)) {
     if (looksAuthenticated) {
