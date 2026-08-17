@@ -25,6 +25,7 @@ import logging
 import os
 import sys
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -84,6 +85,29 @@ HANDLED_MAX = 5000
 # отвалилась или просто в этих чатах никто не пишет.
 _stats = {"any": 0, "seen": 0, "matched": 0, "sent": 0}
 
+# Модель-судья по умолчанию.
+#
+# Раньше здесь была llama-3.3-70b-versatile. Groq объявил её снятие 17 июня
+# 2026 и отключил в августе; запросы стали отдавать 404 — молча. Слушатель
+# продолжал ловить зацепки и слать их с пометкой «не проверено AI», то есть
+# превратился в фильтр по словам, оставаясь при этом «работающим».
+# gpt-oss-120b — та замена, которую Groq назвал сам.
+DEFAULT_MODEL = "openai/gpt-oss-120b"
+
+# Эта модель «рассуждает» перед ответом, и рассуждение тратит тот же лимит
+# токенов, что и ответ. При старом потолке 300 бюджет уходил целиком на
+# размышление, content приходил пустым, а разбор падал на «Expecting value».
+# Отсюда и запас, и явное требование JSON, и низкое усилие: нам нужен
+# вердикт, а не эссе.
+MAX_TOKENS = 900
+REASONING_EFFORT = "low"
+
+# 429 у Groq — это «сейчас занято», а не «нельзя». Один повтор с паузой
+# превращает потерянный лид в задержку на несколько секунд.
+RETRIES = 3
+RETRY_PAUSE = 4
+
+
 SYSTEM_PROMPT = """Ты — фильтр входящих для агентства недвижимости Rossa (Бразилия, работаем с русско-, англо- и португалоязычными клиентами).
 
 Тебе дают сообщение из публичного чата. Реши, является ли автор ПОТЕНЦИАЛЬНЫМ ПОКУПАТЕЛЕМ недвижимости.
@@ -102,43 +126,79 @@ def classify(text: str) -> dict | None:
     """Спросить модель, лид ли это. None — если модель недоступна."""
     api_key = os.environ.get("AI_API_KEY", "").strip()
     base = os.environ.get("AI_API_BASE", "https://api.groq.com/openai/v1").strip()
-    model = os.environ.get("AI_MODEL", "llama-3.3-70b-versatile").strip()
+    model = os.environ.get("AI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
     if not api_key:
         return None
 
     payload = json.dumps({
         "model": model,
         "temperature": 0,
-        "max_tokens": 300,
+        "max_tokens": MAX_TOKENS,
+        # Просим JSON форматом, а не только словами в промпте: так модель не
+        # может ответить вежливым текстом вокруг ответа.
+        "response_format": {"type": "json_object"},
+        "reasoning_effort": REASONING_EFFORT,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": text[:2000]},
         ],
     }).encode("utf-8")
 
-    req = urllib.request.Request(
-        f"{base}/chat/completions",
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}",
-            # Без внятного User-Agent Cloudflare перед Groq отдаёт 403: дефолт
-            # urllib («Python-urllib/3.x») он считает ботом и не пускает.
-            "User-Agent": "Rognar/1.0",
-        },
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-        raw = body["choices"][0]["message"]["content"].strip()
-        # Модель иногда оборачивает JSON в ```json … ``` — снимаем обёртку.
-        if raw.startswith("```"):
-            raw = raw.strip("`").split("\n", 1)[-1].rsplit("```", 1)[0]
-        start, end = raw.find("{"), raw.rfind("}")
-        return json.loads(raw[start : end + 1]) if start >= 0 else None
-    except Exception as exc:
-        log.warning("модель не ответила: %s", exc)
-        return None
+    for attempt in range(RETRIES):
+        req = urllib.request.Request(
+            f"{base}/chat/completions",
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}",
+                # Без внятного User-Agent Cloudflare перед Groq отдаёт 403:
+                # дефолт urllib («Python-urllib/3.x») он считает ботом.
+                "User-Agent": "Rognar/1.0",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=40) as resp:
+                body = json.loads(resp.read().decode("utf-8"))
+            message = body["choices"][0]["message"]
+            raw = (message.get("content") or "").strip()
+            if not raw:
+                # Ответа нет, а рассуждение есть — значит бюджет токенов ушёл
+                # на него. Лечится MAX_TOKENS, а не повтором, и в логе должно
+                # быть видно именно это.
+                log.warning(
+                    "модель вернула пустой ответ (рассуждение %d симв.) — мало токенов?",
+                    len(message.get("reasoning") or ""),
+                )
+                return None
+            # Модель иногда оборачивает JSON в ```json … ``` — снимаем обёртку.
+            if raw.startswith("```"):
+                raw = raw.strip("`").split("\n", 1)[-1].rsplit("```", 1)[0]
+            start, end = raw.find("{"), raw.rfind("}")
+            return json.loads(raw[start : end + 1]) if start >= 0 else None
+        except urllib.error.HTTPError as exc:
+            # 404 — модель сняли с обслуживания. Повторять бессмысленно, а
+            # знать надо немедленно: иначе слушатель тихо работает вполсилы.
+            if exc.code == 404:
+                log.error(
+                    "модель «%s» не найдена (404) — её сняли с обслуживания. "
+                    "Пока не поправишь AI_MODEL, лиды идут БЕЗ проверки AI.",
+                    model,
+                )
+                return None
+            if (exc.code == 429 or 500 <= exc.code < 600) and attempt < RETRIES - 1:
+                log.warning("модель занята (%d), повтор через %dс",
+                            exc.code, RETRY_PAUSE * (attempt + 1))
+                time.sleep(RETRY_PAUSE * (attempt + 1))
+                continue
+            log.warning("модель не ответила: HTTP %d", exc.code)
+            return None
+        except Exception as exc:
+            if attempt < RETRIES - 1:
+                time.sleep(RETRY_PAUSE)
+                continue
+            log.warning("модель не ответила: %s", exc)
+            return None
+    return None
 
 
 # ------------------------------------------------------------ уведомление
