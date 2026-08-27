@@ -6,11 +6,10 @@ between: property translations, Instagram and Facebook sending, the access-reque
 queue, off-site backups, the Cloudflare origin lockdown, and a public showcase
 that was built and then reverted.
 
-Scope: application source, database, configuration, dependencies, and the
-production edge **as seen from outside**. Production is frozen, so nothing on
-the host itself was inspected this time — see *What was not checked* at the end.
-That is the significant gap in this report and it is stated up front rather than
-buried.
+Scope: application source, database, configuration, dependencies, the production
+edge as seen from outside, and — after an explicit go-ahead, production being
+otherwise frozen — a **read-only** pass over the production host itself
+(§9–§11). Nothing on the server was restarted, written or changed.
 
 As before, findings were produced by running the check, not by reading the code
 and assuming it does what the comment says.
@@ -282,45 +281,147 @@ localhost and production.
 
 ---
 
-## What was not checked, and why
+## The production host — read-only pass, same day
 
-Production is frozen, so **nothing on the host was inspected** — this audit
-touched `rossacrm.tech` only as an anonymous visitor would. That leaves
-unverified, all of them things the last audit fixed and which nobody has
-confirmed since:
+The owner gave a go-ahead for a strictly read-only inspection ("но только чтоб
+ничего не поломалось"). Nothing was restarted, written or changed: the pass used
+`sshd -T`, `systemctl cat/show/status`, `journalctl`, `ls`/`stat`/`grep`, `docker
+ps`, and `SELECT` statements. Three findings came out of it.
 
-* SSH hardening and fail2ban still in force (cloud-init has re-enabled password
-  auth once already, and `authorized_keys` was rewritten from the Hostinger
-  console on 12 August)
-* the nightly backup timer actually firing, and its dumps restorable
-* `MALWARE_SCAN_ENABLED` still true with the ClamAV engine
-* `unattended-upgrades` and the current patch level
-* what the production `.env` sets for `MFA_REQUIRED_ROLES`, `METRICS_TOKEN`,
-  `INBOUND_WEBHOOK_SECRET` and `ENCRYPTION_KEYS`
-* whether the owner and admin accounts have actually enrolled in TOTP
+### 9. MEDIUM — no account on production has MFA
 
-A read-only pass over that list takes about fifteen minutes and needs one
-go-ahead.
+```
+email                       status   mfa_enabled  has_secret  last_login
+ccrmbzl@gmail.com (Owner)   active   f            t           2026-08-14
+boss@rossacrm.tech (Owner)  active   f            f           2026-08-27
+admin@rossacrm.tech         active   f            f           2026-08-07
+```
+
+Two Owner accounts, neither with TOTP. `ccrmbzl@gmail.com` has an `mfa_secret`
+but `mfa_enabled = false` — an enrolment that was started and never confirmed.
+`MFA_REQUIRED_ROLES` is not set in the production `.env`, so the default
+`["owner", "admin"]` applies, and enforcement is deliberately a nudge rather
+than a lockout: nothing actually stops an Owner from staying on a password
+alone.
+
+This is the finding that compounds §1. A password-only Owner login, on an
+internet-facing CRM, behind a per-IP throttle that can be sidestepped with a
+header, is the shortest path an outsider has to everything in the system.
+
+**Fix.** Enrol both Owner accounts. Ten minutes with an authenticator app, no
+deploy.
+
+### 10. MEDIUM — the seeded demo accounts are still live
+
+`admin@rossacrm.tech` (Admin), `manager@rossacrm.tech` (Manager) and
+`agent@rossacrm.tech` (Agent) are all `active`, all last used on 7 August — the
+day the system was seeded — and none has been signed into since. The owner had
+already decided these should go once the real accounts existed.
+
+Three unused credentials, one of them Admin, with passwords set by a seeding
+script and never rotated, are standing surface for no benefit. Deleting or
+deactivating them removes it. `kardinal.kali.51@gmail.com` (Agent) and the two
+Owners are the accounts that are actually used.
+
+### 11. LOW — the weekly Cloudflare-range refresh has not run since 14 August
+
+```
+vantage-origin-firewall.timer   Trigger: n/a   last: Mon 2026-08-17 04:49
+vantage-origin-firewall.service Active: active (exited) since Fri 2026-08-14
+```
+
+The service is `Type=oneshot` with `RemainAfterExit=yes`, so after its boot run
+it stays *active* forever. Starting an already-active unit is a no-op, so when
+the timer fired on 17 August nothing executed — and systemd then stopped
+scheduling it at all (`Trigger: n/a`). The cached allow-lists are dated
+14 August.
+
+Nothing is open as a result: the rules are in force (21 IPv4 and 12 IPv6 rules
+in `DOCKER-USER`) and Cloudflare's ranges have not changed since. The risk is
+that the list is now frozen — if Cloudflare adds a range, legitimate visitors
+are dropped and the site partially goes dark; if a retired range is reassigned,
+a stale entry stays allowed. A safety net that silently stopped renewing itself
+is worth fixing precisely because nobody will notice until it matters.
+
+**Fix.** Drop `RemainAfterExit=yes` from the service — the iptables rules
+outlive the unit's state, which is the only thing that flag was modelling.
+
+### What production got right
+
+Everything the August 9 remediation put in place is still in place, verified
+rather than assumed:
+
+* **SSH is key-only and single-key.** `permitrootlogin without-password`,
+  `passwordauthentication no`, `kbdinteractive no`, `x11forwarding no`, and
+  `authorized_keys` holds exactly one entry — `vantage-crm-deploy`. The
+  `claude-code-pravosudie` key is gone, as expected since that project moved off
+  the box.
+* **fail2ban is active** with the sshd jail, and there were **zero** failed
+  authentication attempts in the last 24 hours. The only interactive logins in
+  the record are from `169.254.0.1`, the Hostinger console, on 12 and 14 August.
+* **Backups run, encrypt, upload and verify themselves.** Three consecutive
+  nights confirmed in the journal, each ending `offsite ok: r2://rossa-backups/
+  db/… (verified)`, encrypted to the age recipient before leaving the machine.
+  Fifteen dumps on disk under a 14-day retention; the disk is 5% full.
+* **Malware scanning is genuinely on**: `MALWARE_SCAN_ENABLED=true`,
+  `MALWARE_SCANNER=clamav`, and `vantage-clamav-1` is up and healthy.
+* **Production configuration is correct**: `ENVIRONMENT=production`,
+  `COOKIE_SECURE=true`, `CORS_ORIGINS=[]`, `STORAGE_PROVIDER=s3`, explicit
+  `ENCRYPTION_KEYS` with an active key id, and `.env` at mode 600.
+* **Only 22, 80 and 443 answer from outside.** Postgres, Redis and MinIO are on
+  loopback; the web, API, worker, n8n and ClamAV containers publish nothing at
+  all. Caddy alone holds 80/443, and `DOCKER-USER` drops anything on them that
+  did not come from Cloudflare.
+* `unattended-upgrades` is active. Nine package updates are pending — worth a
+  look, but no security backlog was reported.
+* All four Telegram listeners (`rognar`, `rognar-rossa`, `toplevel`, `usa`) are
+  running, and nothing unexpected is on the machine.
+
+One thing to flag rather than judge: `/opt/webscout` appeared on 26 August — a
+Reddit/OpenRouter scanner with its own `.env` (mode 600, not running yet). That
+is a sixth project's credentials on the machine that serves the CRM. The
+pravosudie lesson applies: it is fine until the day one project's mistake
+becomes the CRM's outage.
+
+Also worth confirming rather than assuming: **`boss@rossacrm.tech` is an Owner
+account that signed in today** and does not appear in any earlier record of who
+should have access. Presumed to be the owner's own; it is named here so the
+assumption gets checked by someone who knows.
 
 ---
 
 ## Order I would fix these in
 
-1. **`header_up X-Forwarded-For {client_ip}`** in the Caddyfile — one line, and
-   it is the only finding here that changes what an attacker can do from
-   outside today.
-2. **Bump Next to 16.3.3** — it is now a minor release, and it clears four high
-   advisories.
-3. **Cloudflare Access on `n8n.`** — ten minutes, removes a password form from
-   the public internet.
-4. **`umask 077` and `--env-file` in the backup script**, and pin the three
-   floating image tags.
-5. **The CSP nonce** and the `roles` policy as ordinary development work.
-6. **The owner's items**: IP-lock the R2 token, duplicate the age key, decide
-   what `ROSSA_DEMO_API_KEY` is.
+1. **Enrol both Owner accounts in TOTP** (§9) and **delete the three seeded demo
+   accounts** (§10). Minutes each, no deploy, and together they close the
+   shortest path into the system.
+2. **`header_up X-Forwarded-For {client_ip}`** in the Caddyfile (§1) — one line,
+   and it is the only code-side finding that changes what an attacker can do
+   from outside today.
+3. **Bump Next to 16.3.3** (§2) — it is now a minor release, and it clears four
+   high advisories.
+4. **`RemainAfterExit=yes` off the origin-firewall service** (§11), so the
+   allow-list resumes refreshing itself.
+5. **Cloudflare Access on `n8n.`** (§4) — ten minutes, removes a password form
+   from the public internet.
+6. **`umask 077` and `--env-file` in the backup script** (§5), and pin the three
+   floating image tags (§6).
+7. **The CSP nonce** (§3) and the `roles` policy (§7) as ordinary development
+   work.
+8. **The owner's items**: IP-lock the R2 token, duplicate the age key, confirm
+   who `boss@rossacrm.tech` is.
+
+Items 2, 3, 4 and 6 are code and land through a normal deploy. Items 1 and 5 are
+console work on a running system and touch no code at all.
 
 Nothing found this round is architectural. The tenant isolation, injection
 safety, session handling and secrets hygiene that the last audit praised are all
-still true, and the new features arrived with their own RLS, their own signature
-checks and their own rate limits. The one real finding is that those rate limits
-trust a header they should not.
+still true, the new features arrived with their own RLS, their own signature
+checks and their own rate limits, and every fix from 9 August is still in force
+on the host.
+
+What this round found instead is a pattern of controls that are *present but not
+load-bearing*: rate limits keyed on a header anyone can set, an MFA policy that
+asks rather than requires, a firewall refresh that has quietly stopped
+refreshing, and seeded accounts that outlived their purpose. None is an open
+door. Each is a lock that would not hold if someone leaned on it.
