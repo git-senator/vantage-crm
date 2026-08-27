@@ -311,17 +311,28 @@ header, is the shortest path an outsider has to everything in the system.
 **Fix.** Enrol both Owner accounts. Ten minutes with an authenticator app, no
 deploy.
 
-### 10. MEDIUM — the seeded demo accounts are still live
+### 10. MEDIUM — three more standing accounts than anyone signs into
+### *(risk accepted by the owner, 27 August — do not re-raise)*
 
 `admin@rossacrm.tech` (Admin), `manager@rossacrm.tech` (Manager) and
-`agent@rossacrm.tech` (Agent) are all `active`, all last used on 7 August — the
-day the system was seeded — and none has been signed into since. The owner had
-already decided these should go once the real accounts existed.
+`agent@rossacrm.tech` (Agent) are all `active` and all last used on 7 August,
+the day the system was seeded. `kardinal.kali.51@gmail.com` (Agent) and the two
+Owners are the accounts actually in use.
 
-Three unused credentials, one of them Admin, with passwords set by a seeding
-script and never rotated, are standing surface for no benefit. Deleting or
-deactivating them removes it. `kardinal.kali.51@gmail.com` (Agent) and the two
-Owners are the accounts that are actually used.
+Three logins that nobody uses are three more chances for a password to be the
+one that goes wrong, and one of them carries Admin. That is the whole finding —
+it is about count, not about weakness: these are not default or seeded-script
+credentials, they were set deliberately on the VPS on 7 August and are stored as
+Argon2id hashes.
+
+**The owner's decision, asked and answered the same day: they stay, exactly as
+created.** Recorded here so the next audit reads it as a considered choice
+rather than an oversight, and does not spend the finding again.
+
+What follows from keeping them is that §9 and §1 carry more weight, not less:
+with six live accounts and no MFA anywhere, the login form is the whole
+perimeter, and the throttle in front of it is the one control that is currently
+bypassable.
 
 ### 11. LOW — the weekly Cloudflare-range refresh has not run since 14 August
 
@@ -401,9 +412,9 @@ another project's outage.
 
 ## Order I would fix these in
 
-1. **Enrol both Owner accounts in TOTP** (§9) and **delete the three seeded demo
-   accounts** (§10). Minutes each, no deploy, and together they close the
-   shortest path into the system.
+1. **Enrol both Owner accounts in TOTP** (§9). Minutes, no deploy, and with the
+   account list staying as it is (§10) this is the single largest reduction in
+   risk available anywhere in this report.
 2. **`header_up X-Forwarded-For {client_ip}`** in the Caddyfile (§1) — one line,
    and it is the only code-side finding that changes what an attacker can do
    from outside today.
