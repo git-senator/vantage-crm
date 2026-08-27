@@ -377,16 +377,25 @@ rather than assumed:
 * All four Telegram listeners (`rognar`, `rognar-rossa`, `toplevel`, `usa`) are
   running, and nothing unexpected is on the machine.
 
-One thing to flag rather than judge: `/opt/webscout` appeared on 26 August — a
-Reddit/OpenRouter scanner with its own `.env` (mode 600, not running yet). That
-is a sixth project's credentials on the machine that serves the CRM. The
-pravosudie lesson applies: it is fine until the day one project's mistake
-becomes the CRM's outage.
+Both open questions from this pass were answered by the owner the same day, and
+both are closed:
 
-Also worth confirming rather than assuming: **`boss@rossacrm.tech` is an Owner
-account that signed in today** and does not appear in any earlier record of who
-should have access. Presumed to be the owner's own; it is named here so the
-assumption gets checked by someone who knows.
+* **`boss@rossacrm.tech` is the owner's own account.** Not a finding. It is
+  recorded here because an Owner-role account that appears in no prior access
+  record should always be asked about rather than assumed.
+* **`/opt/webscout` was removed.** It appeared on 26 August — a
+  Reddit/OpenRouter/Telegram scanner with its own `.env` — and was a sixth
+  project's credentials sitting on the machine that serves the CRM. Nothing
+  referenced it: no systemd unit, no cron entry, no container, no built image,
+  and its `data/` directory was empty, so it had never run. Deleted on the
+  owner's instruction after its code (without the `.env`) was archived off the
+  server. The credentials in that file — Reddit client id and secret, an
+  OpenRouter key, a Telegram bot token — went with it and should be revoked at
+  their sources if the project is not coming back.
+
+The pravosudie lesson stands regardless: five listener projects still share this
+box with the CRM, and shared root is how one project's routine mistake becomes
+another project's outage.
 
 ---
 
