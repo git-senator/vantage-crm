@@ -50,15 +50,34 @@ const FILTER_CHANNELS = [
 ] as const;
 
 /**
- * The link a YouTube thread replies through. YouTube gives no back-channel, so
- * the "reply" is a jump to the public comment — carried on the newest message's
- * media (Radar posts it there). Newest first: the freshest comment wins.
+ * Channels the CRM listens on but cannot answer through.
+ *
+ * Both are scouted from public conversation: a YouTube comment, a message in a
+ * public Telegram group. Neither hands us a back-channel — YouTube has no DMs
+ * at all, and writing unbidden to a Telegram stranger is how the scout accounts
+ * get thrown out of the very chats they watch. So the thread is read here and
+ * answered where it was said, in one click.
  */
-function youtubeReplyUrl(messages: ConversationMessage[]): string | null {
+const JUMP_OUT_CHANNELS: Record<string, (url: string) => boolean> = {
+  youtube: (url) => url.includes("youtube.com") || url.includes("youtu.be"),
+  // `t.me/<chat>/<id>` is a link to one message; `t.me/<name>` is the author's
+  // profile. Both ride along on a scouted lead, and only the first is a place
+  // to answer — so require the second path segment.
+  telegram: (url) => /t\.me\/[^/]+\/\d+/.test(url),
+};
+
+/**
+ * The link a thread is answered through, carried on the message's media by
+ * whatever scouted it. Newest first: the freshest message wins.
+ */
+function jumpOutUrl(
+  messages: ConversationMessage[],
+  channel: string,
+): string | null {
+  const matches = JUMP_OUT_CHANNELS[channel];
+  if (!matches) return null;
   for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const hit = messages[i].media?.find(
-      (m) => m.url.includes("youtube.com") || m.url.includes("youtu.be"),
-    );
+    const hit = messages[i].media?.find((m) => matches(m.url));
     if (hit) return hit.url;
   }
   return null;
@@ -150,10 +169,17 @@ export default async function MessagesPage({
                   />
                 ))}
               </div>
-              {detail.conversation.channel === "youtube" ? (
-                <YouTubeReply
-                  url={youtubeReplyUrl(detail.messages)}
-                  label={t("body.ytReply")}
+              {detail.conversation.channel in JUMP_OUT_CHANNELS ? (
+                <JumpOutReply
+                  url={jumpOutUrl(
+                    detail.messages,
+                    detail.conversation.channel,
+                  )}
+                  label={
+                    detail.conversation.channel === "telegram"
+                      ? t("body.tgReply")
+                      : t("body.ytReply")
+                  }
                   noLinkLabel={t("body.ytNoLink")}
                 />
               ) : (
@@ -238,12 +264,12 @@ function ChannelChip({
 }
 
 /**
- * A YouTube thread's reply control. There is no back-channel to a YouTube
- * commenter, so instead of a composer we send the worker to the public comment
- * to answer it there. When no link came through, we say so rather than showing
- * a dead button.
+ * The reply control for a thread the CRM cannot send on — see
+ * `JUMP_OUT_CHANNELS`. Instead of a composer that would fail at delivery, it
+ * sends the worker to where the message was said. When no link came through,
+ * it says so rather than showing a dead button.
  */
-function YouTubeReply({
+function JumpOutReply({
   url,
   label,
   noLinkLabel,
