@@ -1,3 +1,4 @@
+import { SessionKeepalive } from "@/components/auth/session-keepalive";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -37,6 +38,9 @@ export default async function AppLayout({
 
   return (
     <SidebarProvider>
+      {/* Renews the session from inside the tab, so nobody is thrown back to
+          the login screen mid-task. Renders nothing. */}
+      <SessionKeepalive />
       <AppSidebar
         user={user}
         canManageUsers={hasPermission(session, "users.manage")}

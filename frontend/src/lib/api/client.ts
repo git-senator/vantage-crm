@@ -60,8 +60,14 @@ let refreshInFlight: Promise<boolean> | null = null;
  * `/api/auth/refresh` carries it — which is why renewal has to happen here on
  * the client rather than in the generic proxy. On success the browser stores
  * the rotated cookies and the original request can simply be replayed.
+ *
+ * Exported because it is also called ahead of time, by `SessionKeepalive`: a
+ * renewal that happens before the token expires costs one request and is
+ * invisible, where one that happens after costs a redirect through
+ * `/api/auth/renew`. Both go through the same in-flight promise, so the two
+ * cannot present the same refresh token twice and trip reuse detection.
  */
-function refreshSession(): Promise<boolean> {
+export function refreshSession(): Promise<boolean> {
   refreshInFlight ??= fetch(`/api/auth/refresh`, {
     method: "POST",
     headers: { Accept: "application/json" },
