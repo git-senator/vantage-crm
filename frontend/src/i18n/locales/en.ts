@@ -1432,6 +1432,9 @@ const en = {
       "Showings and closings booked against a record appear here.",
     // messages
     messagesTitle: "Inbox",
+    chanAll: "All",
+    ytReply: "Reply on YouTube",
+    ytNoLink: "Comment link unavailable",
     msgFiledOn: "Filed on {entity}",
     msgUnfiled: "Unfiled",
     msgTranslatedFrom: "Translated from {lang}",

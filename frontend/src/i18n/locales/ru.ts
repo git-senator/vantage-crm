@@ -1401,6 +1401,9 @@ const ru: Dictionary = {
       "Показы и закрытия, назначенные к записи, появятся здесь.",
     // messages
     messagesTitle: "Входящие",
+    chanAll: "Все",
+    ytReply: "Ответить на YouTube",
+    ytNoLink: "Ссылка на комментарий недоступна",
     msgFiledOn: "Привязано к {entity}",
     msgUnfiled: "Без привязки",
     msgTranslatedFrom: "Переведено с {lang}",

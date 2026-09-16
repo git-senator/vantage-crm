@@ -1401,6 +1401,9 @@ const ptBR: Dictionary = {
       "Visitas e fechamentos marcados em um registro aparecem aqui.",
     // messages
     messagesTitle: "Caixa de entrada",
+    chanAll: "Todos",
+    ytReply: "Responder no YouTube",
+    ytNoLink: "Link do comentário indisponível",
     msgFiledOn: "Vinculado a {entity}",
     msgUnfiled: "Sem vínculo",
     msgTranslatedFrom: "Traduzido de {lang}",

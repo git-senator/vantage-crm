@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Globe, Inbox, Mail, MessageCircle, Paperclip, Send } from "lucide-react";
+import {
+  ExternalLink,
+  Globe,
+  Inbox,
+  Mail,
+  MessageCircle,
+  Paperclip,
+  Send,
+} from "lucide-react";
 
 import { AutopilotToggle } from "@/components/messages/autopilot-toggle";
 import { AutoRefresh } from "@/components/messages/auto-refresh";
@@ -30,6 +38,32 @@ const CHANNEL_ICON = {
   youtube: MessageCircle,
 } as const;
 
+// The channels offered as inbox filters, in display order. Labels are proper
+// nouns and stay untranslated; only the "all" reset is localised.
+const FILTER_CHANNELS = [
+  ["youtube", "YouTube"],
+  ["whatsapp", "WhatsApp"],
+  ["telegram", "Telegram"],
+  ["instagram", "Instagram"],
+  ["email", "Email"],
+  ["website", "Website"],
+] as const;
+
+/**
+ * The link a YouTube thread replies through. YouTube gives no back-channel, so
+ * the "reply" is a jump to the public comment — carried on the newest message's
+ * media (Radar posts it there). Newest first: the freshest comment wins.
+ */
+function youtubeReplyUrl(messages: ConversationMessage[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const hit = messages[i].media?.find(
+      (m) => m.url.includes("youtube.com") || m.url.includes("youtu.be"),
+    );
+    if (hit) return hit.url;
+  }
+  return null;
+}
+
 /**
  * The shared inbox, on live data since Phase 3.4.
  *
@@ -40,12 +74,18 @@ const CHANNEL_ICON = {
 export default async function MessagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ c?: string }>;
+  searchParams: Promise<{ c?: string; ch?: string }>;
 }) {
-  const { c } = await searchParams;
+  const { c, ch } = await searchParams;
   const t = await getTranslations();
   const locale = await getLocale();
-  const { data: conversations } = await listConversations({ limit: 50 });
+  // `ch` narrows the inbox to one channel (the backend already filters); an
+  // unknown value simply returns nothing, so a stale link can't 500.
+  const channel = ch && ch in CHANNEL_ICON ? ch : undefined;
+  const { data: conversations } = await listConversations({
+    channel,
+    limit: 50,
+  });
 
   // Fall back to the first thread rather than trusting the parameter: a stale
   // bookmark to a deleted or now-invisible conversation should open the inbox,
@@ -68,12 +108,24 @@ export default async function MessagesPage({
                 ? t("body.messagesEmptyTitle")
                 : t("body.conversationsCount", { n: conversations.length })}
             </p>
+            <div className="mt-2 flex flex-wrap gap-1">
+              <ChannelChip label={t("body.chanAll")} active={!channel} />
+              {FILTER_CHANNELS.map(([value, label]) => (
+                <ChannelChip
+                  key={value}
+                  channel={value}
+                  label={label}
+                  active={channel === value}
+                />
+              ))}
+            </div>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {conversations.map((conversation) => (
               <ConversationRow
                 key={conversation.id}
                 conversation={conversation}
+                channel={channel}
                 active={conversation.id === selectedId}
               />
             ))}
@@ -98,11 +150,19 @@ export default async function MessagesPage({
                   />
                 ))}
               </div>
-              <MessageComposer
-                toAddress={detail.conversation.external_id}
-                toName={detail.conversation.display_name}
-                subject={detail.conversation.subject}
-              />
+              {detail.conversation.channel === "youtube" ? (
+                <YouTubeReply
+                  url={youtubeReplyUrl(detail.messages)}
+                  label={t("body.ytReply")}
+                  noLinkLabel={t("body.ytNoLink")}
+                />
+              ) : (
+                <MessageComposer
+                  toAddress={detail.conversation.external_id}
+                  toName={detail.conversation.display_name}
+                  subject={detail.conversation.subject}
+                />
+              )}
             </>
           ) : (
             <div className="grid flex-1 place-items-center p-8">
@@ -152,19 +212,88 @@ function ContactAvatar({ name, className }: { name: string; className?: string }
   );
 }
 
+/** A channel filter pill in the inbox header. No `channel` means the reset. */
+function ChannelChip({
+  channel,
+  label,
+  active,
+}: {
+  channel?: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={channel ? `/messages?ch=${channel}` : "/messages"}
+      className={cn(
+        "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+        active
+          ? "border-transparent bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-muted/50",
+      )}
+    >
+      {label}
+    </Link>
+  );
+}
+
+/**
+ * A YouTube thread's reply control. There is no back-channel to a YouTube
+ * commenter, so instead of a composer we send the worker to the public comment
+ * to answer it there. When no link came through, we say so rather than showing
+ * a dead button.
+ */
+function YouTubeReply({
+  url,
+  label,
+  noLinkLabel,
+}: {
+  url: string | null;
+  label: string;
+  noLinkLabel: string;
+}) {
+  if (!url) {
+    return (
+      <div className="border-t p-3 text-center text-[11px] text-muted-foreground">
+        {noLinkLabel}
+      </div>
+    );
+  }
+  return (
+    <div className="border-t p-3">
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+      >
+        {label}
+        <ExternalLink className="size-3.5" />
+      </a>
+    </div>
+  );
+}
+
 function ConversationRow({
   conversation,
+  channel,
   active,
 }: {
   conversation: Conversation;
+  channel: string | undefined;
   active: boolean;
 }) {
   const Icon = CHANNEL_ICON[conversation.channel] ?? Mail;
   const name = conversation.display_name ?? conversation.external_id;
+  // Keep the active channel filter when opening a thread, so selecting one
+  // doesn't drop the user back to the full inbox.
+  const href = channel
+    ? `/messages?c=${conversation.id}&ch=${channel}`
+    : `/messages?c=${conversation.id}`;
 
   return (
     <Link
-      href={`/messages?c=${conversation.id}`}
+      href={href}
       className={cn(
         "flex gap-2.5 border-b p-3 transition-colors hover:bg-muted/50",
         active && "bg-accent/40",
