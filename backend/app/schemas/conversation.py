@@ -9,6 +9,22 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Channel = Literal["email", "whatsapp", "sms"]
+#: Every channel a conversation can carry — the sendable ones plus the
+#: inbound-only social channels. Used to filter the inbox, where a YouTube or
+#: Telegram thread is just as real as an email one. `Channel` stays narrow
+#: because it also types the *outbound* send, which only email/whatsapp/sms
+#: support.
+ChannelFilter = Literal[
+    "email",
+    "whatsapp",
+    "sms",
+    "website",
+    "telegram",
+    "instagram",
+    "facebook",
+    "google",
+    "youtube",
+]
 ConversationEntityType = Literal["lead", "client", "deal"]
 MessageDirection = Literal["inbound", "outbound"]
 
@@ -91,7 +107,7 @@ class ConversationDetail(BaseModel):
 
 
 class ConversationFilters(BaseModel):
-    channel: Channel | None = None
+    channel: ChannelFilter | None = None
     entity_type: ConversationEntityType | None = None
     entity_id: UUID | None = None
     unread_only: bool = False

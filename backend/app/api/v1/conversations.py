@@ -30,7 +30,7 @@ from app.api.v1.webhooks import InboundTenantDep
 from app.models.conversation import Conversation, Message
 from app.models.user import User
 from app.schemas.common import Cursor, PageMeta
-from app.schemas.conversation import Channel as ChannelLiteral
+from app.schemas.conversation import ChannelFilter as ChannelLiteral
 from app.schemas.conversation import (
     ConversationDetail,
     ConversationFilters,
