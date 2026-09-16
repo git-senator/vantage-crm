@@ -36,12 +36,27 @@ function safeNext(raw: string | null): string {
   return raw;
 }
 
-function toLogin(request: NextRequest, next: string): NextResponse {
-  const url = new URL("/login", request.url);
-  if (next !== "/" && next !== "/dashboard") {
-    url.searchParams.set("next", next);
-  }
-  return NextResponse.redirect(url);
+/**
+ * Redirect to a path on this site.
+ *
+ * A *relative* Location, deliberately. `NextResponse.redirect` demands an
+ * absolute URL, and the only origin available to a route handler is the one it
+ * was reached on internally — `0.0.0.0:3000`, the container's own socket, not
+ * the address in the browser's bar. (Middleware is the exception: its `nextUrl`
+ * is rebuilt from the forwarded host.) Letting the browser resolve the path
+ * against the URL it asked for gets this right without reading proxy headers.
+ */
+function redirectTo(path: string): NextResponse {
+  return new NextResponse(null, {
+    status: 307,
+    // Never cache a redirect that carries a rotated session.
+    headers: { location: path, "cache-control": "no-store" },
+  });
+}
+
+function toLogin(next: string): NextResponse {
+  if (next === "/" || next === "/dashboard") return redirectTo("/login");
+  return redirectTo(`/login?next=${encodeURIComponent(next)}`);
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -63,7 +78,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   } catch {
     // The API is down. Not the same as being signed out, but there is nothing
     // to render either; the login page is the one screen that needs no session.
-    return toLogin(request, next);
+    return toLogin(next);
   }
 
   const cookies = upstream.ok ? upstream.headers.getSetCookie() : [];
@@ -74,15 +89,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     new RegExp(`^${ACCESS_COOKIE}=[^;]`).test(cookie),
   );
   if (!renewed) {
-    return toLogin(request, next);
+    return toLogin(next);
   }
 
-  const response = NextResponse.redirect(new URL(next, request.url));
+  const response = redirectTo(next);
   for (const cookie of cookies) {
     response.headers.append("set-cookie", rewriteCookiePath(cookie));
   }
-  // The redirect itself must never be cached: it carries a rotated session.
-  response.headers.set("Cache-Control", "no-store");
   return response;
 }
 
