@@ -1435,6 +1435,7 @@ const en = {
     chanAll: "All",
     ytReply: "Reply on YouTube",
     tgReply: "Reply on Telegram",
+    rdReply: "Reply on Reddit",
     ytNoLink: "Link to the original message unavailable",
     msgFiledOn: "Filed on {entity}",
     msgUnfiled: "Unfiled",

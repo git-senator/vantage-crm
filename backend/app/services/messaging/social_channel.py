@@ -28,7 +28,7 @@ from app.services.messaging.base import (
 #: adapters because they carry provider clients and threading rules this one has
 #: no business knowing about.
 SOCIAL_CHANNELS = frozenset(
-    {"website", "telegram", "instagram", "facebook", "google", "youtube"}
+    {"website", "telegram", "instagram", "facebook", "google", "youtube", "reddit"}
 )
 
 

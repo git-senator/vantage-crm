@@ -36,12 +36,14 @@ const CHANNEL_ICON = {
   facebook: MessageCircle,
   google: Globe,
   youtube: MessageCircle,
+  reddit: MessageCircle,
 } as const;
 
 // The channels offered as inbox filters, in display order. Labels are proper
 // nouns and stay untranslated; only the "all" reset is localised.
 const FILTER_CHANNELS = [
   ["youtube", "YouTube"],
+  ["reddit", "Reddit"],
   ["whatsapp", "WhatsApp"],
   ["telegram", "Telegram"],
   ["instagram", "Instagram"],
@@ -64,6 +66,16 @@ const JUMP_OUT_CHANNELS: Record<string, (url: string) => boolean> = {
   // profile. Both ride along on a scouted lead, and only the first is a place
   // to answer — so require the second path segment.
   telegram: (url) => /t\.me\/[^/]+\/\d+/.test(url),
+  // A permalink to the post or comment. `/user/<name>` links ride along too and
+  // are a profile, not a place to answer, so match only the comments path.
+  reddit: (url) => /reddit\.com\/r\/[^/]+\/comments\//.test(url),
+};
+
+/** The button's wording, per channel — "answer on YouTube", not "answer". */
+const JUMP_OUT_LABEL: Record<string, string> = {
+  youtube: "body.ytReply",
+  telegram: "body.tgReply",
+  reddit: "body.rdReply",
 };
 
 /**
@@ -175,11 +187,7 @@ export default async function MessagesPage({
                     detail.messages,
                     detail.conversation.channel,
                   )}
-                  label={
-                    detail.conversation.channel === "telegram"
-                      ? t("body.tgReply")
-                      : t("body.ytReply")
-                  }
+                  label={t(JUMP_OUT_LABEL[detail.conversation.channel])}
                   noLinkLabel={t("body.ytNoLink")}
                 />
               ) : (

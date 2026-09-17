@@ -1404,6 +1404,7 @@ const ru: Dictionary = {
     chanAll: "Все",
     ytReply: "Ответить на YouTube",
     tgReply: "Ответить в Telegram",
+    rdReply: "Ответить на Reddit",
     ytNoLink: "Ссылка на исходное сообщение недоступна",
     msgFiledOn: "Привязано к {entity}",
     msgUnfiled: "Без привязки",

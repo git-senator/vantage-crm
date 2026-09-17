@@ -24,6 +24,7 @@ ChannelFilter = Literal[
     "facebook",
     "google",
     "youtube",
+    "reddit",
 ]
 ConversationEntityType = Literal["lead", "client", "deal"]
 MessageDirection = Literal["inbound", "outbound"]
@@ -191,6 +192,7 @@ INBOUND_CHANNELS = frozenset(
         "facebook",
         "google",
         "youtube",
+        "reddit",
     }
 )
 

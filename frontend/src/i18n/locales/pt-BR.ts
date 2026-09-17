@@ -1404,6 +1404,7 @@ const ptBR: Dictionary = {
     chanAll: "Todos",
     ytReply: "Responder no YouTube",
     tgReply: "Responder no Telegram",
+    rdReply: "Responder no Reddit",
     ytNoLink: "Link da mensagem original indisponível",
     msgFiledOn: "Vinculado a {entity}",
     msgUnfiled: "Sem vínculo",
