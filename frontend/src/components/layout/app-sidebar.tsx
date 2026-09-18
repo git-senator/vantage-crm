@@ -2,7 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsUpDown, Inbox, Plus, Settings, UserRound } from "lucide-react";
+import {
+  Building2,
+  ChevronsUpDown,
+  Handshake,
+  Inbox,
+  Plus,
+  Settings,
+  Target,
+  UserRound,
+  Users,
+} from "lucide-react";
 
 import { SignOutItem } from "@/components/auth/sign-out-item";
 import { AttentionDot } from "@/components/layout/attention-dot";
@@ -38,6 +48,19 @@ import { navigation, secondaryNavigation } from "@/lib/nav";
 import type { SessionUser } from "@/types";
 
 /**
+ * What the header's Create button offers. Each row carries the permission its
+ * own page already enforces, so the menu lists only what the user can actually
+ * create. With no rows left the button is hidden: an empty menu misleads the
+ * same way the unwired button did.
+ */
+const CREATE_TARGETS = [
+  { href: "/leads/new", labelKey: "body.newLead", permission: "leads.manage", icon: Target },
+  { href: "/clients/new", labelKey: "body.newClient", permission: "contacts.manage", icon: Users },
+  { href: "/properties/new", labelKey: "body.newListing", permission: "properties.manage", icon: Building2 },
+  { href: "/deals/new", labelKey: "body.newDeal", permission: "deals.manage", icon: Handshake },
+] as const;
+
+/**
  * The signed-in user arrives as a prop from the server layout. In Phase 1 that
  * layout resolves it from the session rather than a fixture; this component
  * does not change.
@@ -60,6 +83,8 @@ export function AppSidebar({
   const canSee = (item: { permission?: string }) =>
     !item.permission || permissions.includes(item.permission);
 
+  const createTargets = CREATE_TARGETS.filter(canSee);
+
   // Drop items the user lacks permission for, then any group left empty.
   const visibleGroups = navigation
     .map((group) => ({ ...group, items: group.items.filter(canSee) }))
@@ -71,12 +96,31 @@ export function AppSidebar({
         <Link href="/dashboard" className="group-data-[collapsible=icon]:hidden">
           <BrandLockup />
         </Link>
-        <Button className="w-full justify-start gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <Plus className="size-4" />
-          <span className="group-data-[collapsible=icon]:hidden">
-            {t("buttons.create")}
-          </span>
-        </Button>
+        {createTargets.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button className="w-full justify-start gap-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+                  <Plus className="size-4" />
+                  <span className="group-data-[collapsible=icon]:hidden">
+                    {t("buttons.create")}
+                  </span>
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="start" className="w-56">
+              {createTargets.map((target) => (
+                <DropdownMenuItem
+                  key={target.href}
+                  render={<Link href={target.href} />}
+                >
+                  <target.icon className="size-4" />
+                  {t(target.labelKey)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </SidebarHeader>
 
       <SidebarContent className="scrollbar-slim px-1">
