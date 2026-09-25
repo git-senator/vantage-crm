@@ -1,5 +1,5 @@
 /**
- * Domain types for the Vantage CRM prototype.
+ * Domain types for the ROSSA CRM prototype.
  *
  * These describe the shape of the mock fixtures only — there is no persistence
  * layer behind them. They exist so pages and components share one vocabulary.

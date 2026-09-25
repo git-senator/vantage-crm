@@ -98,7 +98,7 @@ class TestGeneratedSdks:
             "src/client.ts",
         }
         client = package.files["src/client.ts"]
-        assert "export class VantageClient" in client
+        assert "export class RossaClient" in client
         assert "LeadsResource" in client
         assert version in client
         assert version in package.files["package.json"]
@@ -109,15 +109,15 @@ class TestGeneratedSdks:
         assert set(package.files) == {
             "pyproject.toml",
             "README.md",
-            "vantage_crm/__init__.py",
-            "vantage_crm/client.py",
+            "rossa_crm/__init__.py",
+            "rossa_crm/client.py",
         }
-        client = package.files["vantage_crm/client.py"]
-        assert "class VantageClient" in client
+        client = package.files["rossa_crm/client.py"]
+        assert "class RossaClient" in client
         assert "class LeadsResource(_Resource)" in client
         # The generated client must be valid Python, not just plausible text.
-        compile(client, "vantage_crm/client.py", "exec")
-        compile(package.files["vantage_crm/__init__.py"], "__init__.py", "exec")
+        compile(client, "rossa_crm/client.py", "exec")
+        compile(package.files["rossa_crm/__init__.py"], "__init__.py", "exec")
 
     def test_generation_is_deterministic(self) -> None:
         spec = public_openapi_spec()
@@ -167,7 +167,7 @@ class TestSandboxKeys:
     async def test_sandbox_key_carries_its_environment(
         self, db: AsyncSession, organization: Organization
     ) -> None:
-        user = await make_user(db, organization, "sandbox@vantage.example")
+        user = await make_user(db, organization, "sandbox@rossa.example")
         auth = _auth(organization, user.id)
         service = ApiKeyService(db, _settings())
 
@@ -192,7 +192,7 @@ class TestSandboxKeys:
     ) -> None:
         from app.core.exceptions import AppError
 
-        user = await make_user(db, organization, "bogus-env@vantage.example")
+        user = await make_user(db, organization, "bogus-env@rossa.example")
         auth = _auth(organization, user.id)
         with pytest.raises(AppError):
             await ApiKeyService(db, _settings()).create(
@@ -209,7 +209,7 @@ class TestSandboxKeys:
     ) -> None:
         """With enforcement on and no plan, a live key is refused (no api_access)
         but a sandbox key is minted — it is exempt from the gate and the quota."""
-        user = await make_user(db, organization, "gate@vantage.example")
+        user = await make_user(db, organization, "gate@rossa.example")
         auth = _auth(organization, user.id)
         service = ApiKeyService(db, _settings(BILLING_ENFORCED=True))
 
@@ -241,7 +241,7 @@ class TestDeveloperService:
     async def test_overview_reports_api_and_sdk_targets(
         self, db: AsyncSession, organization: Organization
     ) -> None:
-        user = await make_user(db, organization, "dev@vantage.example")
+        user = await make_user(db, organization, "dev@rossa.example")
         auth = _auth(organization, user.id)
         overview = await DeveloperService(db, auth, _settings()).overview(
             base_url="https://crm.acme.test/api/public/v1"
@@ -255,7 +255,7 @@ class TestDeveloperService:
     async def test_generate_sdk_unknown_language_is_not_found(
         self, db: AsyncSession, organization: Organization
     ) -> None:
-        user = await make_user(db, organization, "haskell@vantage.example")
+        user = await make_user(db, organization, "haskell@rossa.example")
         auth = _auth(organization, user.id)
         service = DeveloperService(db, auth, _settings())
         assert service.generate_sdk("typescript").language == "typescript"
@@ -265,7 +265,7 @@ class TestDeveloperService:
     async def test_api_keys_are_grouped_by_environment(
         self, db: AsyncSession, organization: Organization
     ) -> None:
-        user = await make_user(db, organization, "grouped@vantage.example")
+        user = await make_user(db, organization, "grouped@rossa.example")
         auth = _auth(organization, user.id)
         keys = ApiKeyService(db, _settings())
         await keys.create(

@@ -106,7 +106,7 @@ async def read_invitation(
     return InvitationInfo(
         email=invitation.email,
         full_name=user.full_name if user else invitation.email,
-        organization_name=organization.name if organization else "Vantage CRM",
+        organization_name=organization.name if organization else "ROSSA CRM",
     )
 
 
@@ -216,14 +216,14 @@ async def _notify_reviewers(
     role_line = f"Requested role: {requested_role}\n" if requested_role else ""
     note_line = f"Message: {message}\n" if message else ""
     text_body = (
-        f"New access request for Vantage CRM:\n\n"
+        f"New access request for ROSSA CRM:\n\n"
         f"Name: {full_name}\n"
         f"Email: {email}\n"
         f"{role_line}{note_line}\n"
         f"Review it: {queue_url}\n"
     )
     html_body = (
-        f"<p>New access request for Vantage CRM:</p>"
+        f"<p>New access request for ROSSA CRM:</p>"
         f"<p><strong>{full_name}</strong><br>{email}</p>"
         + (f"<p>Requested role: {requested_role}</p>" if requested_role else "")
         + (f"<p>Message: {message}</p>" if message else "")

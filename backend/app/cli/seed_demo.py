@@ -1,6 +1,6 @@
 """Generate a large, realistic demo dataset for benchmarking and local testing.
 
-    python -m app.cli.seed_demo --org-slug vantage-realty --scale 1.0
+    python -m app.cli.seed_demo --org-slug rossa-crm --scale 1.0
 
 At `--scale 1.0` this produces roughly a quarter-million rows — ~100k leads on
 their own — which is the population Phase 2's list-latency exit criterion is

@@ -13,7 +13,7 @@
 const en = {
   // ------------------------------------------------------------------ common
   common: {
-    appName: "Vantage",
+    appName: "ROSSA CRM",
     appTagline: "AI Real Estate CRM",
     prototype: "Prototype",
     new: "New",
@@ -251,7 +251,7 @@ const en = {
 
   // ------------------------------------------------------------------ tooltips
   tooltips: {
-    askAssistant: "Ask Vantage AI",
+    askAssistant: "Ask ROSSA AI",
     notifications: "Notifications",
     help: "Help",
     toggleTheme: "Toggle theme",
@@ -537,7 +537,7 @@ const en = {
   ai: {
     title: "AI Assistant",
     description: "Ask about any lead, deal or listing in your workspace.",
-    askPlaceholder: "Ask Vantage AI…",
+    askPlaceholder: "Ask ROSSA AI…",
     send: "Send",
     thinking: "Thinking…",
     newConversation: "New conversation",
@@ -750,7 +750,7 @@ const en = {
   auth: {
     welcomeBack: "Welcome back",
     signInSubtitle:
-      "Sign in to your Vantage workspace to pick up where you left off.",
+      "Sign in to your ROSSA CRM workspace to pick up where you left off.",
     needAccount: "Need an account?",
     requestAccess: "Request access",
     email: "Email",
@@ -765,7 +765,7 @@ const en = {
     privacyPolicy: "Privacy Policy",
     heroHeadline: "Every listing, lead and closing in one line of sight.",
     heroSubtitle:
-      "Vantage keeps your brokerage's pipeline current and tells you which conversation to have next.",
+      "ROSSA CRM keeps your brokerage's pipeline current and tells you which conversation to have next.",
     highlight1Title: "Lead scoring that explains itself",
     highlight1Body:
       "Every score comes with the three signals that drove it, so you know why a buyer is worth calling first.",
@@ -775,7 +775,7 @@ const en = {
     highlight3Title: "Compliance built in",
     highlight3Body:
       "Disclosure deadlines and signature status tracked against every transaction file.",
-    footer: "© 2026 Vantage Realty Group",
+    footer: "© 2026 ROSSA CRM",
     mfaTitle: "Two-factor authentication",
     mfaSubtitle: "Enter the 6-digit code from your authenticator app.",
     mfaCode: "Verification code",

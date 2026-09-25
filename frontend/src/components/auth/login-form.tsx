@@ -85,7 +85,7 @@ export function LoginForm() {
           type="email"
           required
           autoComplete="email"
-          placeholder="you@vantagerealty.com"
+          placeholder="you@rossa.group"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           disabled={pending}

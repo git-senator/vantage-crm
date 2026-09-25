@@ -10,7 +10,7 @@ import type { Dictionary } from "./en";
 
 const ptBR: Dictionary = {
   common: {
-    appName: "Vantage",
+    appName: "ROSSA CRM",
     appTagline: "CRM Imobiliário com IA",
     prototype: "Protótipo",
     new: "Novo",
@@ -239,7 +239,7 @@ const ptBR: Dictionary = {
   },
 
   tooltips: {
-    askAssistant: "Pergunte à Vantage IA",
+    askAssistant: "Pergunte à ROSSA IA",
     notifications: "Notificações",
     help: "Ajuda",
     toggleTheme: "Alternar tema",
@@ -511,7 +511,7 @@ const ptBR: Dictionary = {
   ai: {
     title: "Assistente de IA",
     description: "Pergunte sobre qualquer lead, negócio ou imóvel do seu espaço.",
-    askPlaceholder: "Pergunte à Vantage IA…",
+    askPlaceholder: "Pergunte à ROSSA IA…",
     send: "Enviar",
     thinking: "Pensando…",
     newConversation: "Nova conversa",
@@ -720,7 +720,7 @@ const ptBR: Dictionary = {
   auth: {
     welcomeBack: "Bem-vindo de volta",
     signInSubtitle:
-      "Entre no seu espaço Vantage para continuar de onde parou.",
+      "Entre no seu espaço ROSSA CRM para continuar de onde parou.",
     needAccount: "Precisa de uma conta?",
     requestAccess: "Solicitar acesso",
     email: "E-mail",
@@ -735,7 +735,7 @@ const ptBR: Dictionary = {
     privacyPolicy: "Política de Privacidade",
     heroHeadline: "Cada imóvel, lead e fechamento em um só campo de visão.",
     heroSubtitle:
-      "A Vantage mantém o funil da sua imobiliária atualizado e diz qual conversa ter em seguida.",
+      "A ROSSA CRM mantém o funil da sua imobiliária atualizado e diz qual conversa ter em seguida.",
     highlight1Title: "Pontuação de leads que se explica",
     highlight1Body:
       "Cada pontuação vem com os três sinais que a geraram, para você saber por que ligar primeiro para um comprador.",
@@ -745,7 +745,7 @@ const ptBR: Dictionary = {
     highlight3Title: "Conformidade integrada",
     highlight3Body:
       "Prazos de divulgação e status de assinatura acompanhados em cada processo de transação.",
-    footer: "© 2026 Vantage Realty Group",
+    footer: "© 2026 ROSSA CRM",
     mfaTitle: "Autenticação de dois fatores",
     mfaSubtitle: "Digite o código de 6 dígitos do seu aplicativo autenticador.",
     mfaCode: "Código de verificação",

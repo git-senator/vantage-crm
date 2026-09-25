@@ -22,8 +22,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Vantage — AI Real Estate CRM",
-    template: "%s · Vantage",
+    default: "ROSSA CRM — AI Real Estate CRM",
+    template: "%s · ROSSA CRM",
   },
   description:
     "An AI-assisted real estate CRM: leads, deals, properties and analytics in one workspace.",

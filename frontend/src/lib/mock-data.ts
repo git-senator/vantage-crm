@@ -28,7 +28,7 @@ export const team: Record<string, TeamMember> = {
 
 export const currentUser: SessionUser = {
   ...team.avery,
-  email: "avery.chen@vantagerealty.com",
+  email: "avery.chen@rossa.group",
 };
 
 export const contacts: Record<string, TeamMember> = {

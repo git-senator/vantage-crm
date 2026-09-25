@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # ------------------------------------------------------------- app
     ENVIRONMENT: Environment = "local"
-    PROJECT_NAME: str = "Vantage CRM API"
+    PROJECT_NAME: str = "ROSSA CRM API"
     API_V1_PREFIX: str = "/api/v1"
     LOG_LEVEL: str = "INFO"
 
@@ -321,8 +321,8 @@ class Settings(BaseSettings):
     # corporate relay). It exists so a self-hosted deployment can send real mail
     # without AWS. See app/services/notifications/smtp.py.
     EMAIL_PROVIDER: Literal["ses", "smtp", "console"] = "console"
-    EMAIL_FROM: str = "no-reply@vantagerealty.example"
-    EMAIL_FROM_NAME: str = "Vantage CRM"
+    EMAIL_FROM: str = "no-reply@rossa.example"
+    EMAIL_FROM_NAME: str = "ROSSA CRM"
     AWS_SES_REGION: str = "us-east-1"
     AWS_SES_ACCESS_KEY_ID: SecretStr = SecretStr("")
     AWS_SES_SECRET_ACCESS_KEY: SecretStr = SecretStr("")

@@ -30,7 +30,7 @@ from app.api.public.v1.router import public_v1_router
 from app.core.exceptions import register_exception_handlers
 
 PUBLIC_API_DESCRIPTION = (
-    "The Vantage CRM public API. Authenticate every request with an API key "
+    "The ROSSA CRM public API. Authenticate every request with an API key "
     "(Phase 7.1) via the `X-API-Key` header or a `Bearer` token. Responses are "
     "cursor-paginated; errors follow RFC 9457 problem+json. Send an "
     "`Idempotency-Key` header on writes to make retries safe."
@@ -39,7 +39,7 @@ PUBLIC_API_DESCRIPTION = (
 
 def create_public_app() -> FastAPI:
     public_app = FastAPI(
-        title="Vantage CRM Public API",
+        title="ROSSA CRM Public API",
         version="1.0.0",
         description=PUBLIC_API_DESCRIPTION,
         docs_url="/docs",

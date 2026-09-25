@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Wordmark plus glyph. The glyph is a stylised roofline over a rising bar —
- * "vantage point", which is where the product name comes from.
+ * Wordmark plus glyph. The glyph is a stylised roofline over a rising bar:
+ * property, and a pipeline climbing under it.
  */
 export function BrandMark({ className }: { className?: string }) {
   return (
@@ -36,10 +36,8 @@ export function BrandLockup({ className }: { className?: string }) {
     <span className={cn("flex items-center gap-2.5", className)}>
       <BrandMark />
       <span className="flex flex-col leading-none">
-        <span className="text-[15px] font-semibold tracking-tight">Vantage</span>
-        <span className="mt-0.5 text-[11px] text-muted-foreground">
-          Realty Group
-        </span>
+        <span className="text-[15px] font-semibold tracking-tight">ROSSA</span>
+        <span className="mt-0.5 text-[11px] text-muted-foreground">CRM</span>
       </span>
     </span>
   );

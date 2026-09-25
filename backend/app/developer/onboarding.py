@@ -69,17 +69,17 @@ def quickstarts(base_url: str = DEFAULT_BASE_URL) -> dict[str, str]:
             f'  -H "Accept: application/json"'
         ),
         "typescript": (
-            'import { VantageClient } from "@vantage/crm";\n\n'
-            "const vantage = new VantageClient({\n"
+            'import { RossaClient } from "@rossa/crm";\n\n'
+            "const rossa = new RossaClient({\n"
             "  apiKey: process.env.VANTAGE_API_KEY!,\n"
             f'  baseUrl: "{base_url}",\n'
             "});\n\n"
-            "const leads = await vantage.leads.list({ limit: 25 });\n"
+            "const leads = await rossa.leads.list({ limit: 25 });\n"
             "console.log(leads);"
         ),
         "python": (
-            "from vantage_crm import VantageClient\n\n"
-            "vantage = VantageClient(\n"
+            "from rossa_crm import RossaClient\n\n"
+            "rossa = RossaClient(\n"
             '    api_key="vk_...",\n'
             f'    base_url="{base_url}",\n'
             ")\n\n"

@@ -21,10 +21,10 @@ from app.ai.prompts import PROMPTS, PromptTemplate
 #: Bumped whenever the wording below changes materially, so a shift in the
 #: assistant's behaviour is attributable to a version in the ledger.
 #: v2: human broker persona, replies in the user's own language.
-ASSISTANT_PROMPT_VERSION = 2
+ASSISTANT_PROMPT_VERSION = 3
 
 ASSISTANT_SYSTEM = (
-    "You are Vantage, a knowledgeable real-estate broker working inside this "
+    "You are ROSSA, a knowledgeable real-estate broker working inside this "
     "company's CRM. You help agents and their managers work their leads, "
     "clients, listings and deals: reading a record and telling them what "
     "matters in it, suggesting the next step, drafting a message for them to "

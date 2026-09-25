@@ -10,7 +10,7 @@ import type { Dictionary } from "./en";
 
 const ru: Dictionary = {
   common: {
-    appName: "Vantage",
+    appName: "ROSSA CRM",
     appTagline: "CRM для недвижимости с ИИ",
     prototype: "Прототип",
     new: "Новое",
@@ -239,7 +239,7 @@ const ru: Dictionary = {
   },
 
   tooltips: {
-    askAssistant: "Спросить Vantage AI",
+    askAssistant: "Спросить ROSSA AI",
     notifications: "Уведомления",
     help: "Помощь",
     toggleTheme: "Сменить тему",
@@ -511,7 +511,7 @@ const ru: Dictionary = {
   ai: {
     title: "ИИ-ассистент",
     description: "Спросите о любом лиде, сделке или объекте в вашем пространстве.",
-    askPlaceholder: "Спросите Vantage AI…",
+    askPlaceholder: "Спросите ROSSA AI…",
     send: "Отправить",
     thinking: "Думаю…",
     newConversation: "Новый разговор",
@@ -720,7 +720,7 @@ const ru: Dictionary = {
   auth: {
     welcomeBack: "С возвращением",
     signInSubtitle:
-      "Войдите в своё пространство Vantage, чтобы продолжить с того места, где остановились.",
+      "Войдите в своё пространство ROSSA CRM, чтобы продолжить с того места, где остановились.",
     needAccount: "Нужен аккаунт?",
     requestAccess: "Запросить доступ",
     email: "Эл. почта",
@@ -735,7 +735,7 @@ const ru: Dictionary = {
     privacyPolicy: "Политикой конфиденциальности",
     heroHeadline: "Каждый объект, лид и сделка — в одном поле зрения.",
     heroSubtitle:
-      "Vantage поддерживает воронку вашего агентства в актуальном состоянии и подсказывает, какой разговор провести следующим.",
+      "ROSSA CRM поддерживает воронку вашего агентства в актуальном состоянии и подсказывает, какой разговор провести следующим.",
     highlight1Title: "Оценка лидов, которая объясняет себя",
     highlight1Body:
       "К каждой оценке прилагаются три сигнала, которые её сформировали, — вы знаете, почему покупателю стоит позвонить первым.",
@@ -745,7 +745,7 @@ const ru: Dictionary = {
     highlight3Title: "Встроенное соответствие требованиям",
     highlight3Body:
       "Сроки раскрытия и статус подписей отслеживаются по каждому файлу сделки.",
-    footer: "© 2026 Vantage Realty Group",
+    footer: "© 2026 ROSSA CRM",
     mfaTitle: "Двухфакторная аутентификация",
     mfaSubtitle: "Введите 6-значный код из приложения-аутентификатора.",
     mfaCode: "Код подтверждения",

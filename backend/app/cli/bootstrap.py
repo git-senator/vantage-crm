@@ -4,7 +4,7 @@ A fresh database has permissions and roles (seeded by migration) but no
 organization and no user — so nobody can log in and nobody can invite anyone.
 This closes that gap.
 
-    python -m app.cli.bootstrap --name "Vantage Realty" --email you@example.com
+    python -m app.cli.bootstrap --name "ROSSA CRM" --email you@example.com
 
 Idempotent: re-running against an existing organization adds the user rather
 than failing, so it is safe in a deploy script.
