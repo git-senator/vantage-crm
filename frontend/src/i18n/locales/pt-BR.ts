@@ -681,7 +681,7 @@ const ptBR: Dictionary = {
     leadScoreThreshold: "Limite de pontuação de lead para alertas",
     leadScoreThresholdHint:
       "Você será notificado no momento em que um lead ultrapassar esta pontuação.",
-    suggestReplies: "Sugerir respostas em Mensagens",
+    suggestReplies: "Sugerir respostas em Leads recebidos",
     suggestRepliesDetail: "Rascunhar três opções sob cada mensagem recebida.",
     dailyBriefing: "Resumo diário de prioridades",
     dailyBriefingDetail: "Uma lista de chamadas priorizada na sua caixa às 7h30.",

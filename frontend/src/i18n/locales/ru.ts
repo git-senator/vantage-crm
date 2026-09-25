@@ -681,7 +681,7 @@ const ru: Dictionary = {
     leadScoreThreshold: "Порог оценки лида для оповещений",
     leadScoreThresholdHint:
       "Вы получите уведомление, как только лид превысит этот балл.",
-    suggestReplies: "Предлагать ответы в Сообщениях",
+    suggestReplies: "Предлагать ответы во Входящих лидах",
     suggestRepliesDetail: "Черновики из трёх вариантов под каждым входящим.",
     dailyBriefing: "Ежедневная сводка приоритетов",
     dailyBriefingDetail: "Ранжированный список звонков в почте в 7:30.",

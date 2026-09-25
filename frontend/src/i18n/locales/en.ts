@@ -709,7 +709,7 @@ const en = {
     leadScoreThreshold: "Lead score threshold for alerts",
     leadScoreThresholdHint:
       "You'll be notified the moment a lead crosses this score.",
-    suggestReplies: "Suggest replies in Messages",
+    suggestReplies: "Suggest replies in Incoming leads",
     suggestRepliesDetail: "Draft three options under each incoming message.",
     dailyBriefing: "Daily priority briefing",
     dailyBriefingDetail: "A ranked call list in your inbox at 7:30am.",
