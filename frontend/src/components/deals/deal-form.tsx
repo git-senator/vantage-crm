@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ClientApiError } from "@/lib/api/client";
+import { percentToRate, rateToPercent } from "@/lib/commission";
 import { useTranslation } from "@/i18n/language-provider";
 import { createDeal, updateDeal } from "@/lib/api/deals-client";
 import type { Client, Deal, DealInput, Property } from "@/lib/api/types";
@@ -49,7 +50,10 @@ export function DealForm({
   // it is being typed. Before this, the arithmetic happened on the server and
   // you only learned the figure after the deal was saved.
   const [dealValue, setDealValue] = useState(String(deal?.value ?? ""));
-  const [rate, setRate] = useState(String(deal?.commission_rate ?? ""));
+  // Percent on screen; converted back to the 0…1 fraction on submit.
+  const [ratePercent, setRatePercent] = useState(
+    rateToPercent(deal?.commission_rate),
+  );
   const [amount, setAmount] = useState(String(deal?.commission_amount ?? ""));
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -65,7 +69,7 @@ export function DealForm({
   const commissionHint = useMemo(() => {
     const v = Number(dealValue);
     const a = Number(amount);
-    const r = Number(rate);
+    const r = Number(ratePercent) / 100;
     if (!Number.isFinite(v) || v <= 0) return null;
     if (amount.trim() !== "" && Number.isFinite(a) && a > 0) {
       const percent = new Intl.NumberFormat(locale, {
@@ -74,7 +78,7 @@ export function DealForm({
       }).format(a / v);
       return t("body.dfCommissionImplied", { percent });
     }
-    if (rate.trim() !== "" && Number.isFinite(r) && r > 0) {
+    if (ratePercent.trim() !== "" && Number.isFinite(r) && r > 0) {
       return t("body.dfCommissionPreview", {
         // Grouped in the reader's locale, like the percentage above it —
         // en-US separators next to a Russian percent sign read as a bug.
@@ -82,7 +86,7 @@ export function DealForm({
       });
     }
     return null;
-  }, [dealValue, amount, rate, locale, t]);
+  }, [dealValue, amount, ratePercent, locale, t]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -110,7 +114,9 @@ export function DealForm({
       property_id: propertyId === "none" ? null : propertyId,
       value: value("value"),
       commission_amount: value("commission_amount"),
-      commission_rate: value("commission_rate"),
+      // The field asks for a percent because that is how a rate is agreed;
+      // the column wants the fraction.
+      commission_rate: percentToRate(form.get("commission_rate") as string ?? ""),
       priority: priority as DealInput["priority"],
       expected_close_date: value("expected_close_date"),
     };
@@ -216,11 +222,12 @@ export function DealForm({
           name="commission_rate"
           label={t("body.dfCommissionRate")}
           type="number"
-          step="0.0001"
-          placeholder="0.025"
-          hint={t("body.dfRateHint")}
-          value={rate}
-          onChange={(e) => setRate(e.target.value)}
+          step="0.01"
+          min="0"
+          max="100"
+          placeholder="5"
+          value={ratePercent}
+          onChange={(e) => setRatePercent(e.target.value)}
           error={fieldErrors.commission_rate}
           disabled={pending}
         />
