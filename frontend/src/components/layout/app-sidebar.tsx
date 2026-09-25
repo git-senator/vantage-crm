@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Building2,
+  CalendarPlus,
   ChevronsUpDown,
   Handshake,
   Inbox,
@@ -58,6 +59,8 @@ const CREATE_TARGETS = [
   { href: "/clients/new", labelKey: "body.newClient", permission: "contacts.manage", icon: Users },
   { href: "/properties/new", labelKey: "body.newListing", permission: "properties.manage", icon: Building2 },
   { href: "/deals/new", labelKey: "body.newDeal", permission: "deals.manage", icon: Handshake },
+  // An event has no page of its own — the calendar opens it in a dialog.
+  { href: "/calendar?new=1", labelKey: "body.calNewEvent", permission: "activities.manage", icon: CalendarPlus },
 ] as const;
 
 /**

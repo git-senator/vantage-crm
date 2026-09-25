@@ -1,38 +1,22 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, MapPin } from "lucide-react";
 
-import { EmptyState } from "@/components/shared/empty-state";
+import {
+  CalendarBoard,
+  type MonthCell,
+} from "@/components/calendar/calendar-board";
+import type { LinkOptions } from "@/components/calendar/event-dialog";
 import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listCalendarEvents } from "@/lib/api/calendar";
+import { listClients } from "@/lib/api/clients";
+import { listDeals } from "@/lib/api/deals";
+import { listLeads } from "@/lib/api/leads";
+import { listProperties } from "@/lib/api/properties";
 import { getLocale, getTranslations } from "@/i18n/server";
 import { LOCALE_META } from "@/i18n/config";
-import type { CalendarEvent, CalendarEventType } from "@/lib/api/types";
-import { cn } from "@/lib/utils";
+import { hasPermission, requireSession } from "@/lib/auth/session";
+import type { CalendarEvent } from "@/lib/api/types";
 
 export const metadata: Metadata = { title: "Calendar" };
-
-// Visual styles only; the human-readable label is resolved through `t()` so it
-// follows the workspace language.
-const TYPE_STYLES: Record<CalendarEventType, { chip: string; dot: string }> = {
-  showing: { chip: "bg-info/12 text-info", dot: "bg-info" },
-  call: { chip: "bg-primary/10 text-primary", dot: "bg-primary" },
-  meeting: {
-    chip: "bg-muted text-muted-foreground",
-    dot: "bg-muted-foreground/60",
-  },
-  closing: { chip: "bg-success/12 text-success", dot: "bg-success" },
-  open_house: {
-    chip: "bg-warning/18 text-warning-foreground dark:bg-warning/20 dark:text-warning",
-    dot: "bg-warning",
-  },
-  personal: {
-    chip: "bg-muted text-muted-foreground",
-    dot: "bg-muted-foreground/60",
-  },
-};
 
 /**
  * A Monday-first grid covering the month, padded to whole weeks.
@@ -40,13 +24,13 @@ const TYPE_STYLES: Record<CalendarEventType, { chip: string; dot: string }> = {
  * Computed rather than hard-coded — the prototype pinned July 2026 because it
  * had no date engine; a live calendar has to answer for every month.
  */
-function buildMonthGrid(year: number, month: number) {
+function buildMonthGrid(year: number, month: number): MonthCell[] {
   const first = new Date(Date.UTC(year, month, 1));
   // getUTCDay is Sunday-first; shift so Monday is 0.
   const leading = (first.getUTCDay() + 6) % 7;
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 
-  const cells: { key: string; day: number; iso: string | null }[] = [];
+  const cells: MonthCell[] = [];
   for (let i = 0; i < leading; i++) {
     cells.push({ key: `lead-${i}`, day: 0, iso: null });
   }
@@ -65,7 +49,15 @@ function monthWindow(year: number, month: number) {
   // appear in the cells the grid actually shows.
   const start = new Date(Date.UTC(year, month, 1) - 7 * 86_400_000);
   const end = new Date(Date.UTC(year, month + 1, 1) + 7 * 86_400_000);
-  return { start: start.toISOString(), end: end.toISOString() };
+  return {
+    start: start.toISOString(),
+    end: end.toISOString(),
+    // The API cancels rather than deletes so that "what was I meant to be
+    // doing on Tuesday" still has an answer. Hiding cancelled events would
+    // throw that answer away again and make a cancel look like a deletion,
+    // so they stay in the grid, struck through.
+    include_cancelled: true,
+  };
 }
 
 function localDateKey(iso: string): string {
@@ -79,14 +71,17 @@ function localDateKey(iso: string): string {
  * The calendar, on live data since Phase 3.5.
  *
  * The visible month is a search param, so navigation is server-rendered and
- * linkable — the same choice the inbox and every detail view make.
+ * linkable — the same choice the inbox and every detail view make. Everything
+ * a person clicks lives in `CalendarBoard`, which this page hands the finished
+ * grid to.
  */
 export default async function CalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ m?: string }>;
+  searchParams: Promise<{ m?: string; new?: string }>;
 }) {
-  const { m } = await searchParams;
+  const { m, new: openNew } = await searchParams;
+  const session = await requireSession();
   const t = await getTranslations();
   const bcp = LOCALE_META[await getLocale()].htmlLang;
   // Weekday headers and the month label come from Intl in the active locale, so
@@ -104,16 +99,46 @@ export default async function CalendarPage({
   const year = parsed ? Number(parsed[1]) : now.getFullYear();
   const month = parsed ? Number(parsed[2]) - 1 : now.getMonth();
 
-  const events = await listCalendarEvents(monthWindow(year, month));
+  const canManage = hasPermission(session, "activities.manage");
 
-  const byDay = new Map<string, CalendarEvent[]>();
+  // The pickers offer only records the caller may reference — each list is
+  // scoped server-side. Fetched alongside the events rather than on demand,
+  // because a dialog that opens with an empty dropdown reads as broken.
+  const [events, leads, clients, deals, properties] = await Promise.all([
+    listCalendarEvents(monthWindow(year, month)),
+    canManage ? listLeads({ limit: 100 }) : null,
+    canManage ? listClients({ limit: 100 }) : null,
+    canManage ? listDeals({ limit: 100 }) : null,
+    canManage ? listProperties({ limit: 100 }) : null,
+  ]);
+
+  const links: LinkOptions = {
+    lead: (leads?.data ?? []).map((lead) => ({
+      id: lead.id,
+      label: `${lead.first_name} ${lead.last_name}`.trim(),
+    })),
+    client: (clients?.data ?? []).map((client) => ({
+      id: client.id,
+      label: client.display_name,
+    })),
+    deal: (deals?.data ?? []).map((deal) => ({
+      id: deal.id,
+      label: deal.title,
+    })),
+    property: (properties?.data ?? []).map((property) => ({
+      id: property.id,
+      label: property.title,
+    })),
+  };
+
+  const byDay: Record<string, CalendarEvent[]> = {};
   for (const event of events) {
     const key = localDateKey(event.starts_at);
-    byDay.set(key, [...(byDay.get(key) ?? []), event]);
+    byDay[key] = [...(byDay[key] ?? []), event];
   }
 
   const cells = buildMonthGrid(year, month);
-  const label = new Date(Date.UTC(year, month, 1)).toLocaleDateString(bcp, {
+  const monthLabel = new Date(Date.UTC(year, month, 1)).toLocaleDateString(bcp, {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
@@ -123,9 +148,13 @@ export default async function CalendarPage({
   const href = (date: Date) =>
     `/calendar?m=${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
 
-  const todayKey = localDateKey(now.toISOString());
+  // Cancelled events stay in the grid as a record, but they are not plans, so
+  // they do not belong in a list headed "coming up".
   const upcoming = events
-    .filter((event) => new Date(event.starts_at) >= now)
+    .filter(
+      (event) =>
+        event.status !== "cancelled" && new Date(event.starts_at) >= now,
+    )
     .slice(0, 8);
 
   return (
@@ -135,154 +164,20 @@ export default async function CalendarPage({
         description={t("body.calendarDesc")}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <Card className="gap-0 overflow-hidden py-0">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label={t("body.calPrevMonth")}
-                render={<Link href={href(previous)} />}
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                aria-label={t("body.calNextMonth")}
-                render={<Link href={href(next)} />}
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-              <h2 className="ml-1 text-base font-semibold">{label}</h2>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              {Object.entries(TYPE_STYLES).map(([type, style]) => (
-                <span
-                  key={type}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground"
-                >
-                  <span className={cn("size-2 rounded-full", style.dot)} />
-                  {t(`body.calType_${type}`)}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-7 border-b">
-            {weekdays.map((day) => (
-              <div
-                key={day}
-                className="p-2 text-center text-[11px] font-medium text-muted-foreground"
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7">
-            {cells.map((cell) => {
-              const dayEvents = cell.iso ? (byDay.get(cell.iso) ?? []) : [];
-              return (
-                <div
-                  key={cell.key}
-                  className={cn(
-                    "min-h-24 border-r border-b p-1.5 last:border-r-0",
-                    !cell.iso && "bg-muted/30",
-                    cell.iso === todayKey && "bg-accent/30",
-                  )}
-                >
-                  {cell.iso && (
-                    <span
-                      className={cn(
-                        "text-[11px]",
-                        cell.iso === todayKey
-                          ? "font-semibold"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {cell.day}
-                    </span>
-                  )}
-                  <div className="mt-1 space-y-1">
-                    {dayEvents.slice(0, 3).map((event) => {
-                      const style =
-                        TYPE_STYLES[event.event_type] ?? TYPE_STYLES.meeting;
-                      return (
-                        <p
-                          key={event.id}
-                          className={cn(
-                            "truncate rounded px-1 py-0.5 text-[10px]",
-                            style.chip,
-                            event.status === "tentative" && "opacity-60",
-                          )}
-                          title={event.title}
-                        >
-                          {event.title}
-                        </p>
-                      );
-                    })}
-                    {dayEvents.length > 3 && (
-                      <p className="px-1 text-[10px] text-muted-foreground">
-                        {t("body.calMore", { n: dayEvents.length - 3 })}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">{t("body.calComingUp")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {upcoming.length === 0 ? (
-              <EmptyState
-                compact
-                icon={CalendarDays}
-                title={t("body.calendarEmptyTitle")}
-                description={t("body.calendarEmptyDesc")}
-              />
-            ) : (
-              upcoming.map((event) => {
-                const style = TYPE_STYLES[event.event_type] ?? TYPE_STYLES.meeting;
-                return (
-                  <div key={event.id} className="flex gap-2.5">
-                    <span
-                      className={cn("mt-1.5 size-2 shrink-0 rounded-full", style.dot)}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{event.title}</p>
-                      <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                        <Clock className="size-3" />
-                        {new Date(event.starts_at).toLocaleString(bcp, {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                        {event.status === "tentative" &&
-                          ` · ${t("body.calTentative")}`}
-                      </p>
-                      {event.location && (
-                        <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
-                          <MapPin className="size-3 shrink-0" />
-                          {event.location}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <CalendarBoard
+        cells={cells}
+        weekdays={weekdays}
+        monthLabel={monthLabel}
+        previousHref={href(previous)}
+        nextHref={href(next)}
+        byDay={byDay}
+        upcoming={upcoming}
+        todayKey={localDateKey(now.toISOString())}
+        bcp={bcp}
+        canManage={canManage}
+        links={links}
+        openOnArrival={openNew === "1"}
+      />
     </div>
   );
 }
