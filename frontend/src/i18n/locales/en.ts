@@ -1022,6 +1022,8 @@ const en = {
     dfProperty: "Property",
     dfNoProperty: "No property yet",
     dfValue: "Deal value",
+    dfCommissionPreview: "Commission will be {amount}",
+    dfCommissionImplied: "That is {percent} of the deal value",
     dfCommissionRate: "Commission rate",
     dfRateHint: "0.025 is 2.5%",
     dfCommissionAmount: "Commission amount",

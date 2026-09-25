@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Loader2, TriangleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,15 +39,50 @@ export function DealForm({
   properties: Pick<Property, "id" | "title">[];
 }) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const isEdit = deal !== undefined;
 
   const [clientId, setClientId] = useState(deal?.client.id ?? clients[0]?.id ?? "");
   const [propertyId, setPropertyId] = useState(deal?.listing?.id ?? "none");
   const [priority, setPriority] = useState(deal?.priority ?? "medium");
+  // The three money fields are controlled so the commission can be shown while
+  // it is being typed. Before this, the arithmetic happened on the server and
+  // you only learned the figure after the deal was saved.
+  const [dealValue, setDealValue] = useState(String(deal?.value ?? ""));
+  const [rate, setRate] = useState(String(deal?.commission_rate ?? ""));
+  const [amount, setAmount] = useState(String(deal?.commission_amount ?? ""));
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState(false);
+
+  /**
+   * One line under the money row, mirroring the rule the server applies: a
+   * typed amount wins, otherwise the rate decides. Typed an amount instead?
+   * Then the useful number is the percentage it works out to — which is the
+   * question a rental raises, where the fee is a month's rent and nobody
+   * knows offhand what share of the year that is.
+   */
+  const commissionHint = useMemo(() => {
+    const v = Number(dealValue);
+    const a = Number(amount);
+    const r = Number(rate);
+    if (!Number.isFinite(v) || v <= 0) return null;
+    if (amount.trim() !== "" && Number.isFinite(a) && a > 0) {
+      const percent = new Intl.NumberFormat(locale, {
+        style: "percent",
+        maximumFractionDigits: 2,
+      }).format(a / v);
+      return t("body.dfCommissionImplied", { percent });
+    }
+    if (rate.trim() !== "" && Number.isFinite(r) && r > 0) {
+      return t("body.dfCommissionPreview", {
+        // Grouped in the reader's locale, like the percentage above it —
+        // en-US separators next to a Russian percent sign read as a bug.
+        amount: new Intl.NumberFormat(locale).format(Math.round(v * r)),
+      });
+    }
+    return null;
+  }, [dealValue, amount, rate, locale, t]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -172,7 +207,8 @@ export function DealForm({
           label={t("body.dfValue")}
           type="number"
           placeholder="1895000"
-          defaultValue={deal?.value ?? ""}
+          value={dealValue}
+          onChange={(e) => setDealValue(e.target.value)}
           error={fieldErrors.value}
           disabled={pending}
         />
@@ -183,7 +219,8 @@ export function DealForm({
           step="0.0001"
           placeholder="0.025"
           hint={t("body.dfRateHint")}
-          defaultValue={deal?.commission_rate ?? ""}
+          value={rate}
+          onChange={(e) => setRate(e.target.value)}
           error={fieldErrors.commission_rate}
           disabled={pending}
         />
@@ -193,11 +230,21 @@ export function DealForm({
           type="number"
           placeholder={t("body.dfAmountPlaceholder")}
           hint={t("body.dfAmountHint")}
-          defaultValue={deal?.commission_amount ?? ""}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
           error={fieldErrors.commission_amount}
           disabled={pending}
         />
       </div>
+
+      {commissionHint && (
+        <p
+          aria-live="polite"
+          className="-mt-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground"
+        >
+          {commissionHint}
+        </p>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">

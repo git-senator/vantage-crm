@@ -991,6 +991,8 @@ const ru: Dictionary = {
     dfProperty: "Объект",
     dfNoProperty: "Пока без объекта",
     dfValue: "Сумма сделки",
+    dfCommissionPreview: "Комиссия составит {amount}",
+    dfCommissionImplied: "Это {percent} от суммы сделки",
     dfCommissionRate: "Ставка комиссии",
     dfRateHint: "0.025 — это 2,5%",
     dfCommissionAmount: "Сумма комиссии",

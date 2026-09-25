@@ -991,6 +991,8 @@ const ptBR: Dictionary = {
     dfProperty: "Imóvel",
     dfNoProperty: "Sem imóvel ainda",
     dfValue: "Valor do negócio",
+    dfCommissionPreview: "A comissão será {amount}",
+    dfCommissionImplied: "Isso é {percent} do valor do negócio",
     dfCommissionRate: "Taxa de comissão",
     dfRateHint: "0.025 é 2,5%",
     dfCommissionAmount: "Valor da comissão",
