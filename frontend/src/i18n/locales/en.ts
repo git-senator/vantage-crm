@@ -64,7 +64,7 @@ const en = {
     deals: "Deals",
     calendar: "Calendar",
     tasks: "Tasks",
-    messages: "Messages",
+    messages: "Incoming leads",
     documents: "Documents",
     reports: "Reports",
     workflows: "Workflows",

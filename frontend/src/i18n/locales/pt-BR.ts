@@ -60,7 +60,7 @@ const ptBR: Dictionary = {
     deals: "Negócios",
     calendar: "Agenda",
     tasks: "Tarefas",
-    messages: "Mensagens",
+    messages: "Leads recebidos",
     documents: "Documentos",
     reports: "Relatórios",
     workflows: "Fluxos de trabalho",

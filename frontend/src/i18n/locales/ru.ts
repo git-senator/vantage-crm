@@ -60,7 +60,7 @@ const ru: Dictionary = {
     deals: "Сделки",
     calendar: "Календарь",
     tasks: "Задачи",
-    messages: "Сообщения",
+    messages: "Входящие лиды",
     documents: "Документы",
     reports: "Отчёты",
     workflows: "Процессы",
