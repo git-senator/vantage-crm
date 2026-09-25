@@ -28,3 +28,31 @@ export function stageLabel(name: string, t: TranslateFn): string {
   const translated = t(key);
   return translated === key ? name : translated;
 }
+
+/**
+ * Same labels, addressed by the stage's key rather than its name.
+ *
+ * The timeline needs this: a stage-change activity stores the keys it moved
+ * between, not the names, which is what lets an entry written months ago read
+ * in today's language instead of the English it was filed in.
+ */
+const SEED_KEYS_BY_KEY: Record<string, string> = {
+  qualification: "pipelines.seedQualification",
+  showing: "pipelines.seedShowing",
+  offer: "pipelines.seedOfferSubmitted",
+  under_contract: "pipelines.seedUnderContract",
+  closing: "pipelines.seedClosing",
+  closed_won: "pipelines.seedClosedWon",
+  closed_lost: "pipelines.seedClosedLost",
+};
+
+export function stageLabelByKey(
+  key: string | null | undefined,
+  t: TranslateFn,
+): string | null {
+  if (!key) return null;
+  const dictKey = SEED_KEYS_BY_KEY[key];
+  if (!dictKey) return null;
+  const translated = t(dictKey);
+  return translated === dictKey ? null : translated;
+}

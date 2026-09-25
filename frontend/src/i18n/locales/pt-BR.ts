@@ -437,6 +437,8 @@ const ptBR: Dictionary = {
   },
 
   activities: {
+    movedStage: "Movido de “{from}” para “{to}”",
+    movedStageInitial: "Colocado em “{to}”",
     title: "Atividade",
     description: "Uma linha do tempo de tudo que aconteceu neste registro.",
     logActivity: "Registrar atividade",

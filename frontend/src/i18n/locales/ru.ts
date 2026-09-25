@@ -437,6 +437,8 @@ const ru: Dictionary = {
   },
 
   activities: {
+    movedStage: "Перемещена из «{from}» в «{to}»",
+    movedStageInitial: "Поставлена на этап «{to}»",
     title: "Активность",
     description: "Хронология всего, что произошло с этой записью.",
     logActivity: "Записать активность",

@@ -460,6 +460,8 @@ const en = {
 
   // -------------------------------------------------------------- activities
   activities: {
+    movedStage: "Moved from “{from}” to “{to}”",
+    movedStageInitial: "Placed on “{to}”",
     title: "Activity",
     description: "A timeline of everything that happened on this record.",
     logActivity: "Log activity",

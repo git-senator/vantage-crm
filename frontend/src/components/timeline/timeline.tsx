@@ -11,7 +11,9 @@ import {
 
 import { OwnerAvatar } from "@/components/shared/owner-avatar";
 import { Badge } from "@/components/ui/badge";
+import type { TranslateFn } from "@/i18n/translate";
 import type { TimelineItem } from "@/lib/api/types";
+import { stageLabelByKey } from "@/lib/stage-label";
 import { cn } from "@/lib/utils";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -38,6 +40,27 @@ function relativeTime(iso: string): string {
 }
 
 /**
+ * Headline for one entry.
+ *
+ * A stage change was filed in English at the moment it happened, so its stored
+ * title would keep saying "Moved from Closing to Closed won" whatever language
+ * the reader picked. The keys it moved between were stored alongside it, so the
+ * sentence is rebuilt here instead — which fixes the entries already written,
+ * not only the ones still to come. Anything we cannot rebuild keeps its
+ * original text rather than losing it.
+ */
+function headline(item: TimelineItem, t?: TranslateFn): string {
+  const stored = item.title ?? (item.kind === "note" ? "Note" : "Activity");
+  if (!t || item.type !== "stage_change") return stored;
+  const to = stageLabelByKey(item.metadata?.to_stage as string | undefined, t);
+  if (!to) return stored;
+  const from = stageLabelByKey(item.metadata?.from_stage as string | undefined, t);
+  return from
+    ? t("activities.movedStage", { from, to })
+    : t("activities.movedStageInitial", { to });
+}
+
+/**
  * The merged activity + note timeline, presentational. Data comes from the
  * server (`/timeline?entity_type=&entity_id=`); this only renders it, so it can
  * live in a server component and stays free of client state.
@@ -45,9 +68,12 @@ function relativeTime(iso: string): string {
 export function Timeline({
   items,
   emptyLabel = "Nothing logged yet.",
+  t,
 }: {
   items: TimelineItem[];
   emptyLabel?: string;
+  /** Optional: without it entries keep the text they were filed with. */
+  t?: TranslateFn;
 }) {
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
@@ -78,7 +104,7 @@ export function Timeline({
             <div className="min-w-0 flex-1 pt-1">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-sm font-medium">
-                  {item.title ?? (item.kind === "note" ? "Note" : "Activity")}
+                  {headline(item, t)}
                   {item.is_pinned && (
                     <Badge variant="secondary" className="ml-2 align-middle">
                       Pinned

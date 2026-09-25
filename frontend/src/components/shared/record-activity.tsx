@@ -67,7 +67,7 @@ export async function RecordActivity({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Timeline items={timeline} emptyLabel={t("body.dashNothingLogged")} />
+          <Timeline items={timeline} emptyLabel={t("body.dashNothingLogged")} t={t} />
         </CardContent>
       </Card>
 
