@@ -16,6 +16,7 @@ import { getDeal, getDealHistory, getPipeline } from "@/lib/api/deals";
 import { ApiError } from "@/lib/api/server";
 import { RecordActivity } from "@/components/shared/record-activity";
 import { getTranslations } from "@/i18n/server";
+import { stageLabel } from "@/lib/stage-label";
 import type { TranslateFn } from "@/i18n/translate";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 import { formatCurrency, titleize } from "@/lib/format";
@@ -75,7 +76,7 @@ export default async function DealDetailPage({
 
       <PageHeader
         title={deal.title}
-        description={`${deal.client.display_name} · ${deal.stage.name}`}
+        description={`${deal.client.display_name} · ${stageLabel(deal.stage.name, t)}`}
         actions={
           canManage ? (
             <>
@@ -175,19 +176,19 @@ export default async function DealDetailPage({
                             {entry.from_stage ? (
                               <>
                                 <span className="text-muted-foreground">
-                                  {entry.from_stage.name}
+                                  {stageLabel(entry.from_stage.name, t)}
                                 </span>
                                 <span className="mx-1.5 text-muted-foreground">
                                   →
                                 </span>
                                 <span className="font-medium">
-                                  {entry.to_stage.name}
+                                  {stageLabel(entry.to_stage.name, t)}
                                 </span>
                               </>
                             ) : (
                               <>
                                 <span className="font-medium">
-                                  {entry.to_stage.name}
+                                  {stageLabel(entry.to_stage.name, t)}
                                 </span>
                                 <span className="ml-1.5 text-muted-foreground">
                                   {t("body.dvCreatedTag")}
@@ -237,7 +238,7 @@ export default async function DealDetailPage({
                 </span>
                 <StatusBadge
                   status={deal.stage.key}
-                  label={deal.stage.name}
+                  label={stageLabel(deal.stage.name, t)}
                   tone="neutral"
                   dot={false}
                 />

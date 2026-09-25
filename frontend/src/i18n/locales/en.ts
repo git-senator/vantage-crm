@@ -389,6 +389,15 @@ const en = {
 
   // --------------------------------------------------------------- pipelines
   pipelines: {
+    // Names of the seeded stages. They live in the database, so a workspace
+    // that renamed one keeps its own text — see stageLabel().
+    seedQualification: "Qualification",
+    seedShowing: "Showing",
+    seedOfferSubmitted: "Offer submitted",
+    seedUnderContract: "Under contract",
+    seedClosing: "Closing",
+    seedClosedWon: "Closed won",
+    seedClosedLost: "Closed lost",
     title: "Pipelines",
     description: "The stages a deal moves through to close.",
     newPipeline: "New pipeline",
@@ -951,6 +960,9 @@ const en = {
     formStage: "Stage",
     formSource: "Source",
     formTemperature: "Temperature",
+    lfSource_telegram: "Telegram",
+    lfSource_youtube: "YouTube",
+    lfSource_reddit: "Reddit",
     lfSource_zillow: "Zillow",
     lfSource_website: "Website",
     lfSource_referral: "Referral",

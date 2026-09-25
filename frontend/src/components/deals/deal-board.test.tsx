@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { DealBoard } from "@/components/deals/deal-board";
+import { LanguageProvider } from "@/i18n/language-provider";
 import type { Deal, DealBoard as Board } from "@/lib/api/types";
 
 const refresh = vi.fn();
@@ -96,9 +97,20 @@ function makeBoard(): Board {
   };
 }
 
+/**
+ * The board translates its stage names, so it needs the dictionary around it.
+ */
+function renderBoard(props: Parameters<typeof DealBoard>[0]) {
+  return render(
+    <LanguageProvider>
+      <DealBoard {...props} />
+    </LanguageProvider>,
+  );
+}
+
 describe("DealBoard", () => {
   it("renders one column per stage, in pipeline order", () => {
-    render(<DealBoard board={makeBoard()} canManage />);
+    renderBoard({ board: makeBoard(), canManage: true });
 
     expect(screen.getByRole("region", { name: "Qualification" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Closed won" })).toBeInTheDocument();
@@ -117,7 +129,7 @@ describe("DealBoard", () => {
     board.columns[0].total_value = "1500000.00";
     board.columns[0].count = 2;
 
-    render(<DealBoard board={board} canManage />);
+    renderBoard({ board, canManage: true });
 
     const column = screen.getByRole("region", { name: "Qualification" });
     expect(within(column).getByText("$1.50M")).toBeInTheDocument();
@@ -126,14 +138,14 @@ describe("DealBoard", () => {
   });
 
   it("labels an empty column rather than leaving a blank panel", () => {
-    render(<DealBoard board={makeBoard()} canManage />);
+    renderBoard({ board: makeBoard(), canManage: true });
 
     const column = screen.getByRole("region", { name: "Closed won" });
     expect(within(column).getByText("Nothing here")).toBeInTheDocument();
   });
 
   it("renders a card with its client and value", () => {
-    render(<DealBoard board={makeBoard()} canManage />);
+    renderBoard({ board: makeBoard(), canManage: true });
 
     expect(screen.getByText("Harper Lindqvist")).toBeInTheDocument();
     expect(
@@ -144,7 +156,7 @@ describe("DealBoard", () => {
   it("falls back to probability when a deal has no commission", () => {
     const board = makeBoard();
     board.columns[0].deals = [makeDeal({ commission_amount: null })];
-    render(<DealBoard board={board} canManage />);
+    renderBoard({ board, canManage: true });
 
     expect(screen.getByText("10%")).toBeInTheDocument();
   });
@@ -153,7 +165,7 @@ describe("DealBoard", () => {
     // Rendering $0 would be a factual claim about the deal's value.
     const board = makeBoard();
     board.columns[0].deals = [makeDeal({ value: null })];
-    render(<DealBoard board={board} canManage />);
+    renderBoard({ board, canManage: true });
 
     const column = screen.getByRole("region", { name: "Qualification" });
     expect(within(column).getAllByText("—").length).toBeGreaterThan(0);
@@ -161,14 +173,12 @@ describe("DealBoard", () => {
 
   it("does not offer a drag handle without deals.manage", () => {
     // UX only — the API refuses the move regardless of what this renders.
-    const { container } = render(
-      <DealBoard board={makeBoard()} canManage={false} />,
-    );
+    const { container } = renderBoard({ board: makeBoard(), canManage: false });
     expect(container.querySelector(".cursor-grab")).toBeNull();
   });
 
   it("offers a drag handle with deals.manage", () => {
-    const { container } = render(<DealBoard board={makeBoard()} canManage />);
+    const { container } = renderBoard({ board: makeBoard(), canManage: true });
     expect(container.querySelector(".cursor-grab")).not.toBeNull();
   });
 });

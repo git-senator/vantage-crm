@@ -22,6 +22,9 @@ TEMPLATES: dict[str, dict[str, str]] = {
     "en": {
         # ---- source
         "lead_src_referral": "Came from a referral, the strongest channel.",
+        "lead_src_telegram": "Found by the Telegram scout in a chat.",
+        "lead_src_youtube": "Found by the Radar under a YouTube video.",
+        "lead_src_reddit": "Found by the Reddit scout in a thread.",
         "lead_src_open_house": "Met at an open house.",
         "lead_src_realtor_com": "Came from realtor.com.",
         "lead_src_zillow": "Came from Zillow.",
@@ -90,6 +93,9 @@ TEMPLATES: dict[str, dict[str, str]] = {
     },
     "ru": {
         "lead_src_referral": "Пришёл по рекомендации — самый сильный канал.",
+        "lead_src_telegram": "Найден слушателем в телеграм-чате.",
+        "lead_src_youtube": "Найден Радаром в комментариях под роликом.",
+        "lead_src_reddit": "Найден слушателем в ветке на Reddit.",
         "lead_src_open_house": "Знакомство на дне открытых дверей.",
         "lead_src_realtor_com": "Пришёл с realtor.com.",
         "lead_src_zillow": "Пришёл с Zillow.",
@@ -148,6 +154,9 @@ TEMPLATES: dict[str, dict[str, str]] = {
     },
     "pt-BR": {
         "lead_src_referral": "Veio por indicação, o canal mais forte.",
+        "lead_src_telegram": "Encontrado pelo scout no Telegram.",
+        "lead_src_youtube": "Encontrado pelo Radar sob um vídeo do YouTube.",
+        "lead_src_reddit": "Encontrado pelo scout numa thread do Reddit.",
         "lead_src_open_house": "Conheceu em um open house.",
         "lead_src_realtor_com": "Veio do realtor.com.",
         "lead_src_zillow": "Veio do Zillow.",

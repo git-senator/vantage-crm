@@ -22,6 +22,9 @@ import type { Lead, LeadInput } from "@/lib/api/types";
 
 const STAGES = ["new", "contacted", "qualified", "touring", "unqualified"] as const;
 const SOURCES = [
+  "telegram",
+  "youtube",
+  "reddit",
   "zillow",
   "website",
   "referral",

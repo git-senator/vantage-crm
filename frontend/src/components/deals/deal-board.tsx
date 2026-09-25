@@ -19,10 +19,12 @@ import { GripVertical, Loader2, TriangleAlert } from "lucide-react";
 
 import { LostReasonDialog } from "@/components/deals/lost-reason-dialog";
 import { Card } from "@/components/ui/card";
+import { useTranslation } from "@/i18n/language-provider";
 import { ClientApiError } from "@/lib/api/client";
 import { moveDealStage } from "@/lib/api/deals-client";
 import type { Deal, DealBoard as Board } from "@/lib/api/types";
 import { formatPrice } from "@/lib/format";
+import { stageLabel } from "@/lib/stage-label";
 import { cn } from "@/lib/utils";
 
 /**
@@ -50,6 +52,7 @@ export function DealBoard({
   board: Board;
   canManage: boolean;
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -164,7 +167,7 @@ export function DealBoard({
       setLostPrompt({
         deal,
         stageId: toStageId,
-        stageName: column.stage.name,
+        stageName: stageLabel(column.stage.name, t),
       });
       return;
     }
@@ -233,6 +236,7 @@ function BoardColumn({
   canManage: boolean;
   pendingId: string | null;
 }) {
+  const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: column.stage.id });
 
   return (
@@ -242,11 +246,11 @@ function BoardColumn({
         "flex w-[300px] shrink-0 flex-col rounded-xl bg-muted/40 transition-colors",
         isOver && "bg-accent ring-2 ring-primary/40",
       )}
-      aria-label={column.stage.name}
+      aria-label={stageLabel(column.stage.name, t)}
     >
       <header className="flex items-center gap-2 px-3 py-3">
         <span className={cn("size-2 rounded-full", accentFor(column.stage))} />
-        <h2 className="text-sm font-medium">{column.stage.name}</h2>
+        <h2 className="text-sm font-medium">{stageLabel(column.stage.name, t)}</h2>
         <span className="tabular rounded-full bg-background px-1.5 text-xs text-muted-foreground">
           {column.count}
         </span>

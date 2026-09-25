@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "@/i18n/language-provider";
+import { stageLabel } from "@/lib/stage-label";
 import { ClientApiError } from "@/lib/api/client";
 import { moveDealStage } from "@/lib/api/deals-client";
 import type { Deal, PipelineStage } from "@/lib/api/types";
@@ -101,7 +102,7 @@ export function DealStageMover({
         <DialogHeader>
           <DialogTitle>{t("body.dsmTitle")}</DialogTitle>
           <DialogDescription>
-            {t("body.dsmDesc", { stage: deal.stage.name })}
+            {t("body.dsmDesc", { stage: stageLabel(deal.stage.name, t) })}
           </DialogDescription>
         </DialogHeader>
 
@@ -129,7 +130,7 @@ export function DealStageMover({
               <SelectContent>
                 {others.map((stage) => (
                   <SelectItem key={stage.id} value={stage.id}>
-                    {stage.name}
+                    {stageLabel(stage.name, t)}
                   </SelectItem>
                 ))}
               </SelectContent>

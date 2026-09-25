@@ -370,6 +370,15 @@ const ru: Dictionary = {
   },
 
   pipelines: {
+    // Names of the seeded stages. They live in the database, so a workspace
+    // that renamed one keeps its own text — see stageLabel().
+    seedQualification: "Квалификация",
+    seedShowing: "Показ",
+    seedOfferSubmitted: "Оффер отправлен",
+    seedUnderContract: "В договоре",
+    seedClosing: "Закрытие",
+    seedClosedWon: "Закрыто — выиграно",
+    seedClosedLost: "Закрыто — проиграно",
     title: "Воронки",
     description: "Этапы, которые сделка проходит до закрытия.",
     newPipeline: "Новая воронка",
@@ -920,6 +929,9 @@ const ru: Dictionary = {
     formStage: "Этап",
     formSource: "Источник",
     formTemperature: "Температура",
+    lfSource_telegram: "Telegram",
+    lfSource_youtube: "YouTube",
+    lfSource_reddit: "Reddit",
     lfSource_zillow: "Zillow",
     lfSource_website: "Сайт",
     lfSource_referral: "Рекомендация",

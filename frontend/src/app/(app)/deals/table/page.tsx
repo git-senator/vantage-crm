@@ -20,6 +20,7 @@ import {
 import { listDeals } from "@/lib/api/deals";
 import type { DealFilters } from "@/lib/api/types";
 import { formatPrice } from "@/lib/format";
+import { stageLabel } from "@/lib/stage-label";
 import { getTranslations } from "@/i18n/server";
 import { hasPermission, requireSession } from "@/lib/auth/session";
 
@@ -116,7 +117,7 @@ export default async function DealsTablePage({
                     <TableCell>
                       <StatusBadge
                         status={deal.stage.key}
-                        label={deal.stage.name}
+                        label={stageLabel(deal.stage.name, t)}
                         tone="neutral"
                         dot={false}
                       />

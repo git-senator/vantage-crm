@@ -24,6 +24,11 @@ LeadStage = Literal["new", "contacted", "qualified", "touring", "unqualified"]
 LeadStatus = Literal["open", "converted", "lost"]
 LeadTemperature = Literal["hot", "warm", "cold"]
 LeadSource = Literal[
+    # Каналы, которыми агентство работает на самом деле: их приносят слушатели
+    # в «Входящие лиды». Стоят первыми, потому что выбирают почти всегда их.
+    "telegram",
+    "youtube",
+    "reddit",
     "zillow",
     "website",
     "referral",

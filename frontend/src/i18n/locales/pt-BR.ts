@@ -370,6 +370,15 @@ const ptBR: Dictionary = {
   },
 
   pipelines: {
+    // Names of the seeded stages. They live in the database, so a workspace
+    // that renamed one keeps its own text — see stageLabel().
+    seedQualification: "Qualificação",
+    seedShowing: "Visita",
+    seedOfferSubmitted: "Proposta enviada",
+    seedUnderContract: "Em contrato",
+    seedClosing: "Fechamento",
+    seedClosedWon: "Fechado ganho",
+    seedClosedLost: "Fechado perdido",
     title: "Funis",
     description: "As etapas pelas quais um negócio passa até o fechamento.",
     newPipeline: "Novo funil",
@@ -920,6 +929,9 @@ const ptBR: Dictionary = {
     formStage: "Etapa",
     formSource: "Origem",
     formTemperature: "Temperatura",
+    lfSource_telegram: "Telegram",
+    lfSource_youtube: "YouTube",
+    lfSource_reddit: "Reddit",
     lfSource_zillow: "Zillow",
     lfSource_website: "Site",
     lfSource_referral: "Indicação",
